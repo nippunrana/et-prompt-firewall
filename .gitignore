@@ -1,0 +1,21 @@
+# Local only: hackathon material, strategy and server layout. Never commit to the public repo.
+problem-statement.pdf
+ai-context.md
+01-plan/
+docs/hackathon-guidelines.md
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+.venv/
+
+# Node / Next.js
+node_modules/
+.next/
+
+# OS
+.DS_Store
