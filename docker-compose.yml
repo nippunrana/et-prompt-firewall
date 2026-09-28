@@ -1,0 +1,62 @@
+# On the Mac: `docker compose up --build` builds local images for development.
+# On the VPS: scripts/deploy.sh points each `:live` tag at the image CI built for a commit.
+# The VPS never builds, and never runs `docker compose pull` (the :live tags are not in any registry).
+name: et-prompt-firewall
+
+services:
+  firewall:
+    build: ./services/firewall
+    image: et-prompt-firewall-firewall:live
+    restart: unless-stopped
+    environment:
+      # No default: the password must never live in git. A missing value fails the deploy
+      # before any running container is replaced.
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set in .env (host is host.docker.internal)}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # The VPS is shared with live apps: every service must keep its cpus and mem_limit caps.
+    cpus: 1.0
+    mem_limit: 2560m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 2s
+
+  demo-agent:
+    build: ./services/demo-agent
+    image: et-prompt-firewall-demo-agent:live
+    restart: unless-stopped
+    cpus: 0.5
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 2s
+
+  web:
+    build: ./web
+    image: et-prompt-firewall-web:live
+    restart: unless-stopped
+    # The only published port, and only on localhost: Nginx proxies /projects/et-prompt-firewall here.
+    ports:
+      - "127.0.0.1:3020:3000"
+    depends_on:
+      firewall:
+        condition: service_healthy
+      demo-agent:
+        condition: service_healthy
+    cpus: 0.5
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/projects/et-prompt-firewall/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 2s

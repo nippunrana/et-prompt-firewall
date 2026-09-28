@@ -1,0 +1,114 @@
+name: Test, build and deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# One deploy at a time; a newer push waits instead of cancelling a deploy halfway through
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io/nippunrana/et-prompt-firewall
+
+jobs:
+  test:
+    name: Test ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [firewall, demo-agent]
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - run: python -m pytest
+
+  # The web image build runs `next build`, which type-checks, so it doubles as the web test.
+  # Images are built here, on GitHub's x86_64 runners: never on the VPS (shared CPUs) or the Mac (arm64).
+  build:
+    name: Build ${{ matrix.service }}
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - service: firewall
+            context: services/firewall
+          - service: demo-agent
+            context: services/demo-agent
+          - service: web
+            context: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        if: github.event_name == 'push'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Pull requests build to prove the image works; only pushes to main publish it
+      - uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.context }}
+          platforms: linux/amd64
+          push: ${{ github.event_name == 'push' }}
+          provenance: false
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          tags: ${{ env.REGISTRY }}-${{ matrix.service }}:sha-${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  deploy:
+    name: Deploy to the VPS
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: read
+    steps:
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/known_hosts ~/.ssh/deploy_key
+
+      # The server address, user and folder are secrets, so the public repo does not reveal them.
+      # Never deploy as root. The job's short-lived token goes in on stdin, for deploy.sh to pull
+      # the images; no registry credential is stored on the server. The checkout is reset first,
+      # so the deploy.sh and docker-compose.yml of this commit are the ones that run.
+      - name: Deploy
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          if [ -z "$SSH_USER" ] || [ "$SSH_USER" = "root" ] || [ -z "$DEPLOY_PATH" ]; then
+            echo "::error::SSH_USER must be set and must not be root; DEPLOY_PATH must be set" >&2
+            exit 1
+          fi
+          printf '%s\n' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            "cd '$DEPLOY_PATH' \
+              && git fetch origin main && git reset --hard ${{ github.sha }} \
+              && bash scripts/deploy.sh ${{ github.sha }} ${{ github.actor }}"
