@@ -15,10 +15,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app ./app
+# Pre-download model weights during build so the image is self-contained and offline-ready.
+# Keep this above `COPY app`: a code change would otherwise rebuild this layer and the VPS would pull it again.
+RUN python -c "from rapidocr_onnxruntime import RapidOCR; from rapid_table import RapidTable; RapidOCR(); RapidTable()"
 
-# Pre-download model weights during build so the image is self-contained and offline-ready
-RUN python -c "from app.ocr import get_ocr_engine, get_table_engine; get_ocr_engine(); get_table_engine()"
+COPY app ./app
 
 RUN useradd --system --uid 1001 app
 USER app
