@@ -11,6 +11,7 @@ Handles:
 from __future__ import annotations
 
 import asyncio
+import csv
 import io
 import logging
 import os
@@ -19,6 +20,7 @@ from typing import Any, List, Optional
 
 import docx
 import numpy as np
+import openpyxl
 import pdfplumber
 import pypdfium2 as pdfium
 from PIL import Image
@@ -252,6 +254,60 @@ def extract_from_pdf_sync(pdf_bytes: bytes) -> tuple[str, str, int]:
     return "\n\n".join(scanned_pages).strip(), "scanned_pdf_ocr", page_count
 
 
+def extract_from_excel_sync(excel_bytes: bytes) -> tuple[str, int]:
+    """Extracts all sheets from an Excel (.xlsx) file and formats them as Markdown tables."""
+    wb = openpyxl.load_workbook(io.BytesIO(excel_bytes), data_only=True)
+    parts: List[str] = []
+    sheet_count = len(wb.sheetnames)
+
+    for sheetname in wb.sheetnames:
+        sheet = wb[sheetname]
+        rows = list(sheet.iter_rows(values_only=True))
+        if not rows:
+            continue
+
+        non_empty_rows = [
+            r for r in rows
+            if any(c is not None and str(c).strip() != "" for c in r)
+        ]
+        if not non_empty_rows:
+            continue
+
+        max_cols = max(len([c for c in r]) for r in non_empty_rows)
+        if max_cols == 0:
+            continue
+
+        table_md: List[str] = [f"### Sheet: {sheetname}"]
+        for idx, row in enumerate(non_empty_rows):
+            cells = [str(c if c is not None else "").strip().replace("\n", " ") for c in row]
+            while len(cells) < max_cols:
+                cells.append("")
+            table_md.append("| " + " | ".join(cells) + " |")
+            if idx == 0:
+                table_md.append("| " + " | ".join(["---"] * max_cols) + " |")
+
+        parts.append("\n".join(table_md))
+
+    return "\n\n".join(parts).strip(), max(sheet_count, 1)
+
+
+def extract_from_csv_sync(csv_bytes: bytes) -> str:
+    """Extracts text from CSV files and formats as a Markdown table."""
+    text = csv_bytes.decode("utf-8", errors="replace")
+    reader = csv.reader(io.StringIO(text))
+    table_md: List[str] = []
+
+    for idx, row in enumerate(reader):
+        if not any(c.strip() for c in row):
+            continue
+        cells = [c.strip().replace("\n", " ") for c in row]
+        table_md.append("| " + " | ".join(cells) + " |")
+        if idx == 0:
+            table_md.append("| " + " | ".join(["---"] * max(len(cells), 1)) + " |")
+
+    return "\n".join(table_md).strip()
+
+
 def _sync_process_document(file_bytes: bytes, filename: str) -> dict:
     """Dispatches document to the correct extraction strategy based on extension/format."""
     name_lower = filename.lower()
@@ -262,6 +318,26 @@ def _sync_process_document(file_bytes: bytes, filename: str) -> dict:
             "status": "success",
             "filename": filename,
             "method": "word_docx",
+            "page_count": 1,
+            "text": text,
+        }
+
+    if name_lower.endswith(".xlsx"):
+        text, sheets = extract_from_excel_sync(file_bytes)
+        return {
+            "status": "success",
+            "filename": filename,
+            "method": "excel_xlsx",
+            "page_count": sheets,
+            "text": text,
+        }
+
+    if name_lower.endswith(".csv"):
+        text = extract_from_csv_sync(file_bytes)
+        return {
+            "status": "success",
+            "filename": filename,
+            "method": "csv",
             "page_count": 1,
             "text": text,
         }

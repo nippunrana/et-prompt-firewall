@@ -263,6 +263,10 @@ export default function DocumentExtractor() {
         return { bg: "#fef3c7", text: "#b45309", label: "Scanned PDF (RapidOCR)" };
       case "word_docx":
         return { bg: "#ede9fe", text: "#6d28d9", label: "Word (.docx) XML Native" };
+      case "excel_xlsx":
+        return { bg: "#f0fdf4", text: "#166534", label: "Excel (.xlsx) Table Native" };
+      case "csv":
+        return { bg: "#f0fdf4", text: "#166534", label: "CSV Table Native" };
       default:
         return { bg: "#f1f5f9", text: "#475569", label: method };
     }
@@ -307,7 +311,7 @@ export default function DocumentExtractor() {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".png,.jpg,.jpeg,.webp,.tiff,.bmp,.pdf,.docx"
+          accept=".png,.jpg,.jpeg,.webp,.tiff,.bmp,.pdf,.docx,.xlsx,.csv"
           onChange={handleFileChange}
           style={{ display: "none" }}
           id="file-upload-input"
@@ -318,7 +322,7 @@ export default function DocumentExtractor() {
           {file ? file.name : "Click to browse or drag & drop a document here"}
         </p>
         <p style={{ margin: 0, fontSize: "0.82rem", color: "#64748b" }}>
-          Supported: PNG, JPG, WEBP, TIFF, PDF (scanned or digital), Word (.docx)
+          Supported: PNG, JPG, WEBP, TIFF, PDF (scanned or digital), Word (.docx), Excel (.xlsx), CSV
         </p>
 
         {file && (

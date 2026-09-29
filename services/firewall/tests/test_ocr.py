@@ -82,3 +82,46 @@ def test_endpoint_empty_file():
     )
     assert response.status_code == 400
     assert "empty" in response.json()["detail"].lower()
+
+
+def test_excel_extraction():
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Employees"
+    ws.append(["Name", "Department", "Salary"])
+    ws.append(["Alice", "Engineering", 120000])
+    ws.append(["Bob", "Marketing", 95000])
+
+    buf = io.BytesIO()
+    wb.save(buf)
+
+    response = client.post(
+        "/extract-text",
+        files={"file": ("staff.xlsx", buf.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+    assert data["method"] == "excel_xlsx"
+    assert "Sheet: Employees" in data["text"]
+    assert "| Alice | Engineering | 120000 |" in data["text"]
+    assert "| Bob | Marketing | 95000 |" in data["text"]
+    assert "duration_seconds" in data
+    assert "duration_ms" in data
+
+
+def test_csv_extraction():
+    csv_content = "Product,Price,Quantity\nWidget,19.99,100\nGadget,29.99,50\n"
+    response = client.post(
+        "/extract-text",
+        files={"file": ("inventory.csv", csv_content.encode("utf-8"), "text/csv")},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+    assert data["method"] == "csv"
+    assert "| Product | Price | Quantity |" in data["text"]
+    assert "| Widget | 19.99 | 100 |" in data["text"]
+    assert "duration_seconds" in data
+    assert "duration_ms" in data
