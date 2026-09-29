@@ -1,9 +1,9 @@
-"""Firewall service. Placeholder for the deploy skeleton: it reports that it runs and can reach its database."""
-
 import os
 
 import psycopg
-from fastapi import FastAPI
+from fastapi import FastAPI, File, HTTPException, UploadFile
+
+from app.ocr import process_document
 
 app = FastAPI(title="et-prompt-firewall: firewall")
 
@@ -26,3 +26,28 @@ def database_health() -> dict:
     except psycopg.Error:
         return {"database": "error"}
     return {"database": "ok"}
+
+
+@app.post("/extract-text")
+async def extract_text(file: UploadFile = File(...)) -> dict:
+    """Extracts text and structured tables from images, PDFs, or Word documents."""
+    if not file or not file.filename:
+        raise HTTPException(status_code=400, detail="A valid file must be uploaded.")
+
+    try:
+        content = await file.read()
+        if not content:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+        import time
+        start_t = time.perf_counter()
+        result = await process_document(content, filename=file.filename)
+        elapsed = time.perf_counter() - start_t
+        result["duration_seconds"] = round(elapsed, 3)
+        result["duration_ms"] = round(elapsed * 1000)
+        return result
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Document extraction error: {e}")
