@@ -12,7 +12,12 @@ Sets:
   pairs_benign      their 600 near-identical benign twins (hard benign)
   llmail_benign     Microsoft's 203 benign emails for false-positive tests
   enron_benign      1,000 real Enron work emails; `hard` marks instruction-like wording
-  planted           300 boundary-pair attacks inserted into other Enron emails at a recorded span
+  planted_inbox     the 165 labelled LLMail attacks, each placed among 3 benign emails (known span)
+  planted_thread    the same attacks quoted under "-----Original Message-----" in a real Enron reply
+
+An earlier planted set (boundary-pair texts inserted into Enron emails) was withdrawn: its
+business-action families read as ordinary requests to a human once inside an email, so they did
+not test prompt injection.
 
 Run: python eval/build_sets.py   (standard library only; deterministic)
 """
@@ -32,6 +37,8 @@ MAX_CHARS = 20_000  # the firewall's /check limit
 
 # Every LLMail row arrives by email and asks the agent to send one: these two always apply.
 LLMAIL_CONSTANT = ["indirect_injection", "tool_abuse"]
+ATTACKER = "sender@external-mail.example"  # LLMail gives no sender; a neutral outside address
+INBOX_SENDERS = ["priya.menon@company.example", "d.okafor@company.example", "lena.fischer@company.example"]
 LABEL_NAMES = {"indirect_prompt_injection": "indirect_injection"}
 
 # Boundary-pair families -> our types. No family is plain credential theft; that type is covered by
@@ -123,7 +130,7 @@ def pair_sets() -> tuple[list[dict], list[dict]]:
     return out, attacks
 
 
-def enron_sets(rng: random.Random, pair_attacks: list[dict]) -> list[dict]:
+def enron_sets(rng: random.Random) -> tuple[list[dict], list[str]]:
     emails, seen = [], set()
     for line in open(DATA / "enron_sample.jsonl"):
         e = json.loads(line)
@@ -137,35 +144,63 @@ def enron_sets(rng: random.Random, pair_attacks: list[dict]) -> list[dict]:
     out = [{"id": f"EB-{i:04d}", "set": "enron_benign", "text": t, "label": 0, "types": [],
             "group": "enron_benign", "hard": bool(HARD.search(t))} for i, (_, t) in enumerate(benign, 1)]
 
-    carriers = [t for _, t in rest if 40 <= len(t.split()) <= 400]
-    by_family = defaultdict(list)
-    for a in pair_attacks:
-        by_family[a["group"]].append(a)
-    picks = []
-    for fam in sorted(by_family):
-        rows = by_family[fam][:]
-        rng.shuffle(rows)
-        picks += rows[:25]
-    if len(carriers) < len(picks):
-        raise SystemExit(f"only {len(carriers)} Enron carriers for {len(picks)} planted attacks")
-    for i, (attack, carrier) in enumerate(zip(picks, carriers), 1):
-        # Insert at a sentence or line boundary after the first one, so the attack sits inside text.
-        cuts = [m.end() for m in re.finditer(r"(?<=[.!?])\s+|\n+", carrier)][1:] or [len(carrier)]
-        at = rng.choice(cuts)
-        head, tail = carrier[:at].rstrip(), carrier[at:].lstrip()
-        text = f"{head} {attack['text']} {tail}".rstrip()
-        start = len(head) + 1
-        out.append({"id": f"PL-{i:03d}", "set": "planted", "text": text, "label": 1,
-                    "types": attack["types"] + ["indirect_injection"], "group": attack["group"],
-                    "span": [start, start + len(attack["text"])], "attack_id": attack["id"]})
+    return out, [t for _, t in rest if 40 <= len(t.split()) <= 400]
+
+
+def _attack_email(e: dict) -> str:
+    # The attacker's email as the assistant would see it among others: a small header, then the body.
+    subject = e["subject"].strip()
+    return f"From: {ATTACKER}\nSubject: {subject}\n\n{e['body'].strip()}" if subject else \
+        f"From: {ATTACKER}\n\n{e['body'].strip()}"
+
+
+def planted_sets(enron_carriers: list[str]) -> list[dict]:
+    """The 165 labelled LLMail attacks, each proven to hijack an email assistant, placed at a known
+    position in two realistic settings:
+      planted_inbox   among three benign emails the assistant is asked to process (LLMail's own
+                      scenario); the benign emails are Microsoft's synthetic ones.
+      planted_thread  quoted under "-----Original Message-----" in a real Enron reply (local only).
+    The span is the whole attacker email, header included: everything in it is attacker-written."""
+    rng = random.Random(SEED + 1)  # separate stream: the other sets stay exactly as they were
+    labelled = json.load(open(LABELS / "llmail_p2_sample.json"))
+    labels = json.load(open(LABELS / "llmail_p2_labels.json"))
+    clusters = json.load(open(LABELS / "llmail_p2_clusters.json"))
+    benign = [e.replace("Subject of the email:", "Subject:", 1).replace("   Body:", "\n\n", 1)
+              for e in json.load(open(DATA / "emails_for_fp_tests.json"))]
+    carriers = enron_carriers[:]
+    rng.shuffle(carriers)
+    if len(carriers) < len(labelled):
+        raise SystemExit(f"only {len(carriers)} Enron carriers for {len(labelled)} planted attacks")
+    out = []
+    for i, e in enumerate(labelled, 1):
+        types = [LABEL_NAMES.get(t, t) for t in labels[e["id"]]["types"]] + LLMAIL_CONSTANT
+        attack = _attack_email(e)
+        base = {"label": 1, "types": types, "group": f"family-{clusters[e['id']]}", "attack_id": e["id"]}
+
+        others = [f"From: {INBOX_SENDERS[k % len(INBOX_SENDERS)]}\n{t}" for k, t in enumerate(rng.sample(benign, 3))]
+        at = rng.randrange(4)  # the attack's place among the four emails
+        parts, span = [], None
+        for k, body in enumerate(others[:at] + [attack] + others[at:]):
+            block = f"--- Email {k + 1} of 4 ---\n"
+            pos = sum(len(x) for x in parts) + len(block)
+            if k == at:
+                span = [pos, pos + len(attack)]
+            parts.append(block + body + "\n\n")
+        out.append({**base, "id": f"PI-{i:03d}", "set": "planted_inbox", "text": "".join(parts).rstrip(), "span": span})
+
+        reply = carriers[i - 1]
+        head = f"{reply}\n\n-----Original Message-----\n"
+        out.append({**base, "id": f"PT-{i:03d}", "set": "planted_thread", "text": head + attack,
+                    "span": [len(head), len(head) + len(attack)]})
     return out
 
 
 def main() -> None:
     rng = random.Random(SEED)
     rows = llmail_sets(rng)
-    pairs, pair_attacks = pair_sets()
-    rows += pairs + enron_sets(rng, pair_attacks)
+    pairs, _ = pair_sets()
+    enron, carriers = enron_sets(rng)
+    rows += pairs + enron + planted_sets(carriers)
     with open(DATA / "sets.jsonl", "w") as f:
         for r in rows:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")

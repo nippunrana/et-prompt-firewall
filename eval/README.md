@@ -9,11 +9,11 @@ Measures the firewall on public data it was not trained on: attacks caught (reca
 | `pairs_attack` / `pairs_benign` | 600 / 600 | [Boundary pairs](https://huggingface.co/datasets/3nesdeniz/agentic-prompt-injection-boundary-pairs): 12 attack families, each with a near-identical benign twin |
 | `llmail_benign` | 203 | Microsoft's benign emails written for false-positive tests |
 | `enron_benign` | 1,000 | Real work email (Enron corpus, random sample) |
-| `planted` | 300 | Boundary-pair attacks inserted into other Enron emails at a recorded position (localisation) |
+| `planted_inbox` / `planted_thread` | 165 / 165 | The labelled LLMail attacks at a known position: among 3 benign emails the assistant must process, or quoted in a real Enron reply (localisation) |
 
 **Why these sets.** PIGuard was trained on BIPIA, deepset, HackAPrompt, InjecAgent and others, so those would flatter it; none of the sets above is in its training data. Prompt Guard 2's training data is not published; every set here was released after it.
 
-**Limits.** The LLMail type labels were assigned by an AI labeller following [labels/labelling-guide.md](labels/labelling-guide.md) and checked by a second, blind AI labeller (29/30 exact agreement), not by humans. Many LLMail attacks share templates, so results are also reported per template family and per team. Enron text is real personal email: it is never committed or displayed, and only aggregate numbers are reported.
+**Limits.** The LLMail type labels were assigned by an AI labeller following [labels/labelling-guide.md](labels/labelling-guide.md) and checked by a second, blind AI labeller (29/30 exact agreement), not by humans. Many LLMail attacks share templates, so results are also reported per template family and per team. Four boundary-pair families (approval-workflow bypass, authority-claim bypass, tool-action abuse, sensitive-data exfiltration) rarely address the AI and read as ordinary requests to a person inside an email; they are reported separately as unsafe-action requests (the tool-call guard's job), never blended into injection recall. Enron text is real personal email: it is never committed or displayed, and only aggregate numbers are reported.
 
 ## Run
 
