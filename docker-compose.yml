@@ -5,7 +5,11 @@ name: et-prompt-firewall
 
 services:
   firewall:
-    build: ./services/firewall
+    build:
+      context: ./services/firewall
+      # Prompt Guard 2 is gated: the build downloads it with HF_TOKEN from .env. Only building needs
+      # the token; the VPS never builds, so its .env does not hold it.
+      secrets: [hf_token]
     image: et-prompt-firewall-firewall:live
     restart: unless-stopped
     environment:
@@ -60,3 +64,7 @@ services:
       retries: 3
       start_period: 30s
       start_interval: 2s
+
+secrets:
+  hf_token:
+    environment: HF_TOKEN

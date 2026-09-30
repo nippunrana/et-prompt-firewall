@@ -71,6 +71,9 @@ jobs:
           provenance: false
           labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
           tags: ${{ env.REGISTRY }}-${{ matrix.service }}:sha-${{ github.sha }}
+          # Only the firewall image uses it: Prompt Guard 2 is gated on Hugging Face
+          secrets: |
+            hf_token=${{ secrets.HF_TOKEN }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
