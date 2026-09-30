@@ -7,6 +7,10 @@ docs/hackathon-guidelines.md
 # Mac-only Compose settings (publishes the firewall's port for local testing)
 docker-compose.override.yml
 
+# Evaluation data and raw per-item results (contain third-party email text, incl. Enron). Only the
+# text-free summaries in eval/results/ are committed.
+eval/data/
+
 # Secrets
 .env
 .env.*
