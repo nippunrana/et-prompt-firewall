@@ -23,11 +23,11 @@ docker run --rm -v "$PWD/eval:/eval" python:3.12-slim sh -c "pip -q install pyar
 # 2. Test sets
 python3 eval/build_sets.py
 # 3. Run the firewall's own check on every item (inside the firewall image, working-tree code)
-docker run --rm --cpus 9 --memory 7g -e EVAL_LABEL=mine -e EVAL_WORKERS=3 -e TORCH_THREADS=3 \
+docker run --rm --name eval-mine --cpus 9 --memory 7g -e EVAL_LABEL=mine -e EVAL_WORKERS=7 -e TORCH_THREADS=1 \
   -e EVAL_COMMIT=$(git rev-parse HEAD) -v "$PWD/eval:/eval" \
   -v "$PWD/services/firewall/app:/app/app:ro" et-prompt-firewall-firewall:live python /eval/run.py
 # 4. Summary (numbers only) into eval/results/
 python3 eval/report.py mine
 ```
 
-A full run is about an hour on a 10-core laptop; rerunning continues where it stopped.
+A full run takes 2–3 hours on a 10-core laptop (long emails dominate); rerunning continues where it stopped. Stop a run with `docker kill eval-mine`: stopping only the terminal command leaves the container running, and two runs writing one file duplicate work.

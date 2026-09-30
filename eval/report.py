@@ -49,7 +49,10 @@ def pct(values: list[int], q: float) -> int:
 
 def main(label: str) -> None:
     items = {i["id"]: i for i in map(json.loads, open(DATA / "sets.jsonl"))}
-    rows = [{**items[r["id"]], **r} for r in map(json.loads, open(DATA / f"results-{label}.jsonl"))]
+    results = {}
+    for r in map(json.loads, open(DATA / f"results-{label}.jsonl")):
+        results.setdefault(r["id"], r)  # an interrupted, resumed run can write an item twice; keep the first
+    rows = [{**items[i], **r} for i, r in results.items()]
     meta = json.loads((DATA / f"results-{label}.meta.json").read_text())
     by_set = defaultdict(list)
     for r in rows:
@@ -148,7 +151,8 @@ def markdown(o: dict) -> str:
     lines += ["", "## Each detector alone (all attack sets vs all benign sets)", "", "| Detector | Threshold | Recall | FPR |", "| :-- | :-- | :-- | :-- |"]
     for clf, per in o["sweep"].items():
         for th, d in per.items():
-            lines.append(f"| {clf} | {th} | {d['recall']:.1%} | {d['fpr']:.1%} |")
+            show = lambda v: "–" if v is None else f"{v:.1%}"  # a partial run may have no rows of a kind
+            lines.append(f"| {clf} | {th} | {show(d['recall'])} | {show(d['fpr'])} |")
     return "\n".join(lines) + "\n"
 
 
