@@ -1,5 +1,6 @@
 import { databaseStatus, serviceStatus } from "@/lib/services";
 import DocumentExtractor from "./components/DocumentExtractor";
+import FirewallChecker from "./components/FirewallChecker";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,8 @@ export default async function Home() {
           </tbody>
         </table>
       </div>
+
+      <FirewallChecker />
 
       <DocumentExtractor />
     </main>
