@@ -14,6 +14,7 @@ import uuid
 from dataclasses import dataclass
 
 from app.classifiers import Classifier
+from app.lid import get_lid_gate
 from app.locate import Located, locate, windows
 from app.prepare import Prepared, Unit, prepare
 from app.rules import STRONG, Hit, match
@@ -140,6 +141,12 @@ def run_check(content: str, source: str | None, classifiers: list[Classifier],
         warnings.append("classifiers unavailable: decided on the rules alone")
         step("classifiers", failed=True)
 
+    lid_gate = get_lid_gate()
+    lid_result = lid_gate.check(prepared.units, content, source, threshold)
+    if lid_result.has_non_english:
+        warnings.extend(lid_result.warnings)
+    step("lid", non_english=lid_result.has_non_english, flags=len(lid_result.flags))
+
     outside = source != "user"  # a missing source is outside content, never the user
     attacks = []
     strong_rule = []  # per attack: did a strong rule (not just a hint) find it?
@@ -203,5 +210,14 @@ def run_check(content: str, source: str | None, classifiers: list[Classifier],
         "warnings": warnings,
         "clean_content": clean_content,
         "scores": scores,
+        "non_english_spans": [
+            {
+                "span": [f.start, f.end],
+                "language": f.top_language,
+                "confidence": round(1.0 - f.p_eng, 4),
+                "text": f.text,
+            }
+            for f in lid_result.flags
+        ],
         "trace": trace,
     }
