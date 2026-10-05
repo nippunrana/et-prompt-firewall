@@ -9,6 +9,7 @@ to catch it.
 from __future__ import annotations
 
 import logging
+import os
 import time
 import uuid
 from dataclasses import dataclass
@@ -19,7 +20,7 @@ from app.locate import Located, locate, windows
 from app.prepare import Prepared, Unit, prepare
 from app.rules import STRONG, Hit, match
 
-THRESHOLD = 0.5  # Phase 2 sets the real LOW and HIGH cut-offs from measured data
+THRESHOLD = float(os.environ.get("FIREWALL_THRESHOLD", "0.65"))  # Phase 2 calibrated threshold (0.65 balances recall and FPR)
 OUTSIDE_TYPE = "indirect_injection"
 
 log = logging.getLogger(__name__)

@@ -1,0 +1,458 @@
+{
+  "threshold": 0.65,
+  "combined_200": {
+    "threshold": 0.65,
+    "total_evaluated": 200,
+    "overall": {
+      "attack_cut_recall": 0.8519,
+      "attack_flagged_or_routed_recall": 0.9481,
+      "benign_cut_fpr": 0.4154,
+      "benign_unsure_or_flagged_fpr": 0.5692
+    },
+    "by_tier": {
+      "hard_benign": {
+        "total": 65,
+        "cut_count": 27,
+        "cut_rate": 0.4154,
+        "flagged_count": 37,
+        "flagged_rate": 0.5692
+      },
+      "medium_attack": {
+        "total": 60,
+        "cut_count": 54,
+        "cut_rate": 0.9,
+        "flagged_count": 57,
+        "flagged_rate": 0.95
+      },
+      "hard_attack": {
+        "total": 75,
+        "cut_count": 61,
+        "cut_rate": 0.8133,
+        "flagged_count": 71,
+        "flagged_rate": 0.9467
+      }
+    },
+    "by_category": {
+      "llmail_fp_standard": {
+        "total": 20,
+        "cut_count": 1,
+        "cut_rate": 0.05,
+        "flagged_count": 2,
+        "flagged_rate": 0.1
+      },
+      "roleplay_jailbreak": {
+        "total": 15,
+        "cut_count": 15,
+        "cut_rate": 1.0,
+        "flagged_count": 15,
+        "flagged_rate": 1.0
+      },
+      "multilingual_hinglish": {
+        "total": 10,
+        "cut_count": 8,
+        "cut_rate": 0.8,
+        "flagged_count": 10,
+        "flagged_rate": 1.0
+      },
+      "context_poisoning_authority": {
+        "total": 10,
+        "cut_count": 9,
+        "cut_rate": 0.9,
+        "flagged_count": 9,
+        "flagged_rate": 0.9
+      },
+      "roleplay_delimiter": {
+        "total": 18,
+        "cut_count": 15,
+        "cut_rate": 0.8333,
+        "flagged_count": 18,
+        "flagged_rate": 1.0
+      },
+      "encoded_obfuscated": {
+        "total": 10,
+        "cut_count": 9,
+        "cut_rate": 0.9,
+        "flagged_count": 9,
+        "flagged_rate": 0.9
+      },
+      "enron_imperative_corporate": {
+        "total": 30,
+        "cut_count": 23,
+        "cut_rate": 0.7667,
+        "flagged_count": 28,
+        "flagged_rate": 0.9333
+      },
+      "direct_tool_exfiltration": {
+        "total": 5,
+        "cut_count": 4,
+        "cut_rate": 0.8,
+        "flagged_count": 4,
+        "flagged_rate": 0.8
+      },
+      "polite_indirect_echoleak": {
+        "total": 15,
+        "cut_count": 11,
+        "cut_rate": 0.7333,
+        "flagged_count": 14,
+        "flagged_rate": 0.9333
+      },
+      "planted_quoted_thread": {
+        "total": 15,
+        "cut_count": 13,
+        "cut_rate": 0.8667,
+        "flagged_count": 15,
+        "flagged_rate": 1.0
+      },
+      "explicit_override": {
+        "total": 2,
+        "cut_count": 2,
+        "cut_rate": 1.0,
+        "flagged_count": 2,
+        "flagged_rate": 1.0
+      },
+      "boundary_pair_adversarial": {
+        "total": 10,
+        "cut_count": 9,
+        "cut_rate": 0.9,
+        "flagged_count": 9,
+        "flagged_rate": 0.9
+      },
+      "web_html_comment_concealment": {
+        "total": 1,
+        "cut_count": 1,
+        "cut_rate": 1.0,
+        "flagged_count": 1,
+        "flagged_rate": 1.0
+      },
+      "enron_heldout_corporate": {
+        "total": 10,
+        "cut_count": 3,
+        "cut_rate": 0.3,
+        "flagged_count": 7,
+        "flagged_rate": 0.7
+      },
+      "llmail_heldout_fp": {
+        "total": 5,
+        "cut_count": 0,
+        "cut_rate": 0.0,
+        "flagged_count": 0,
+        "flagged_rate": 0.0
+      },
+      "web_authority_compliance_spoof": {
+        "total": 1,
+        "cut_count": 1,
+        "cut_rate": 1.0,
+        "flagged_count": 1,
+        "flagged_rate": 1.0
+      },
+      "llmail_team_adaptive": {
+        "total": 15,
+        "cut_count": 11,
+        "cut_rate": 0.7333,
+        "flagged_count": 13,
+        "flagged_rate": 0.8667
+      },
+      "web_multilingual_code_switch": {
+        "total": 1,
+        "cut_count": 0,
+        "cut_rate": 0.0,
+        "flagged_count": 1,
+        "flagged_rate": 1.0
+      },
+      "web_legal_pretext_exfil": {
+        "total": 1,
+        "cut_count": 1,
+        "cut_rate": 1.0,
+        "flagged_count": 1,
+        "flagged_rate": 1.0
+      },
+      "web_markdown_image_exfil": {
+        "total": 1,
+        "cut_count": 1,
+        "cut_rate": 1.0,
+        "flagged_count": 1,
+        "flagged_rate": 1.0
+      },
+      "web_system_tag_framing": {
+        "total": 1,
+        "cut_count": 1,
+        "cut_rate": 1.0,
+        "flagged_count": 1,
+        "flagged_rate": 1.0
+      },
+      "web_diagnostic_dump_override": {
+        "total": 1,
+        "cut_count": 1,
+        "cut_rate": 1.0,
+        "flagged_count": 1,
+        "flagged_rate": 1.0
+      },
+      "web_gandalf_style_story": {
+        "total": 1,
+        "cut_count": 1,
+        "cut_rate": 1.0,
+        "flagged_count": 1,
+        "flagged_rate": 1.0
+      },
+      "web_structured_json_injection": {
+        "total": 1,
+        "cut_count": 1,
+        "cut_rate": 1.0,
+        "flagged_count": 1,
+        "flagged_rate": 1.0
+      },
+      "web_css_font_concealment": {
+        "total": 1,
+        "cut_count": 1,
+        "cut_rate": 1.0,
+        "flagged_count": 1,
+        "flagged_rate": 1.0
+      }
+    }
+  },
+  "benchmark_150": {
+    "threshold": 0.65,
+    "total_evaluated": 150,
+    "overall": {
+      "attack_cut_recall": 0.86,
+      "attack_flagged_or_routed_recall": 0.96,
+      "benign_cut_fpr": 0.48,
+      "benign_unsure_or_flagged_fpr": 0.6
+    },
+    "by_tier": {
+      "hard_benign": {
+        "total": 50,
+        "cut_count": 24,
+        "cut_rate": 0.48,
+        "flagged_count": 30,
+        "flagged_rate": 0.6
+      },
+      "medium_attack": {
+        "total": 50,
+        "cut_count": 45,
+        "cut_rate": 0.9,
+        "flagged_count": 48,
+        "flagged_rate": 0.96
+      },
+      "hard_attack": {
+        "total": 50,
+        "cut_count": 41,
+        "cut_rate": 0.82,
+        "flagged_count": 48,
+        "flagged_rate": 0.96
+      }
+    },
+    "by_category": {
+      "llmail_fp_standard": {
+        "total": 20,
+        "cut_count": 1,
+        "cut_rate": 0.05,
+        "flagged_count": 2,
+        "flagged_rate": 0.1
+      },
+      "roleplay_jailbreak": {
+        "total": 15,
+        "cut_count": 15,
+        "cut_rate": 1.0,
+        "flagged_count": 15,
+        "flagged_rate": 1.0
+      },
+      "multilingual_hinglish": {
+        "total": 10,
+        "cut_count": 8,
+        "cut_rate": 0.8,
+        "flagged_count": 10,
+        "flagged_rate": 1.0
+      },
+      "context_poisoning_authority": {
+        "total": 10,
+        "cut_count": 9,
+        "cut_rate": 0.9,
+        "flagged_count": 9,
+        "flagged_rate": 0.9
+      },
+      "roleplay_delimiter": {
+        "total": 18,
+        "cut_count": 15,
+        "cut_rate": 0.8333,
+        "flagged_count": 18,
+        "flagged_rate": 1.0
+      },
+      "encoded_obfuscated": {
+        "total": 10,
+        "cut_count": 9,
+        "cut_rate": 0.9,
+        "flagged_count": 9,
+        "flagged_rate": 0.9
+      },
+      "enron_imperative_corporate": {
+        "total": 30,
+        "cut_count": 23,
+        "cut_rate": 0.7667,
+        "flagged_count": 28,
+        "flagged_rate": 0.9333
+      },
+      "direct_tool_exfiltration": {
+        "total": 5,
+        "cut_count": 4,
+        "cut_rate": 0.8,
+        "flagged_count": 4,
+        "flagged_rate": 0.8
+      },
+      "polite_indirect_echoleak": {
+        "total": 15,
+        "cut_count": 11,
+        "cut_rate": 0.7333,
+        "flagged_count": 14,
+        "flagged_rate": 0.9333
+      },
+      "planted_quoted_thread": {
+        "total": 15,
+        "cut_count": 13,
+        "cut_rate": 0.8667,
+        "flagged_count": 15,
+        "flagged_rate": 1.0
+      },
+      "explicit_override": {
+        "total": 2,
+        "cut_count": 2,
+        "cut_rate": 1.0,
+        "flagged_count": 2,
+        "flagged_rate": 1.0
+      }
+    }
+  },
+  "additional_web_50": {
+    "threshold": 0.65,
+    "total_evaluated": 50,
+    "overall": {
+      "attack_cut_recall": 0.8286,
+      "attack_flagged_or_routed_recall": 0.9143,
+      "benign_cut_fpr": 0.2,
+      "benign_unsure_or_flagged_fpr": 0.4667
+    },
+    "by_tier": {
+      "medium_attack": {
+        "total": 10,
+        "cut_count": 9,
+        "cut_rate": 0.9,
+        "flagged_count": 9,
+        "flagged_rate": 0.9
+      },
+      "hard_attack": {
+        "total": 25,
+        "cut_count": 20,
+        "cut_rate": 0.8,
+        "flagged_count": 23,
+        "flagged_rate": 0.92
+      },
+      "hard_benign": {
+        "total": 15,
+        "cut_count": 3,
+        "cut_rate": 0.2,
+        "flagged_count": 7,
+        "flagged_rate": 0.4667
+      }
+    },
+    "by_category": {
+      "boundary_pair_adversarial": {
+        "total": 10,
+        "cut_count": 9,
+        "cut_rate": 0.9,
+        "flagged_count": 9,
+        "flagged_rate": 0.9
+      },
+      "web_html_comment_concealment": {
+        "total": 1,
+        "cut_count": 1,
+        "cut_rate": 1.0,
+        "flagged_count": 1,
+        "flagged_rate": 1.0
+      },
+      "enron_heldout_corporate": {
+        "total": 10,
+        "cut_count": 3,
+        "cut_rate": 0.3,
+        "flagged_count": 7,
+        "flagged_rate": 0.7
+      },
+      "llmail_heldout_fp": {
+        "total": 5,
+        "cut_count": 0,
+        "cut_rate": 0.0,
+        "flagged_count": 0,
+        "flagged_rate": 0.0
+      },
+      "web_authority_compliance_spoof": {
+        "total": 1,
+        "cut_count": 1,
+        "cut_rate": 1.0,
+        "flagged_count": 1,
+        "flagged_rate": 1.0
+      },
+      "llmail_team_adaptive": {
+        "total": 15,
+        "cut_count": 11,
+        "cut_rate": 0.7333,
+        "flagged_count": 13,
+        "flagged_rate": 0.8667
+      },
+      "web_multilingual_code_switch": {
+        "total": 1,
+        "cut_count": 0,
+        "cut_rate": 0.0,
+        "flagged_count": 1,
+        "flagged_rate": 1.0
+      },
+      "web_legal_pretext_exfil": {
+        "total": 1,
+        "cut_count": 1,
+        "cut_rate": 1.0,
+        "flagged_count": 1,
+        "flagged_rate": 1.0
+      },
+      "web_markdown_image_exfil": {
+        "total": 1,
+        "cut_count": 1,
+        "cut_rate": 1.0,
+        "flagged_count": 1,
+        "flagged_rate": 1.0
+      },
+      "web_system_tag_framing": {
+        "total": 1,
+        "cut_count": 1,
+        "cut_rate": 1.0,
+        "flagged_count": 1,
+        "flagged_rate": 1.0
+      },
+      "web_diagnostic_dump_override": {
+        "total": 1,
+        "cut_count": 1,
+        "cut_rate": 1.0,
+        "flagged_count": 1,
+        "flagged_rate": 1.0
+      },
+      "web_gandalf_style_story": {
+        "total": 1,
+        "cut_count": 1,
+        "cut_rate": 1.0,
+        "flagged_count": 1,
+        "flagged_rate": 1.0
+      },
+      "web_structured_json_injection": {
+        "total": 1,
+        "cut_count": 1,
+        "cut_rate": 1.0,
+        "flagged_count": 1,
+        "flagged_rate": 1.0
+      },
+      "web_css_font_concealment": {
+        "total": 1,
+        "cut_count": 1,
+        "cut_rate": 1.0,
+        "flagged_count": 1,
+        "flagged_rate": 1.0
+      }
+    }
+  }
+}

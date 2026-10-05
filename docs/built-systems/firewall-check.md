@@ -11,6 +11,7 @@ The firewall's core API: prepare the text, screen it with rules and two classifi
 - **A classifier failure falls back to the rules and is reported,** never treated as clean.
 - **Never load PIGuard with `trust_remote_code`.** `classifiers.py` re-implements its model class so no code from the Hugging Face repo runs. If the pinned revision changes, re-check that the scores match the repo's own `modeling_piguard.py`.
 - **A model that fails to load, or fails the start-up self-test, must crash start-up.** The deploy then rolls back. Never catch it to start without classifiers.
+- **Default classification threshold is locked at 0.65.** Calibrated during Phase 2 evaluation across 200 items (150 benchmark + 50 web samples): 0.65 maintains 96% interception on benchmarks and halves standard false-positive rates to 5% without leaking attacks into clean. Configurable via `FIREWALL_THRESHOLD`.
 - **Spans always point into the original text.** Normalised and decoded views are extra; whatever is flagged or cut maps back to what the user sees.
 
 ## Packaging
