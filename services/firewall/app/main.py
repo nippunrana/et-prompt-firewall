@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 from app import classifiers
 from app.check import run_check
+from app.lid import get_lid_gate
 from app.ocr import process_document
 
 logging.basicConfig(level=logging.INFO)
@@ -25,6 +26,9 @@ async def lifespan(app: FastAPI):
     # so a bad image is rolled back instead of serving checks without its classifiers.
     if os.environ.get("FIREWALL_LOAD_MODELS", "1") == "1":
         app.state.classifiers = await asyncio.to_thread(classifiers.load)
+        # Without its model the language gate passes every line as English, silently: refuse to start.
+        if not (await asyncio.to_thread(get_lid_gate)).available:
+            raise RuntimeError("the language gate's GlotLID model did not load")
     yield
 
 

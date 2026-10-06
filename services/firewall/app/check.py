@@ -143,7 +143,7 @@ def run_check(content: str, source: str | None, classifiers: list[Classifier],
         step("classifiers", failed=True)
 
     lid_gate = get_lid_gate()
-    lid_result = lid_gate.check(prepared.units, content, source, threshold)
+    lid_result = lid_gate.check(prepared.units, content, source)  # its own threshold, never the classifiers'
     if lid_result.has_non_english:
         warnings.extend(lid_result.warnings)
     step("lid", non_english=lid_result.has_non_english, flags=len(lid_result.flags))

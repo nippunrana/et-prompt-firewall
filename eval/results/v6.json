@@ -1,0 +1,976 @@
+{
+ "label": "v6",
+ "commit": "00fd4fe9009aa355d49d0af9f969627d9c2816a8+v6-uncommitted",
+ "items": 3124,
+ "errors": 0,
+ "sets": {
+  "llmail_labelled": {
+   "flagged": {
+    "n": 165,
+    "k": 130,
+    "rate": 0.788,
+    "ci95": [
+     0.719,
+     0.843
+    ]
+   },
+   "quarantined": {
+    "n": 165,
+    "k": 0,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.023
+    ]
+   },
+   "ms_p50": 11013,
+   "ms_p95": 63264,
+   "groups": 111,
+   "group_balanced_recall": 0.832,
+   "payload_survives": {
+    "n": 155,
+    "k": 123,
+    "rate": 0.794,
+    "ci95": [
+     0.723,
+     0.85
+    ]
+   }
+  },
+  "llmail_teams": {
+   "flagged": {
+    "n": 226,
+    "k": 179,
+    "rate": 0.792,
+    "ci95": [
+     0.734,
+     0.84
+    ]
+   },
+   "quarantined": {
+    "n": 226,
+    "k": 1,
+    "rate": 0.004,
+    "ci95": [
+     0.001,
+     0.025
+    ]
+   },
+   "ms_p50": 15987,
+   "ms_p95": 77170,
+   "groups": 35,
+   "group_balanced_recall": 0.78,
+   "payload_survives": {
+    "n": 214,
+    "k": 176,
+    "rate": 0.822,
+    "ci95": [
+     0.766,
+     0.868
+    ]
+   }
+  },
+  "llmail_benign": {
+   "flagged": {
+    "n": 203,
+    "k": 5,
+    "rate": 0.025,
+    "ci95": [
+     0.011,
+     0.056
+    ]
+   },
+   "quarantined": {
+    "n": 203,
+    "k": 0,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.019
+    ]
+   },
+   "ms_p50": 2779,
+   "ms_p95": 3908
+  },
+  "pairs_attack": {
+   "flagged": {
+    "n": 600,
+    "k": 417,
+    "rate": 0.695,
+    "ci95": [
+     0.657,
+     0.731
+    ]
+   },
+   "quarantined": {
+    "n": 600,
+    "k": 0,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.006
+    ]
+   },
+   "ms_p50": 2991,
+   "ms_p95": 6151,
+   "groups": 12,
+   "group_balanced_recall": 0.695,
+   "by_family": {
+    "approval_workflow_bypass": 0.12,
+    "authority_claim_bypass": 0.66,
+    "direct_instruction_override": 1.0,
+    "indirect_content_injection": 0.78,
+    "memory_context_poisoning": 0.78,
+    "multi_agent_trust_spoofing": 0.62,
+    "obfuscation_encoding": 1.0,
+    "rag_context_poisoning": 0.66,
+    "roleplay_jailbreak": 0.88,
+    "sensitive_data_exfiltration": 0.66,
+    "system_prompt_extraction": 0.82,
+    "tool_action_abuse": 0.36
+   },
+   "injection_families": {
+    "n": 400,
+    "k": 327,
+    "rate": 0.818,
+    "ci95": [
+     0.777,
+     0.852
+    ]
+   },
+   "action_families": {
+    "n": 200,
+    "k": 90,
+    "rate": 0.45,
+    "ci95": [
+     0.383,
+     0.519
+    ]
+   }
+  },
+  "pairs_benign": {
+   "flagged": {
+    "n": 600,
+    "k": 279,
+    "rate": 0.465,
+    "ci95": [
+     0.425,
+     0.505
+    ]
+   },
+   "quarantined": {
+    "n": 600,
+    "k": 0,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.006
+    ]
+   },
+   "ms_p50": 2091,
+   "ms_p95": 4253
+  },
+  "enron_benign": {
+   "flagged": {
+    "n": 1000,
+    "k": 427,
+    "rate": 0.427,
+    "ci95": [
+     0.397,
+     0.458
+    ]
+   },
+   "quarantined": {
+    "n": 1000,
+    "k": 2,
+    "rate": 0.002,
+    "ci95": [
+     0.001,
+     0.007
+    ]
+   },
+   "ms_p50": 12213,
+   "ms_p95": 82392,
+   "hard": {
+    "n": 150,
+    "k": 97,
+    "rate": 0.647,
+    "ci95": [
+     0.567,
+     0.719
+    ]
+   },
+   "easy": {
+    "n": 850,
+    "k": 330,
+    "rate": 0.388,
+    "ci95": [
+     0.356,
+     0.421
+    ]
+   }
+  },
+  "planted_inbox": {
+   "flagged": {
+    "n": 165,
+    "k": 165,
+    "rate": 1.0,
+    "ci95": [
+     0.977,
+     1.0
+    ]
+   },
+   "quarantined": {
+    "n": 165,
+    "k": 0,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.023
+    ]
+   },
+   "ms_p50": 36900,
+   "ms_p95": 93303,
+   "groups": 111,
+   "group_balanced_recall": 1.0,
+   "payload_survives": {
+    "n": 155,
+    "k": 119,
+    "rate": 0.768,
+    "ci95": [
+     0.695,
+     0.827
+    ]
+   },
+   "localisation": {
+    "span_hit": {
+     "n": 165,
+     "k": 134,
+     "rate": 0.812,
+     "ci95": [
+      0.746,
+      0.864
+     ]
+    },
+    "mean_span_covered": 0.251,
+    "mean_benign_text_cut": 0.089
+   }
+  },
+  "planted_thread": {
+   "flagged": {
+    "n": 165,
+    "k": 156,
+    "rate": 0.945,
+    "ci95": [
+     0.9,
+     0.971
+    ]
+   },
+   "quarantined": {
+    "n": 165,
+    "k": 0,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.023
+    ]
+   },
+   "ms_p50": 38625,
+   "ms_p95": 89574,
+   "groups": 111,
+   "group_balanced_recall": 0.95,
+   "payload_survives": {
+    "n": 155,
+    "k": 128,
+    "rate": 0.826,
+    "ci95": [
+     0.758,
+     0.877
+    ]
+   },
+   "localisation": {
+    "span_hit": {
+     "n": 165,
+     "k": 132,
+     "rate": 0.8,
+     "ci95": [
+      0.732,
+      0.854
+     ]
+    },
+    "mean_span_covered": 0.241,
+    "mean_benign_text_cut": 0.06
+   }
+  }
+ },
+ "types": {
+  "instruction_override": {
+   "llmail_labelled": {
+    "flagged": {
+     "n": 41,
+     "k": 40,
+     "rate": 0.976,
+     "ci95": [
+      0.874,
+      0.996
+     ]
+    },
+    "type_named": {
+     "n": 41,
+     "k": 7,
+     "rate": 0.171,
+     "ci95": [
+      0.085,
+      0.313
+     ]
+    }
+   },
+   "pairs_attack": {
+    "flagged": {
+     "n": 50,
+     "k": 50,
+     "rate": 1.0,
+     "ci95": [
+      0.929,
+      1.0
+     ]
+    },
+    "type_named": {
+     "n": 50,
+     "k": 20,
+     "rate": 0.4,
+     "ci95": [
+      0.276,
+      0.538
+     ]
+    }
+   },
+   "planted_inbox": {
+    "flagged": {
+     "n": 41,
+     "k": 41,
+     "rate": 1.0,
+     "ci95": [
+      0.914,
+      1.0
+     ]
+    },
+    "type_named": {
+     "n": 41,
+     "k": 7,
+     "rate": 0.171,
+     "ci95": [
+      0.085,
+      0.313
+     ]
+    }
+   },
+   "planted_thread": {
+    "flagged": {
+     "n": 41,
+     "k": 41,
+     "rate": 1.0,
+     "ci95": [
+      0.914,
+      1.0
+     ]
+    },
+    "type_named": {
+     "n": 41,
+     "k": 7,
+     "rate": 0.171,
+     "ci95": [
+      0.085,
+      0.313
+     ]
+    }
+   }
+  },
+  "role_change": {
+   "llmail_labelled": {
+    "flagged": {
+     "n": 65,
+     "k": 60,
+     "rate": 0.923,
+     "ci95": [
+      0.832,
+      0.967
+     ]
+    },
+    "type_named": {
+     "n": 65,
+     "k": 0,
+     "rate": 0.0,
+     "ci95": [
+      0.0,
+      0.056
+     ]
+    }
+   },
+   "pairs_attack": {
+    "flagged": {
+     "n": 100,
+     "k": 75,
+     "rate": 0.75,
+     "ci95": [
+      0.657,
+      0.825
+     ]
+    },
+    "type_named": {
+     "n": 100,
+     "k": 10,
+     "rate": 0.1,
+     "ci95": [
+      0.055,
+      0.174
+     ]
+    }
+   },
+   "planted_inbox": {
+    "flagged": {
+     "n": 65,
+     "k": 65,
+     "rate": 1.0,
+     "ci95": [
+      0.944,
+      1.0
+     ]
+    },
+    "type_named": {
+     "n": 65,
+     "k": 0,
+     "rate": 0.0,
+     "ci95": [
+      0.0,
+      0.056
+     ]
+    }
+   },
+   "planted_thread": {
+    "flagged": {
+     "n": 65,
+     "k": 64,
+     "rate": 0.985,
+     "ci95": [
+      0.918,
+      0.997
+     ]
+    },
+    "type_named": {
+     "n": 65,
+     "k": 0,
+     "rate": 0.0,
+     "ci95": [
+      0.0,
+      0.056
+     ]
+    }
+   }
+  },
+  "secret_extraction": {
+   "llmail_labelled": {
+    "flagged": {
+     "n": 2,
+     "k": 1,
+     "rate": 0.5,
+     "ci95": [
+      0.095,
+      0.905
+     ]
+    },
+    "type_named": {
+     "n": 2,
+     "k": 0,
+     "rate": 0.0,
+     "ci95": [
+      0.0,
+      0.658
+     ]
+    }
+   },
+   "pairs_attack": {
+    "flagged": {
+     "n": 50,
+     "k": 41,
+     "rate": 0.82,
+     "ci95": [
+      0.692,
+      0.902
+     ]
+    },
+    "type_named": {
+     "n": 50,
+     "k": 10,
+     "rate": 0.2,
+     "ci95": [
+      0.112,
+      0.33
+     ]
+    }
+   },
+   "planted_inbox": {
+    "flagged": {
+     "n": 2,
+     "k": 2,
+     "rate": 1.0,
+     "ci95": [
+      0.342,
+      1.0
+     ]
+    },
+    "type_named": {
+     "n": 2,
+     "k": 0,
+     "rate": 0.0,
+     "ci95": [
+      0.0,
+      0.658
+     ]
+    }
+   },
+   "planted_thread": {
+    "flagged": {
+     "n": 2,
+     "k": 2,
+     "rate": 1.0,
+     "ci95": [
+      0.342,
+      1.0
+     ]
+    },
+    "type_named": {
+     "n": 2,
+     "k": 0,
+     "rate": 0.0,
+     "ci95": [
+      0.0,
+      0.658
+     ]
+    }
+   }
+  },
+  "tool_abuse": {
+   "llmail_labelled": {
+    "flagged": {
+     "n": 165,
+     "k": 130,
+     "rate": 0.788,
+     "ci95": [
+      0.719,
+      0.843
+     ]
+    },
+    "type_named": {
+     "n": 165,
+     "k": 33,
+     "rate": 0.2,
+     "ci95": [
+      0.146,
+      0.268
+     ]
+    }
+   },
+   "planted_inbox": {
+    "flagged": {
+     "n": 165,
+     "k": 165,
+     "rate": 1.0,
+     "ci95": [
+      0.977,
+      1.0
+     ]
+    },
+    "type_named": {
+     "n": 165,
+     "k": 38,
+     "rate": 0.23,
+     "ci95": [
+      0.173,
+      0.3
+     ]
+    }
+   },
+   "planted_thread": {
+    "flagged": {
+     "n": 165,
+     "k": 156,
+     "rate": 0.945,
+     "ci95": [
+      0.9,
+      0.971
+     ]
+    },
+    "type_named": {
+     "n": 165,
+     "k": 33,
+     "rate": 0.2,
+     "ci95": [
+      0.146,
+      0.268
+     ]
+    }
+   }
+  },
+  "context_poisoning": {
+   "llmail_labelled": {
+    "flagged": {
+     "n": 56,
+     "k": 51,
+     "rate": 0.911,
+     "ci95": [
+      0.807,
+      0.961
+     ]
+    },
+    "type_named": {
+     "n": 56,
+     "k": 0,
+     "rate": 0.0,
+     "ci95": [
+      0.0,
+      0.064
+     ]
+    }
+   },
+   "pairs_attack": {
+    "flagged": {
+     "n": 100,
+     "k": 72,
+     "rate": 0.72,
+     "ci95": [
+      0.625,
+      0.799
+     ]
+    },
+    "type_named": {
+     "n": 100,
+     "k": 0,
+     "rate": 0.0,
+     "ci95": [
+      0.0,
+      0.037
+     ]
+    }
+   },
+   "planted_inbox": {
+    "flagged": {
+     "n": 56,
+     "k": 56,
+     "rate": 1.0,
+     "ci95": [
+      0.936,
+      1.0
+     ]
+    },
+    "type_named": {
+     "n": 56,
+     "k": 0,
+     "rate": 0.0,
+     "ci95": [
+      0.0,
+      0.064
+     ]
+    }
+   },
+   "planted_thread": {
+    "flagged": {
+     "n": 56,
+     "k": 55,
+     "rate": 0.982,
+     "ci95": [
+      0.906,
+      0.997
+     ]
+    },
+    "type_named": {
+     "n": 56,
+     "k": 0,
+     "rate": 0.0,
+     "ci95": [
+      0.0,
+      0.064
+     ]
+    }
+   }
+  },
+  "multi_step_jailbreak": {
+   "llmail_labelled": {
+    "flagged": {
+     "n": 5,
+     "k": 5,
+     "rate": 1.0,
+     "ci95": [
+      0.566,
+      1.0
+     ]
+    },
+    "type_named": {
+     "n": 5,
+     "k": 0,
+     "rate": 0.0,
+     "ci95": [
+      0.0,
+      0.434
+     ]
+    }
+   },
+   "planted_inbox": {
+    "flagged": {
+     "n": 5,
+     "k": 5,
+     "rate": 1.0,
+     "ci95": [
+      0.566,
+      1.0
+     ]
+    },
+    "type_named": {
+     "n": 5,
+     "k": 0,
+     "rate": 0.0,
+     "ci95": [
+      0.0,
+      0.434
+     ]
+    }
+   },
+   "planted_thread": {
+    "flagged": {
+     "n": 5,
+     "k": 5,
+     "rate": 1.0,
+     "ci95": [
+      0.566,
+      1.0
+     ]
+    },
+    "type_named": {
+     "n": 5,
+     "k": 0,
+     "rate": 0.0,
+     "ci95": [
+      0.0,
+      0.434
+     ]
+    }
+   }
+  },
+  "encoded_instructions": {
+   "llmail_labelled": {
+    "flagged": {
+     "n": 24,
+     "k": 23,
+     "rate": 0.958,
+     "ci95": [
+      0.798,
+      0.993
+     ]
+    },
+    "type_named": {
+     "n": 24,
+     "k": 1,
+     "rate": 0.042,
+     "ci95": [
+      0.007,
+      0.202
+     ]
+    }
+   },
+   "pairs_attack": {
+    "flagged": {
+     "n": 50,
+     "k": 50,
+     "rate": 1.0,
+     "ci95": [
+      0.929,
+      1.0
+     ]
+    },
+    "type_named": {
+     "n": 50,
+     "k": 20,
+     "rate": 0.4,
+     "ci95": [
+      0.276,
+      0.538
+     ]
+    }
+   },
+   "planted_inbox": {
+    "flagged": {
+     "n": 24,
+     "k": 24,
+     "rate": 1.0,
+     "ci95": [
+      0.862,
+      1.0
+     ]
+    },
+    "type_named": {
+     "n": 24,
+     "k": 1,
+     "rate": 0.042,
+     "ci95": [
+      0.007,
+      0.202
+     ]
+    }
+   },
+   "planted_thread": {
+    "flagged": {
+     "n": 24,
+     "k": 24,
+     "rate": 1.0,
+     "ci95": [
+      0.862,
+      1.0
+     ]
+    },
+    "type_named": {
+     "n": 24,
+     "k": 1,
+     "rate": 0.042,
+     "ci95": [
+      0.007,
+      0.202
+     ]
+    }
+   }
+  },
+  "indirect_injection": {
+   "llmail_labelled": {
+    "flagged": {
+     "n": 165,
+     "k": 130,
+     "rate": 0.788,
+     "ci95": [
+      0.719,
+      0.843
+     ]
+    },
+    "type_named": {
+     "n": 165,
+     "k": 130,
+     "rate": 0.788,
+     "ci95": [
+      0.719,
+      0.843
+     ]
+    }
+   },
+   "pairs_attack": {
+    "flagged": {
+     "n": 50,
+     "k": 39,
+     "rate": 0.78,
+     "ci95": [
+      0.648,
+      0.872
+     ]
+    },
+    "type_named": {
+     "n": 50,
+     "k": 36,
+     "rate": 0.72,
+     "ci95": [
+      0.583,
+      0.825
+     ]
+    }
+   },
+   "planted_inbox": {
+    "flagged": {
+     "n": 165,
+     "k": 165,
+     "rate": 1.0,
+     "ci95": [
+      0.977,
+      1.0
+     ]
+    },
+    "type_named": {
+     "n": 165,
+     "k": 165,
+     "rate": 1.0,
+     "ci95": [
+      0.977,
+      1.0
+     ]
+    }
+   },
+   "planted_thread": {
+    "flagged": {
+     "n": 165,
+     "k": 156,
+     "rate": 0.945,
+     "ci95": [
+      0.9,
+      0.971
+     ]
+    },
+    "type_named": {
+     "n": 165,
+     "k": 156,
+     "rate": 0.945,
+     "ci95": [
+      0.9,
+      0.971
+     ]
+    }
+   }
+  }
+ },
+ "sweep": {
+  "PIGuard": {
+   "0.5": {
+    "recall": 0.805,
+    "fpr": 0.418
+   },
+   "0.7": {
+    "recall": 0.77,
+    "fpr": 0.368
+   },
+   "0.9": {
+    "recall": 0.712,
+    "fpr": 0.289
+   },
+   "0.95": {
+    "recall": 0.677,
+    "fpr": 0.254
+   },
+   "0.99": {
+    "recall": 0.572,
+    "fpr": 0.183
+   }
+  },
+  "PromptGuard2": {
+   "0.5": {
+    "recall": 0.254,
+    "fpr": 0.054
+   },
+   "0.7": {
+    "recall": 0.233,
+    "fpr": 0.044
+   },
+   "0.9": {
+    "recall": 0.21,
+    "fpr": 0.035
+   },
+   "0.95": {
+    "recall": 0.188,
+    "fpr": 0.031
+   },
+   "0.99": {
+    "recall": 0.149,
+    "fpr": 0.016
+   }
+  },
+  "rules": {
+   "any": {
+    "recall": 0.244,
+    "fpr": 0.024
+   }
+  }
+ }
+}

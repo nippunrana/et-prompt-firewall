@@ -3,6 +3,7 @@
 Detects non-English and Romanized South Asian (Hinglish/Urdu/Tamil/etc.) injections
 using quantized GlotLID v3, Method 8 (Careful short-line joining at 50% threshold),
 Option B (wrapped continuation rejoining), and Option C (routing/header normalization).
+Header lines other than Subject, address-list lines and HTML markup are not scored (V6, 2026-10-06).
 """
 
 from __future__ import annotations
@@ -12,11 +13,12 @@ import os
 import re
 from dataclasses import dataclass, field
 
+from app.lid_model import PATH as BAKED_MODEL_PATH
 from app.prepare import Unit
 
 log = logging.getLogger(__name__)
 
-LID_MODEL_PATH = os.environ.get("LID_MODEL_PATH", "/tmp/lid/glotlid_q.ftz")
+LID_MODEL_PATH = os.environ.get("LID_MODEL_PATH", BAKED_MODEL_PATH)
 THRESHOLD = float(os.environ.get("LID_THRESHOLD", "0.50"))
 MIN_WORDS = 6
 
@@ -39,10 +41,16 @@ _HEADER_PREFIX = re.compile(r"^(?:To|From|Cc|Bcc|Date|Sent|Subject|Received|X-[A
 _ROUTING_TOKEN = re.compile(r"\b[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:@[A-Za-z0-9_.-]+)?\b")
 _TIMESTAMP = re.compile(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b|\b\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AP]M)?\b|\b(?:PST|PDT|EST|EDT|CST|CDT|GMT|UTC)\b", re.IGNORECASE)
 _EMAIL_ADDR = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")
+# Only the Subject header is scored: who sent or received a message says nothing about its language.
+_DROPPED_HEADER = re.compile(r"^>*\s*(?:To|From|Cc|Bcc|Date|Sent|Received|Reply-To|X-[A-Za-z0-9_-]+):", re.IGNORECASE)
+_ADDRESS_CHUNK = re.compile(r"^[\"']?[\w .,'()-]*?(?:/[\w.-]+){1,3}@[\w.-]+[\"']?$|^\S+@\S+$")
+_HTML = re.compile(r"<[^>]{0,400}>|&[a-zA-Z]{2,8};|&#\d{1,5};")
 
 
 def clean(text: str) -> str:
-    return " ".join(_NOISE.sub(" ", text).split())
+    # Words containing a digit are dropped whole. Never strip only the digits: the leftover
+    # fragments ("34th" -> "th") read as foreign words (measured 2026-10-06: more false flags, no gain).
+    return " ".join(_NOISE.sub(" ", _HTML.sub(" ", text)).split())
 
 
 def words(text: str) -> list[str]:
@@ -59,8 +67,17 @@ def is_name_token(token: str) -> bool:
     return 1 <= len(tok_words) <= 3 and all(w[0].isupper() or len(w) <= 2 for w in clean_tok.split() if w.isalpha())
 
 
+def is_address_list(line: str) -> bool:
+    """A To/Cc list carried onto its own line: only names and Enron-style routing addresses."""
+    chunks = [c.strip() for c in re.split(r"[;,]", line) if c.strip()]
+    return bool(chunks) and bool(_ROUTING_TOKEN.search(line)) and all(
+        _ADDRESS_CHUNK.match(c) or is_name_token(_ROUTING_TOKEN.sub("", c)) for c in chunks)
+
+
 def normalize_line_option_c(line: str) -> tuple[str, bool]:
     stripped = line.strip()
+    if _DROPPED_HEADER.match(stripped) or is_address_list(stripped):
+        return "", True
     if not stripped or not words(stripped) or re.match(r"^[-=_*~#]{3,}$", stripped):
         return "", True
 

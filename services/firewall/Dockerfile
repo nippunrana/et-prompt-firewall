@@ -1,3 +1,10 @@
+# The language gate's model: download the 1.7 GB GlotLID file and quantise it here, in one step,
+# so only the 225 MB result reaches the image (the download never lands in any layer we ship).
+FROM python:3.12.14-slim AS lid
+RUN pip install --no-cache-dir fasttext-wheel==0.9.2 "numpy<2.0.0" huggingface_hub==1.33.0
+COPY app/lid_model.py /build/lid_model.py
+RUN python /build/lid_model.py /build/glotlid_q.ftz && rm -rf /root/.cache/huggingface
+
 FROM python:3.12.14-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -31,6 +38,7 @@ COPY app/model_ids.py ./app/model_ids.py
 RUN --mount=type=secret,id=hf_token,required=true \
     HF_TOKEN="$(cat /run/secrets/hf_token)" python -m app.model_ids \
     && chmod -R a+rX /opt/models
+COPY --from=lid /build/glotlid_q.ftz /opt/models/glotlid/glotlid_q.ftz
 # At run time the models load from the image only; the container never downloads anything.
 # One OpenMP thread: the container is capped at one CPU, and extra threads spinning against that
 # quota made scoring 6x slower (measured: 386 ms vs 61 ms per window).
