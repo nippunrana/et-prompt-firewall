@@ -4,6 +4,10 @@ The firewall's core API: prepare the text, screen it with rules and two classifi
 
 ## Rules
 
+- **The LangGraph graph has one node per stage; never split PIGuard and Prompt Guard 2 into separate nodes.** The detector modules stay plain Python. The two classifiers score each window together, and the drill-down picks the culprit from their combined (highest) score; separate nodes would change which sentences are cut, and every measured result would stop describing the system.
+- **Every edge is decided by code, never by a model's output.** The checked content is attacker-controlled; if an LLM (the judge included) could choose the next step, the content could steer the firewall. The judge returns a verdict that code acts on.
+- **No checkpointer and no human-in-the-loop pause.** The firewall never waits for a person; quarantine means blocked and logged.
+- **Never turn on LangSmith tracing** (`LANGSMITH_TRACING` / `LANGCHAIN_TRACING_V2`). The library arrives with LangGraph and is off by default; switched on, it uploads every checked text (real emails, attack payloads) to an outside service. Use the `trace` field in the `/check` response instead.
 - **A single sentence's score never triggers a cut.** Sentence and pair scores only locate the culprit inside a 3-sentence window that already scored high. Short fragments get unreliable scores: a subject line and a shell command both scored 1.0 on PIGuard.
 - **Every window is scored, whatever the whole text scored.** One bad line in a long friendly email is diluted in the whole-text score.
 - **Language Identification (LID) routes to the `unsure` lane; it never cuts.** Quantized GlotLID v3 (Method 8 + Options B & C) flags non-English and Romanized Indic injections that bypass English classifiers. Flagged lines leave the verdict as `allow` but route `lane` to `unsure` with language metadata for the Phase 3 LLM judge/sandbox.

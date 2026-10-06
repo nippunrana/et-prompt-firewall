@@ -1,5 +1,8 @@
 """The /check pipeline: prepare, screen (rules and classifiers), locate, then allow, sanitise or quarantine.
 
+It runs as a LangGraph graph, one node per stage. Every edge is fixed in code: nothing the checked
+content says can change which step runs next.
+
 There is no LLM judge yet. Until there is, a classifier flag counts as an attack and is cut
 (fail closed), while a weak rule hint alone is only reported: cutting every "send … to <address>"
 would gut ordinary email. The subtle plain-request attack therefore passes today; the judge exists
@@ -9,13 +12,18 @@ to catch it.
 from __future__ import annotations
 
 import logging
+import operator
 import os
 import time
 import uuid
 from dataclasses import dataclass
+from typing import Annotated, TypedDict
+
+from langgraph.graph import END, START, StateGraph
+from langgraph.runtime import Runtime
 
 from app.classifiers import Classifier
-from app.lid import get_lid_gate
+from app.lid import LIDResult, get_lid_gate
 from app.locate import Located, locate, windows
 from app.prepare import Prepared, Unit, prepare
 from app.rules import STRONG, Hit, match
@@ -109,24 +117,47 @@ def _merge(spans: list[_Span]) -> list[_Span]:
     return merged
 
 
-def run_check(content: str, source: str | None, classifiers: list[Classifier],
-              threshold: float = THRESHOLD) -> dict:
-    trace = []
-    t = time.perf_counter()
+@dataclass
+class _Deps:
+    classifiers: list[Classifier]
+    threshold: float
 
-    def step(name: str, **extra) -> None:
-        nonlocal t
-        now = time.perf_counter()
-        trace.append({"step": name, "ms": round((now - t) * 1000), **extra})
-        t = now
 
-    prepared = prepare(content, source)
-    step("prepare", units=len(prepared.units), layers=len(prepared.layers))
+class _State(TypedDict, total=False):
+    content: str
+    source: str | None
+    trace: Annotated[list[dict], operator.add]  # each stage appends its own entry
+    warnings: Annotated[list[str], operator.add]
+    prepared: Prepared
+    hits: list[Hit]
+    located: Located | None
+    layer_flags: dict[int, list[str]]
+    scores: dict[str, dict[str, float]]
+    lid: LIDResult
+    result: dict
 
-    hits = match(prepared, source)
-    step("rules", hits=len(hits))
 
-    warnings = list(prepared.warnings)
+def _entry(name: str, started: float, **extra) -> list[dict]:
+    return [{"step": name, "ms": round((time.perf_counter() - started) * 1000), **extra}]
+
+
+def _prepare(state: _State) -> dict:
+    started = time.perf_counter()
+    prepared = prepare(state["content"], state["source"])
+    return {"prepared": prepared, "warnings": list(prepared.warnings),
+            "trace": _entry("prepare", started, units=len(prepared.units), layers=len(prepared.layers))}
+
+
+def _rules(state: _State) -> dict:
+    started = time.perf_counter()
+    hits = match(state["prepared"], state["source"])
+    return {"hits": hits, "trace": _entry("rules", started, hits=len(hits))}
+
+
+def _classifiers(state: _State, runtime: Runtime[_Deps]) -> dict:
+    started = time.perf_counter()
+    prepared = state["prepared"]
+    classifiers, threshold = runtime.context.classifiers, runtime.context.threshold
     located: Located | None = None
     layer_flags: dict[int, list[str]] = {}
     scores: dict[str, dict[str, float]] = {}
@@ -136,22 +167,33 @@ def run_check(content: str, source: str | None, classifiers: list[Classifier],
             layer_flags[k] = [c.name for c in classifiers if c.score_long(layer.text) >= threshold]
         scores = {name: {"whole": round(located.whole[name], 4), "max_window": round(located.max_window[name], 4)}
                   for name in located.whole}
-        step("classifiers", windows=len(windows(len(prepared.units))))
+        trace = _entry("classifiers", started, windows=len(windows(len(prepared.units))))
+        warnings = []
     except Exception:  # a classifier failure must never let text through unchecked by the rules
         log.exception("classifier failure; deciding on the rules alone")
-        warnings.append("classifiers unavailable: decided on the rules alone")
-        step("classifiers", failed=True)
+        warnings = ["classifiers unavailable: decided on the rules alone"]
+        trace = _entry("classifiers", started, failed=True)
+    return {"located": located, "layer_flags": layer_flags, "scores": scores, "warnings": warnings, "trace": trace}
 
-    lid_gate = get_lid_gate()
-    lid_result = lid_gate.check(prepared.units, content, source)  # its own threshold, never the classifiers'
-    if lid_result.has_non_english:
-        warnings.extend(lid_result.warnings)
-    step("lid", non_english=lid_result.has_non_english, flags=len(lid_result.flags))
+
+def _lid(state: _State) -> dict:
+    started = time.perf_counter()
+    lid_result = get_lid_gate().check(state["prepared"].units, state["content"], state["source"])  # its own threshold, never the classifiers'
+    warnings = lid_result.warnings if lid_result.has_non_english else []
+    return {"lid": lid_result, "warnings": warnings,
+            "trace": _entry("lid", started, non_english=lid_result.has_non_english, flags=len(lid_result.flags))}
+
+
+def _decide(state: _State) -> dict:
+    started = time.perf_counter()
+    content, source, prepared, hits = state["content"], state["source"], state["prepared"], state["hits"]
+    located, scores, lid_result = state["located"], state["scores"], state["lid"]
+    warnings = state["warnings"]
 
     outside = source != "user"  # a missing source is outside content, never the user
     attacks = []
     strong_rule = []  # per attack: did a strong rule (not just a hint) find it?
-    for span in _merge(_collect(prepared, hits, located, layer_flags)):
+    for span in _merge(_collect(prepared, hits, located, state["layer_flags"])):
         start, end, span_hits, clfs = span.start, span.end, span.hits, span.classifiers
         types = list(dict.fromkeys(h.type for h in span_hits))
         if span.encoded:
@@ -200,8 +242,7 @@ def run_check(content: str, source: str | None, classifiers: list[Classifier],
         clean_content = "".join(parts) + content[pos:]
 
     all_scores = [v for s in scores.values() for v in s.values()]
-    step("decide")
-    return {
+    result = {
         "id": f"chk_{uuid.uuid4().hex[:12]}",
         "verdict": verdict,
         "lane": lane,
@@ -220,5 +261,26 @@ def run_check(content: str, source: str | None, classifiers: list[Classifier],
             }
             for f in lid_result.flags
         ],
-        "trace": trace,
     }
+    return {"result": result, "trace": _entry("decide", started)}
+
+
+def _build():
+    graph = StateGraph(_State, context_schema=_Deps)
+    stages = [("prepare", _prepare), ("rules", _rules), ("classifiers", _classifiers), ("lid", _lid), ("decide", _decide)]
+    for name, node in stages:
+        graph.add_node(name, node)
+    names = [START] + [name for name, _ in stages] + [END]
+    for a, b in zip(names, names[1:]):
+        graph.add_edge(a, b)
+    return graph.compile()
+
+
+PIPELINE = _build()
+
+
+def run_check(content: str, source: str | None, classifiers: list[Classifier],
+              threshold: float = THRESHOLD) -> dict:
+    final = PIPELINE.invoke({"content": content, "source": source, "trace": [], "warnings": []},
+                            context=_Deps(classifiers, threshold))
+    return {**final["result"], "trace": final["trace"]}
