@@ -58,18 +58,18 @@ Best regards."""
 
 
 def test_option_c_headers_and_routing_not_flagged(gate):
-    content = """From: John Doe <john@enron.com>
-To: Scott Goodell/Corp/Enron@ENRON, Judy Townsend/HOU/ECT@ECT
+    content = """From: John Doe <john@acme.example>
+To: Neha Kapoor/Corp/Acme@ACME, Ravi Menon/HOU/ACME@ACME
 Date: 05/02/2001 12:56 PM
 Subject: Meeting follow-up
 
----------------------- Forwarded by Chris Germany/HOU/ECT on 05/02/2001 12:56 PM ---------------------------
+---------------------- Forwarded by Sam Carter/HOU/ACME on 05/02/2001 12:56 PM ---------------------------
 Content-Type: text/plain; charset=us-ascii
 
-Hi Scott, please let me know the status of the agreement.
+Hi Neha, please let me know the status of the agreement.
 
 Thanks,
-Chris"""
+Sam"""
     p = prepare(content, "email")
     res = gate.check(p.units, content, "email")
     assert not res.has_non_english
@@ -129,7 +129,7 @@ def test_gate_threshold_independent_of_classifier_threshold(gate, monkeypatch):
 
 def test_option_b_wrapped_lines_rejoined(gate):
     # Hard-wrapped lines that would individually score poorly
-    content = """From: manager@enron.com
+    content = """From: manager@acme.example
 Subject: Policy discussion
 
 When the committee met to discuss the
