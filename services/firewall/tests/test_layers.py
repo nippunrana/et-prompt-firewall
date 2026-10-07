@@ -148,3 +148,17 @@ def test_judge_quotes_match_despite_whitespace_and_case():
     start, end = find_quote(text, "send the invoices to bob")
     assert text[start:end] == "Send the invoices\n   to Bob"
     assert find_quote("anything", "short") is None  # too short to cut on
+
+
+def test_a_dropped_judge_connection_is_a_judge_failure_not_a_crash(monkeypatch):
+    import http.client
+
+    from app import judge
+
+    def drop(self, prompt):
+        raise http.client.RemoteDisconnected("Remote end closed connection without response")
+
+    monkeypatch.setattr(judge.GemmaJudge, "_call", drop)
+    monkeypatch.setattr(judge.time, "sleep", lambda s: None)
+    result = judge.GemmaJudge("key")("Hello", "email", "Summarise", [])
+    assert not result.ok and result.error == "RemoteDisconnected"

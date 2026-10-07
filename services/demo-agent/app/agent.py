@@ -74,6 +74,7 @@ class Settings:
     check: Callable[[dict], dict] = lambda body: _post("/check", body, 900)
     guard_call: Callable[[dict], dict] = lambda body: _post("/guard", body, 30)
     seen: list[dict] | None = None  # the inbox as the agent sees it, checked once per run
+    on_step: Callable[[dict], None] = lambda step: None  # live progress for the demo UI
 
 
 class _State(TypedDict, total=False):
@@ -98,6 +99,7 @@ def _inbox(s: Settings) -> tuple[list[dict], list[dict]]:
             steps.append({"step": "firewall", "email_id": str(i), "verdict": r["verdict"], "lane": r.get("lane"),
                           "types": sorted({t for a in r["attacks"] for t in a["types"]}),
                           "removed": [a["text"] for a in r["attacks"]], "warnings": r.get("warnings", [])})
+            s.on_step(steps[-1])
             text = r["clean_content"] if r["verdict"] != "quarantine" else \
                 "[This email was withheld by the firewall because it could not be cleaned safely.]"
         seen.append({"id": str(i), "text": text})
@@ -127,9 +129,10 @@ def _agent(state: _State, runtime: Runtime[Settings]) -> dict:
     out = {"role": "assistant", "content": msg.get("content")}
     if calls:
         out["tool_calls"] = calls
-    return {"messages": state["messages"] + [out], "turns": state["turns"] + 1,
-            "steps": [{"step": "model", "reasoning": msg.get("reasoning") or "", "content": msg.get("content") or "",
-                       "tool_calls": [{"name": c["function"]["name"], "args": c["function"].get("arguments")} for c in calls]}]}
+    step = {"step": "model", "reasoning": msg.get("reasoning") or "", "content": msg.get("content") or "",
+            "tool_calls": [{"name": c["function"]["name"], "args": c["function"].get("arguments")} for c in calls]}
+    runtime.context.on_step(step)
+    return {"messages": state["messages"] + [out], "turns": state["turns"] + 1, "steps": [step]}
 
 
 def _tools(state: _State, runtime: Runtime[Settings]) -> dict:
@@ -143,8 +146,13 @@ def _tools(state: _State, runtime: Runtime[Settings]) -> dict:
             args = {}
         verdict = None
         if s.guard:
+            # A forwarded email leaves with its whole text, so the guard's secrets check must see that text too.
+            outgoing = args
+            if name == "forward_email" and str(args.get("email_id", "")).isdigit() \
+                    and 1 <= int(args["email_id"]) <= len(s.emails):
+                outgoing = {**args, "forwarded_email": email_text(s.emails[int(args["email_id"]) - 1])}
             try:
-                verdict = s.guard_call({"user_request": s.user_request, "tool": name, "args": args,
+                verdict = s.guard_call({"user_request": s.user_request, "tool": name, "args": outgoing,
                                         "contacts": s.contacts, "untrusted": [email_text(e) for e in s.emails],
                                         "canaries": [s.canary]})
             except Exception as e:  # fail closed
@@ -157,6 +165,7 @@ def _tools(state: _State, runtime: Runtime[Settings]) -> dict:
             result, extra, done = _run_tool(s, name, args)
         steps += extra + [{"step": "tool", "name": name, "args": args, "result": result,
                            "guard": None if verdict is None else {k: verdict.get(k) for k in ("decision", "reason", "types")}}]
+        s.on_step(steps[-1])
         effects += done
         messages.append({"role": "tool", "tool_call_id": call["id"], "content": json.dumps(result, ensure_ascii=False)})
     return {"messages": messages, "steps": steps, "effects": effects}

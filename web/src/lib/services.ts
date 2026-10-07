@@ -1,7 +1,7 @@
 // Server-side only. The Python services have no host port; they are reachable only
 // on the project's internal Docker network, by their Compose service names.
-const FIREWALL_URL = "http://firewall:8000";
-const DEMO_AGENT_URL = "http://demo-agent:8000";
+export const FIREWALL_URL = "http://firewall:8000";
+export const DEMO_AGENT_URL = "http://demo-agent:8000";
 
 async function getJson(url: string): Promise<Record<string, string> | null> {
   try {
@@ -21,9 +21,4 @@ export async function serviceStatus() {
     firewall: firewall?.status === "ok" ? "ok" : "down",
     demoAgent: demoAgent?.status === "ok" ? "ok" : "down",
   };
-}
-
-export async function databaseStatus(): Promise<string> {
-  const result = await getJson(`${FIREWALL_URL}/health/database`);
-  return result?.database ?? "unknown (firewall unreachable)";
 }

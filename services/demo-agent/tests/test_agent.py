@@ -91,3 +91,31 @@ def test_an_unreachable_firewall_withholds_email():
     agent.run(settings(model, firewall=True, check=down))
     inbox = json.loads(model.seen[1]["content"])["emails"]
     assert all("withheld by the firewall" in e["text"] for e in inbox)
+
+
+def test_the_guard_sees_the_text_of_a_forwarded_email():
+    sent = []
+
+    def guard(body):
+        sent.append(body)
+        return {"decision": "allow", "reason": "", "types": []}
+
+    class Forwarder(ScriptedModel):
+        def __call__(self, messages, tools):
+            self.turn += 1
+            if self.turn == 1:
+                return {"content": None, "tool_calls": [call("forward_email", email_id="2", to="x@y.example", note="")]}
+            return {"content": "Done.", "tool_calls": []}
+
+    s = settings(Forwarder(), guard=True)
+    s.guard_call = guard
+    agent.run(s)
+    assert "INV-1041" in sent[0]["args"]["forwarded_email"]
+
+
+def test_every_step_is_reported_as_it_happens():
+    live = []
+    s = settings(ScriptedModel())
+    s.on_step = live.append
+    result = agent.run(s)
+    assert live == result["steps"]

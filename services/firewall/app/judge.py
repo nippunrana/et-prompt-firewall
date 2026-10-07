@@ -8,6 +8,7 @@ checks against the content, and a check code that a hijacked judge tends to get 
 
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import secrets
@@ -173,7 +174,7 @@ class GemmaJudge:
                 error = f"HTTP {e.code}"
                 if e.code not in (429, 500, 503):
                     break
-            except (TimeoutError, urllib.error.URLError) as e:
+            except (OSError, http.client.HTTPException) as e:  # timeouts, refused or dropped connections
                 error = type(e).__name__
             except (ValueError, KeyError, IndexError) as e:  # malformed reply
                 error = f"bad reply: {type(e).__name__}"

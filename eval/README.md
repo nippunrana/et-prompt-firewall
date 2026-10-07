@@ -31,3 +31,24 @@ python3 eval/report.py mine
 ```
 
 A full run takes 2–3 hours on a 10-core laptop (long emails dominate); rerunning continues where it stopped. Stop a run with `docker kill eval-mine`: stopping only the terminal command leaves the container running, and two runs writing one file duplicate work.
+
+## The held-out run with every layer on, the demo scenarios and adaptive attacks
+
+These call paid APIs (`GEMINI_API_KEY`, `OPENROUTER_API_KEY` in `.env`), so they run on small sets only.
+
+```sh
+# Held-out run: all 300 held-out items, the judge-aimed attacks and the typed set (typed_attacks.py), LLM layers on.
+python3 eval/build_heldout_llm.py
+set -a; . ./.env; set +a
+docker run --rm --name eval-heldout-llm --cpus 6 --memory 7g -e EVAL_LABEL=heldout-llm -e EVAL_INPUT=heldout_llm.jsonl \
+  -e EVAL_LLM=1 -e EVAL_WORKERS=3 -e EVAL_COMMIT=$(git rev-parse HEAD) -e GEMINI_API_KEY -e OPENROUTER_API_KEY \
+  -v "$PWD/eval:/eval" -v "$PWD/services/firewall/app:/app/app:ro" et-prompt-firewall-firewall:live python /eval/run.py
+# The demo scenarios and the adaptive attacks need the stack running, with the firewall and the agent
+# published on 127.0.0.1:8000 and 127.0.0.1:8001.
+python3 eval/run_scenarios.py 3
+OPENROUTER_API_KEY=... python3 eval/adaptive_attack.py
+# Reports: eval/results/heldout-llm.md and the dashboard's web/src/data/dashboard.json
+python3 eval/report_heldout.py
+```
+
+`typed_attacks.py` is our own writing: the per-type table reports it apart from the public sets, never blended in.

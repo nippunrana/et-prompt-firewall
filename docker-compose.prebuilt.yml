@@ -1,0 +1,13 @@
+# Runs the images CI publishes to GHCR instead of building them, so no Hugging Face token is needed:
+#   docker compose -f docker-compose.yml -f docker-compose.prebuilt.yml up -d
+# The images are built for x86_64; on Apple Silicon Docker runs them under emulation, which is slower.
+services:
+  firewall:
+    image: ghcr.io/nippunrana/et-prompt-firewall-firewall:latest
+    pull_policy: always
+  demo-agent:
+    image: ghcr.io/nippunrana/et-prompt-firewall-demo-agent:latest
+    pull_policy: always
+  web:
+    image: ghcr.io/nippunrana/et-prompt-firewall-web:latest
+    pull_policy: always

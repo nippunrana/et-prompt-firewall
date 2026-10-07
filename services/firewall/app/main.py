@@ -5,13 +5,12 @@ from contextlib import asynccontextmanager
 from dataclasses import asdict
 from typing import Literal
 
-import psycopg
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 
-from app import classifiers
+from app import audit, classifiers
 from app.check import run_check
-from app.guard import check_action, record
+from app.guard import ACTION_KIND, check_action, record
 from app.judge import judge_from_env
 from app.lid import get_lid_gate
 from app.ocr import process_document
@@ -59,9 +58,11 @@ async def check(request: CheckRequest) -> dict:
     if loaded is None:
         raise HTTPException(status_code=503, detail="The classifiers are not loaded.")
     async with CHECK_SEMAPHORE:
-        return await asyncio.to_thread(run_check, request.content, request.source, loaded,
-                                       user_task=request.user_task, judge=getattr(app.state, "judge", None),
-                                       sandbox=getattr(app.state, "sandbox", None))
+        result = await asyncio.to_thread(run_check, request.content, request.source, loaded,
+                                         user_task=request.user_task, judge=getattr(app.state, "judge", None),
+                                         sandbox=getattr(app.state, "sandbox", None))
+    audit.record_check(request.content, request.source, result)
+    return result
 
 
 class GuardRequest(BaseModel):
@@ -81,27 +82,21 @@ def guard(request: GuardRequest) -> dict:
     decision = check_action(request.tool, request.args, request.user_request, request.contacts,
                             request.untrusted, request.canaries)
     record(decision, request.tool, request.args, request.user_request)
+    if request.tool in ACTION_KIND:  # reading is always allowed; logging it would bury the actions
+        audit.record_guard(request.tool, asdict(decision))
     return asdict(decision)
+
+
+@app.get("/audit")
+def audit_log(limit: int = Query(default=50, ge=1, le=500)) -> dict:
+    """The newest decisions from both checkpoints: what was decided and why, never the checked text."""
+    return {"entries": audit.recent(limit)}
 
 
 @app.get("/health")
 def health() -> dict:
-    # Liveness only. Docker polls this, so it must not open a database connection.
+    # Liveness only. Docker polls this, so it must not call a model or an outside service.
     return {"service": "firewall", "status": "ok"}
-
-
-@app.get("/health/database")
-def database_health() -> dict:
-    # Always 200: a database outage must not fail the deploy health check, because a rollback cannot fix it.
-    url = os.environ.get("DATABASE_URL")
-    if not url:
-        return {"database": "not configured"}
-    try:
-        with psycopg.connect(url, connect_timeout=3) as conn:
-            conn.execute("SELECT 1")
-    except psycopg.Error:
-        return {"database": "error"}
-    return {"database": "ok"}
 
 
 @app.post("/extract-text")

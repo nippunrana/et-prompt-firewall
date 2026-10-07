@@ -70,7 +70,11 @@ jobs:
           push: ${{ github.event_name == 'push' }}
           provenance: false
           labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
-          tags: ${{ env.REGISTRY }}-${{ matrix.service }}:sha-${{ github.sha }}
+          # `latest` is for people running the project from the README (docker-compose.prebuilt.yml); the
+          # server deploys only by sha, so a bad `latest` never reaches it.
+          tags: |
+            ${{ env.REGISTRY }}-${{ matrix.service }}:sha-${{ github.sha }}
+            ${{ env.REGISTRY }}-${{ matrix.service }}:latest
           # Only the firewall image uses it: Prompt Guard 2 is gated on Hugging Face
           secrets: |
             hf_token=${{ secrets.HF_TOKEN }}
