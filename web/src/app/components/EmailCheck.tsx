@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { pretty, VERDICT_LABEL, type Attack, type CheckResult } from "@/lib/demo-types";
 import CostTable from "./CostTable";
+import LayerTrack from "./LayerTrack";
 import s from "./demo.module.css";
 
 export interface CheckState {
@@ -58,6 +59,7 @@ export default function EmailCheck({ state }: { state: CheckState }) {
       </div>
       <p className="small">{SUMMARY[r.verdict](r.attacks.length)}</p>
       {r.warnings.length > 0 && <p className={s.warn}>{r.warnings.join(" · ")}</p>}
+      <LayerTrack layers={r} lane={r.lane} />
 
       {r.attacks.length > 0 && <pre className={s.textBlock}>{highlight(state.text, r.attacks)}</pre>}
 

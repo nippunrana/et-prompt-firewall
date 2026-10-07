@@ -42,10 +42,12 @@ export interface Step {
   // firewall
   email_id?: string;
   verdict?: string;
+  lane?: string;
   types?: string[];
   removed?: string[];
   warnings?: string[];
   usage?: Usage[] | Usage | null; // firewall: the check's model calls; model: the agent's own call
+  layers?: Layers; // firewall: what each layer found (absent when the firewall could not be reached)
   // model
   reasoning?: string;
   content?: string;
@@ -78,16 +80,25 @@ export interface Attack {
   rules: string[];
 }
 
-export interface CheckResult {
+// What each firewall layer found in one check: the part of /check's answer the layer track reads.
+// The demo agent passes these fields through unchanged on each firewall step.
+export interface Layers {
+  scores: Record<string, { whole: number; max_window: number }>;
+  attacks: Attack[];
+  cleared: { span: [number, number]; text: string; found_by: string[] }[]; // flagged, then cleared by the judge
+  hints: { rule: string; type: string; text: string }[];
+  non_english_spans: { span: [number, number]; language: string; confidence: number; text: string }[];
+  judge: { ok: boolean; error: string | null; took_over: boolean; is_attack: boolean; types: string[]; confidence: string | null; reason: string } | null;
+  sandbox: { ok: boolean; error: string | null; acted: boolean; calls: { name: string; args: Record<string, string> }[] } | null;
+  trace: ({ step: string; ms: number } & Record<string, unknown>)[];
+}
+
+export interface CheckResult extends Layers {
   verdict: "allow" | "sanitise" | "quarantine";
   lane: string;
   risk: number | null;
-  attacks: Attack[];
-  hints: { rule: string; type: string; text: string }[];
   warnings: string[];
   clean_content: string | null;
-  scores: Record<string, { whole: number; max_window: number }>;
-  trace: { step: string; ms: number }[];
   usage?: Usage[];
 }
 

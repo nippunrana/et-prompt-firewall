@@ -58,6 +58,14 @@ export default function AppShell({ views, status, repo }: { views: View[]; statu
           {v.content}
         </main>
       ))}
+
+      <footer className={s.footer}>
+        <p className="container">
+          <strong>Built with Llama.</strong> The firewall uses{" "}
+          <a href="https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M" target="_blank" rel="noreferrer">Llama Prompt Guard 2 86M</a>{" "}
+          by Meta, under the Llama 4 Community License.
+        </p>
+      </footer>
     </>
   );
 }

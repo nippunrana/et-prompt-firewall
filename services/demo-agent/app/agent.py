@@ -25,6 +25,8 @@ from app.scenarios import INVOICES, USER
 
 FIREWALL_URL = os.environ.get("FIREWALL_URL", "http://firewall:8000")
 MAX_TURNS = 8
+# What each firewall layer found, passed through from /check for the demo UI's per-email layer track
+LAYERS = ("scores", "attacks", "cleared", "hints", "non_english_spans", "judge", "sandbox", "trace")
 
 
 def _fn(tool: str, description: str, /, **params: str) -> dict:
@@ -99,7 +101,7 @@ def _inbox(s: Settings) -> tuple[list[dict], list[dict]]:
             steps.append({"step": "firewall", "email_id": str(i), "verdict": r["verdict"], "lane": r.get("lane"),
                           "types": sorted({t for a in r["attacks"] for t in a["types"]}),
                           "removed": [a["text"] for a in r["attacks"]], "warnings": r.get("warnings", []),
-                          "usage": r.get("usage", [])})
+                          "usage": r.get("usage", []), "layers": {k: r.get(k) for k in LAYERS}})
             s.on_step(steps[-1])
             text = r["clean_content"] if r["verdict"] != "quarantine" else \
                 "[This email was withheld by the firewall because it could not be cleaned safely.]"

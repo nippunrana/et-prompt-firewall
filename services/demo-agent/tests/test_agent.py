@@ -135,3 +135,15 @@ def test_each_step_carries_the_tokens_and_cost_of_its_model_call():
     result = agent.run(settings(priced, firewall=True, check=check))
     assert all(s["usage"] == paid for s in result["steps"] if s["step"] == "model")
     assert all(s["usage"] == judged for s in result["steps"] if s["step"] == "firewall")
+
+
+def test_each_firewall_step_carries_what_every_layer_found():
+    layers = {"scores": {"PIGuard": {"whole": 0.9, "max_window": 0.97}}, "attacks": [], "cleared": [], "hints": [],
+              "non_english_spans": [], "judge": {"ok": True, "is_attack": False}, "sandbox": None,
+              "trace": [{"step": "rules", "ms": 1}]}
+
+    def check(body):
+        return {"verdict": "allow", "lane": "unsure", "clean_content": body["content"], "warnings": [], **layers}
+
+    result = agent.run(settings(ScriptedModel(hijacked=False), firewall=True, check=check))
+    assert all(s["layers"] == layers for s in result["steps"] if s["step"] == "firewall")

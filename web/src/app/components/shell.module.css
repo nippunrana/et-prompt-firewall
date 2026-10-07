@@ -106,6 +106,17 @@
   color: var(--ink-500);
 }
 
+.footer {
+  padding: var(--space-6) 0;
+  border-top: 1px solid var(--line);
+  color: var(--ink-500);
+  font-size: var(--text-xs);
+}
+
+.footer a {
+  color: inherit;
+}
+
 @media (max-width: 767px) {
   .inner {
     flex-wrap: wrap;

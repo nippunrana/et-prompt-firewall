@@ -5,6 +5,7 @@ import { pretty, VERDICT_LABEL, type Effect, type Email, type Job, type Scenario
 import dashboard from "@/data/dashboard.json";
 import { duration, gsap, useGSAP } from "@/lib/motion";
 import CostTable, { runUsage } from "./CostTable";
+import LayerTrack from "./LayerTrack";
 import Markdown from "./Markdown";
 import s from "./demo.module.css";
 import r from "./run.module.css";
@@ -119,6 +120,7 @@ function InboxEvent({ item, emails, protectedRun, custom }: { item: InboxItem; e
                   ? <strong style={{ color: verdictColour(c.verdict) }}>{VERDICT_LABEL[c.verdict ?? ""] ?? c.verdict}</strong>
                   : <span className="muted">waiting</span>
                 : <span className="muted">not checked</span>}
+              {c?.layers?.trace && <div className={r.rowDetail}><LayerTrack layers={c.layers} lane={c.lane} /></div>}
               {c?.types && c.types.length > 0 && <span className={`${r.rowDetail} muted`}>{c.types.map(pretty).join(", ")}</span>}
               {c?.removed?.map((text, k) => <span key={k} data-wipe className={`${r.rowDetail} ${r.removedLine}`}>{text}</span>)}
               {c?.warnings && c.warnings.length > 0 && <span className={`${r.rowDetail} ${s.warn}`}>{c.warnings.join(" · ")}</span>}

@@ -1,0 +1,121 @@
+/* The layer track: one dot per firewall layer, in the order they run. Ink tones only:
+   green, amber and red belong to the verdict (allow, sanitise, block) and to nothing else. */
+.wrap {
+  margin-top: var(--space-2);
+}
+
+.track {
+  position: relative;
+}
+
+.stations {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* From the first dot's centre to the last one's */
+.rail {
+  position: absolute;
+  top: 9px;
+  left: calc(100% / 14);
+  right: calc(100% / 14);
+  height: 1px;
+  background: var(--line-strong);
+}
+
+.fill {
+  position: absolute;
+  inset: 0;
+  background: var(--ink-700);
+}
+
+.station {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  padding: 3px 2px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-900);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.station:hover,
+.station[aria-pressed="true"] {
+  background: var(--sunken);
+}
+
+.station:focus-visible {
+  outline: 2px solid var(--ink-900);
+  outline-offset: 1px;
+}
+
+.dot {
+  width: 11px;
+  height: 11px;
+  margin-bottom: 2px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink-500);
+  background: var(--surface);
+}
+
+/* Raised a signal: solid */
+.station[data-state="flag"] .dot {
+  border-color: var(--ink-900);
+  background: var(--ink-900);
+}
+
+/* A weak signal, left to the judge: a ring with a centre */
+.station[data-state="hint"] .dot {
+  border-color: var(--ink-900);
+  background: radial-gradient(circle, var(--ink-900) 0 2px, var(--surface) 2.5px);
+}
+
+/* Did not run (by design, or could not): dashed and faded, never drawn like a pass */
+.station[data-state="skip"] .dot,
+.station[data-state="off"] .dot {
+  border-style: dashed;
+  border-color: var(--ink-400);
+  background: var(--canvas);
+}
+
+.name {
+  color: var(--ink-500);
+  font-size: 0.6875rem;
+  line-height: 1.2;
+}
+
+.value {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.station[data-state="flag"] .value {
+  font-weight: 650;
+}
+
+.station[data-state="skip"] .value,
+.station[data-state="off"] .value {
+  color: var(--ink-400);
+}
+
+.caption {
+  min-height: 1.4em;
+  margin-top: var(--space-1);
+  color: var(--ink-700);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
