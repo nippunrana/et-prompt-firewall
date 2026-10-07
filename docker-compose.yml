@@ -21,8 +21,8 @@ services:
       # The audit log (every decision at both checkpoints) and the tool-call guard's review log.
       - guard-review:/data
     # The VPS is shared with live apps: every service must keep its cpus and mem_limit caps.
-    cpus: 1.0
-    mem_limit: 2560m
+    cpus: 1.5
+    mem_limit: 3072m
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
       interval: 30s
