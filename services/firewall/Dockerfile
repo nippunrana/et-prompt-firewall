@@ -47,7 +47,9 @@ ENV HF_HUB_OFFLINE=1 \
 
 COPY app ./app
 
-RUN useradd --system --uid 1001 app
+# /data holds the tool-call guard's review log; Compose mounts a named volume there.
+RUN useradd --system --uid 1001 app \
+    && mkdir -p /data && chown app /data
 USER app
 
 EXPOSE 8000

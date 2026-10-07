@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
+from dataclasses import asdict
 from typing import Literal
 
 import psycopg
@@ -10,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from app import classifiers
 from app.check import run_check
+from app.guard import check_action, record
 from app.judge import judge_from_env
 from app.lid import get_lid_gate
 from app.ocr import process_document
@@ -60,6 +62,26 @@ async def check(request: CheckRequest) -> dict:
         return await asyncio.to_thread(run_check, request.content, request.source, loaded,
                                        user_task=request.user_task, judge=getattr(app.state, "judge", None),
                                        sandbox=getattr(app.state, "sandbox", None))
+
+
+class GuardRequest(BaseModel):
+    """A tool call the agent is about to make. The guard never reads content; `untrusted` is used
+    only to say where a bad recipient came from."""
+
+    user_request: str = Field(max_length=2_000)
+    tool: str = Field(max_length=100)
+    args: dict = Field(default_factory=dict)
+    contacts: list[str] = Field(default_factory=list, max_length=500)
+    untrusted: list[str] = Field(default_factory=list, max_length=50)
+    canaries: list[str] = Field(default_factory=list, max_length=10)
+
+
+@app.post("/guard")
+def guard(request: GuardRequest) -> dict:
+    decision = check_action(request.tool, request.args, request.user_request, request.contacts,
+                            request.untrusted, request.canaries)
+    record(decision, request.tool, request.args, request.user_request)
+    return asdict(decision)
 
 
 @app.get("/health")

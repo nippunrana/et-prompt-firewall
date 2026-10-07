@@ -20,6 +20,9 @@ services:
       # decides on its detectors alone and says so in every answer that needed them.
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+    volumes:
+      # The tool-call guard's review log: blocked actions and those a human would have been asked about.
+      - guard-review:/data
     extra_hosts:
       - "host.docker.internal:host-gateway"
     # The VPS is shared with live apps: every service must keep its cpus and mem_limit caps.
@@ -37,6 +40,10 @@ services:
     build: ./services/demo-agent
     image: et-prompt-firewall-demo-agent:live
     restart: unless-stopped
+    environment:
+      FIREWALL_URL: http://firewall:8000
+      # The agent's model. Optional: without it /run answers 503 and the rest of the stack still runs.
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
     cpus: 0.5
     mem_limit: 512m
     healthcheck:
@@ -72,3 +79,6 @@ services:
 secrets:
   hf_token:
     environment: HF_TOKEN
+
+volumes:
+  guard-review:
