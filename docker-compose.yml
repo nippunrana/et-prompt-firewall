@@ -16,6 +16,10 @@ services:
       # No default: the password must never live in git. A missing value fails the deploy
       # before any running container is replaced.
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set in .env (host is host.docker.internal)}
+      # The LLM judge (Gemini API) and the sandbox (OpenRouter). Optional: without them the firewall
+      # decides on its detectors alone and says so in every answer that needed them.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     # The VPS is shared with live apps: every service must keep its cpus and mem_limit caps.

@@ -10,8 +10,10 @@ from pydantic import BaseModel, Field
 
 from app import classifiers
 from app.check import run_check
+from app.judge import judge_from_env
 from app.lid import get_lid_gate
 from app.ocr import process_document
+from app.sandbox import sandbox_from_env
 
 logging.basicConfig(level=logging.INFO)
 
@@ -29,6 +31,12 @@ async def lifespan(app: FastAPI):
         # Without its model the language gate passes every line as English, silently: refuse to start.
         if not (await asyncio.to_thread(get_lid_gate)).available:
             raise RuntimeError("the language gate's GlotLID model did not load")
+    # The LLM layers are optional: without their keys, checks still run and say so in every answer.
+    app.state.judge, app.state.sandbox = judge_from_env(), sandbox_from_env()
+    if not app.state.judge:
+        logging.warning("GEMINI_API_KEY is not set: the LLM judge is off")
+    if not app.state.sandbox:
+        logging.warning("OPENROUTER_API_KEY is not set: the sandbox is off")
     yield
 
 
@@ -39,7 +47,7 @@ class CheckRequest(BaseModel):
     content: str = Field(min_length=1, max_length=MAX_CHECK_CHARS)
     # The medium the content arrived through. Missing means outside content, never the user.
     source: Literal["user", "email", "document", "web"] | None = None
-    # What the user asked the agent to do; read by the LLM judge once it exists.
+    # What the user asked the agent to do; the judge and the sandbox read it.
     user_task: str | None = Field(default=None, max_length=2_000)
 
 
@@ -49,7 +57,9 @@ async def check(request: CheckRequest) -> dict:
     if loaded is None:
         raise HTTPException(status_code=503, detail="The classifiers are not loaded.")
     async with CHECK_SEMAPHORE:
-        return await asyncio.to_thread(run_check, request.content, request.source, loaded)
+        return await asyncio.to_thread(run_check, request.content, request.source, loaded,
+                                       user_task=request.user_task, judge=getattr(app.state, "judge", None),
+                                       sandbox=getattr(app.state, "sandbox", None))
 
 
 @app.get("/health")
