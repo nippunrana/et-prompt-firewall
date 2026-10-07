@@ -8,14 +8,14 @@ Built for the ET AI Hackathon: Agentic Edition (Problem 2: Prompt Injection Fire
 
 **https://egnitech.com/projects/et-prompt-firewall**
 
-> The live version runs on a small shared VPS, in Docker with the firewall capped at **1 CPU and 2.5 GB of RAM**, so it is slow there: a content check can take tens of seconds, and a protected agent run several minutes. For full speed, run it on your own machine (below).
+> The live version runs on a small shared VPS, in Docker with the firewall capped at **1.5 CPUs and 3 GB of RAM**, so it is slow there: a content check can take tens of seconds, and a protected agent run several minutes. For full speed, run it on your own machine (below).
 
-The UI has four tabs:
+The UI has four views:
 
-- **Agent demo:** the same inbox runs twice side by side, an unprotected email assistant and one protected by the firewall. Ready-made scenarios include invoices sent to an attacker, a stolen one-time code (credential theft), an attack in romanized Hindi, and a legitimate request that must still go through. You can edit the attacker's email.
-- **Check content:** paste any text, or pick an example for each attack type, and see what is removed, why, and what the agent would receive. Documents (PDF, Word, Excel, CSV, images via OCR) can be turned into text here.
+- **Try it:** pick a ready-made scenario (invoices sent to an attacker, a stolen one-time code, an attack in romanized Hindi, a legitimate request that must still go through, and more) or start from a blank inbox. Every email's sender, subject and body can be edited, and you can add your own email or an example of each attack type. **Check this email** shows what the firewall removes from one email, why, and what the agent would receive. **Run both agents** sends the same inbox to an unprotected email assistant and to one protected by the firewall, side by side.
 - **Results:** the measured results (below).
 - **Audit log:** every decision both checkpoints made.
+- **Documents:** turn a PDF, Word, Excel, CSV or image (via OCR) into the text the firewall would check.
 
 ## How it works
 
@@ -112,3 +112,4 @@ No prompt-injection defence is unbreakable; adaptive attacks beat every publishe
 - OCR by [RapidOCR](https://github.com/RapidAI/RapidOCR) and [RapidTable](https://github.com/RapidAI/RapidTable).
 - Evaluation data: [LLMail-Inject](https://huggingface.co/datasets/microsoft/llmail-inject-challenge) (Microsoft, MIT), [agentic prompt-injection boundary pairs](https://huggingface.co/datasets/3nesdeniz/agentic-prompt-injection-boundary-pairs) (CC-BY-4.0), and the Enron email corpus (aggregate numbers only; no text is published).
 - Built with [LangGraph](https://github.com/langchain-ai/langgraph), [FastAPI](https://fastapi.tiangolo.com) and [Next.js](https://nextjs.org).
+- UI animation by [GSAP](https://gsap.com) (free under GreenSock's [Standard "no charge" license](https://gsap.com/standard-license)); type set in [Geist and Geist Mono](https://vercel.com/font) (SIL Open Font License).

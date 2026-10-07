@@ -17,6 +17,8 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 
+from app import usage
+
 MODEL = os.environ.get("JUDGE_MODEL", "gemma-4-31b-it")
 TIMEOUT = 45  # seconds; a typical call takes about 5 (a few hung for minutes in testing)
 MIN_QUOTE = 8  # shorter quotes match too much innocent text to cut on
@@ -90,6 +92,7 @@ class JudgeResult:
     unmatched_quotes: int = 0
     confidence: str | None = None
     reason: str = ""
+    usage: dict | None = None  # tokens and cost of the call that gave this verdict
 
 
 def find_quote(content: str, quote: str) -> tuple[int, int] | None:
@@ -151,7 +154,7 @@ class GemmaJudge:
     def __init__(self, api_key: str):
         self.api_key = api_key
 
-    def _call(self, prompt: str) -> str:
+    def _call(self, prompt: str) -> tuple[str, dict]:
         body = json.dumps({"systemInstruction": {"parts": [{"text": SYSTEM}]},
                            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
                            "generationConfig": {"temperature": 0, "responseMimeType": "application/json",
@@ -161,7 +164,8 @@ class GemmaJudge:
             headers={"x-goog-api-key": self.api_key, "Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
             data = json.load(resp)
-        return "".join(p.get("text", "") for p in data["candidates"][0]["content"]["parts"] if not p.get("thought"))
+        text = "".join(p.get("text", "") for p in data["candidates"][0]["content"]["parts"] if not p.get("thought"))
+        return text, usage.from_gemini("judge", MODEL, data)
 
     def __call__(self, content: str, source: str | None, user_task: str, flagged: list[str]) -> JudgeResult:
         code = secrets.token_hex(3)
@@ -169,7 +173,10 @@ class GemmaJudge:
         error = None
         for attempt in range(2):  # one retry: rate limits and slow responses are common, and short-lived
             try:
-                return parse(self._call(prompt), content, code)
+                raw, used = self._call(prompt)
+                result = parse(raw, content, code)
+                result.usage = used
+                return result
             except urllib.error.HTTPError as e:
                 error = f"HTTP {e.code}"
                 if e.code not in (429, 500, 503):

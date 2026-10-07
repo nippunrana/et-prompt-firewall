@@ -16,6 +16,15 @@ MODEL = os.environ.get("AGENT_MODEL", "qwen/qwen3-next-80b-a3b-thinking")
 TIMEOUT = 90  # seconds per call
 
 
+def _usage(data: dict) -> dict:
+    """Tokens and the cost OpenRouter charged for this call (US dollars), as it reports them."""
+    u = data.get("usage") or {}
+    return {"role": "agent", "model": data.get("model") or MODEL, "via": "OpenRouter", "provider": data.get("provider"),
+            "calls": 1, "input_tokens": u.get("prompt_tokens", 0), "output_tokens": u.get("completion_tokens", 0),
+            "reasoning_tokens": (u.get("completion_tokens_details") or {}).get("reasoning_tokens", 0),
+            "cost_usd": u.get("cost"), "pricing": "reported"}
+
+
 class OpenRouterChat:
     def __init__(self, api_key: str):
         self.api_key = api_key
@@ -27,10 +36,12 @@ class OpenRouterChat:
             data = json.load(resp)
         if "error" in data:
             raise RuntimeError(str(data["error"])[:200])
-        return data["choices"][0]["message"]
+        message = data["choices"][0]["message"]
+        message["usage"] = _usage(data)
+        return message
 
     def __call__(self, messages: list[dict], tools: list[dict]) -> dict:
-        """One model turn: {"content", "reasoning", "tool_calls"}. One retry on a rate limit or timeout."""
+        """One model turn: {"content", "reasoning", "tool_calls", "usage"}. One retry on a rate limit or timeout."""
         body = json.dumps({"model": MODEL, "messages": messages, "tools": tools,
                            "reasoning": {"enabled": True}, "max_tokens": 6000}).encode()
         try:

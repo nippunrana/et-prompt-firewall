@@ -18,6 +18,8 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 
+from app import usage
+
 MODEL = os.environ.get("SANDBOX_MODEL", "qwen/qwen3-next-80b-a3b-thinking")
 TIMEOUT = 60  # seconds per model call
 MAX_TURNS = 3  # a hijacked model often lists the invoices first and sends them on the next turn
@@ -76,6 +78,7 @@ class SandboxResult:
     calls: list[dict] = field(default_factory=list)  # tool calls beyond reading: {"name", "args"}
     reasoning: str = ""  # logged for the audit trail only
     reply: str = ""
+    usage: list[dict] = field(default_factory=list)  # one entry per model call
 
     @property
     def acted(self) -> bool:
@@ -108,7 +111,9 @@ class QwenSandbox:
             data = json.load(resp)
         if "error" in data:
             raise ValueError(str(data["error"])[:200])
-        return data["choices"][0]["message"]
+        message = data["choices"][0]["message"]
+        message["usage"] = usage.from_openrouter("sandbox", MODEL, data)
+        return message
 
     def _chat_retry(self, messages: list[dict]) -> dict:
         """One retry: rate limits and slow responses are common, and short-lived."""
@@ -136,6 +141,7 @@ class QwenSandbox:
         try:
             for _ in range(MAX_TURNS):
                 msg = self._chat_retry(messages)
+                result.usage.append(msg.pop("usage"))
                 result.reasoning += (msg.get("reasoning") or "") + "\n"
                 result.reply = msg.get("content") or result.reply
                 tool_calls = msg.get("tool_calls") or []
@@ -153,8 +159,8 @@ class QwenSandbox:
                     messages.append({"role": "tool", "tool_call_id": tc["id"],
                                      "content": json.dumps(_fake_result(name, content))})
         except Exception as e:  # a failure is no vote, unless the model had already acted
-            return SandboxResult(ok=result.acted, error=f"{type(e).__name__}: {str(e)[:120]}",
-                                 calls=result.calls, reasoning=result.reasoning, reply=result.reply)
+            return SandboxResult(ok=result.acted, error=f"{type(e).__name__}: {str(e)[:120]}", calls=result.calls,
+                                 reasoning=result.reasoning, reply=result.reply, usage=result.usage)
         return result
 
 

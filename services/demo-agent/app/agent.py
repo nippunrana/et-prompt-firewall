@@ -98,7 +98,8 @@ def _inbox(s: Settings) -> tuple[list[dict], list[dict]]:
                 r = {"verdict": "quarantine", "warnings": [f"firewall unreachable: {type(e).__name__}"], "attacks": []}
             steps.append({"step": "firewall", "email_id": str(i), "verdict": r["verdict"], "lane": r.get("lane"),
                           "types": sorted({t for a in r["attacks"] for t in a["types"]}),
-                          "removed": [a["text"] for a in r["attacks"]], "warnings": r.get("warnings", [])})
+                          "removed": [a["text"] for a in r["attacks"]], "warnings": r.get("warnings", []),
+                          "usage": r.get("usage", [])})
             s.on_step(steps[-1])
             text = r["clean_content"] if r["verdict"] != "quarantine" else \
                 "[This email was withheld by the firewall because it could not be cleaned safely.]"
@@ -130,7 +131,8 @@ def _agent(state: _State, runtime: Runtime[Settings]) -> dict:
     if calls:
         out["tool_calls"] = calls
     step = {"step": "model", "reasoning": msg.get("reasoning") or "", "content": msg.get("content") or "",
-            "tool_calls": [{"name": c["function"]["name"], "args": c["function"].get("arguments")} for c in calls]}
+            "tool_calls": [{"name": c["function"]["name"], "args": c["function"].get("arguments")} for c in calls],
+            "usage": msg.get("usage")}
     runtime.context.on_step(step)
     return {"messages": state["messages"] + [out], "turns": state["turns"] + 1, "steps": [step]}
 

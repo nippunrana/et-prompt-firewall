@@ -119,3 +119,19 @@ def test_every_step_is_reported_as_it_happens():
     s.on_step = live.append
     result = agent.run(s)
     assert live == result["steps"]
+
+
+def test_each_step_carries_the_tokens_and_cost_of_its_model_call():
+    paid = {"role": "agent", "model": "qwen", "calls": 1, "input_tokens": 10, "output_tokens": 5, "cost_usd": 0.001}
+    judged = [{"role": "judge", "model": "gemma", "calls": 1, "input_tokens": 7, "output_tokens": 3, "cost_usd": 0.0}]
+    model = ScriptedModel(hijacked=False)
+
+    def priced(messages, tools):
+        return {**model(messages, tools), "usage": paid}
+
+    def check(body):
+        return {"verdict": "allow", "lane": "clean", "attacks": [], "clean_content": body["content"], "usage": judged}
+
+    result = agent.run(settings(priced, firewall=True, check=check))
+    assert all(s["usage"] == paid for s in result["steps"] if s["step"] == "model")
+    assert all(s["usage"] == judged for s in result["steps"] if s["step"] == "firewall")

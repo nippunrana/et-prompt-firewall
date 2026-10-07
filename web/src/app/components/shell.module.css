@@ -1,0 +1,125 @@
+/* Sticky top bar: brand, view switcher, service status. */
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid var(--line);
+  background: rgb(248 248 246 / 0.85);
+  backdrop-filter: saturate(1.4) blur(12px);
+}
+
+.inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-height: 60px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.nav {
+  display: flex;
+  gap: var(--space-1);
+  overflow-x: auto;
+}
+
+.navItem {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-500);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 550;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 200ms var(--ease-out), color 200ms var(--ease-out);
+}
+
+.navItem:hover {
+  color: var(--ink-900);
+}
+
+.navItem[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--ink-900);
+  box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--line);
+}
+
+.end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-left: auto;
+  font-size: var(--text-sm);
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--ink-500);
+  white-space: nowrap;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.github {
+  color: var(--ink-500);
+  text-decoration: none;
+}
+
+.github:hover {
+  color: var(--ink-900);
+}
+
+.view {
+  padding-bottom: var(--space-16);
+}
+
+.viewHead {
+  padding: var(--space-12) 0 var(--space-8);
+}
+
+.viewTitle {
+  font-size: var(--text-xl);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.viewIntro {
+  max-width: 44rem;
+  margin-top: var(--space-2);
+  color: var(--ink-500);
+}
+
+@media (max-width: 767px) {
+  .inner {
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+  }
+
+  .nav {
+    order: 3;
+    width: 100%;
+  }
+
+  .github {
+    display: none;
+  }
+}

@@ -28,7 +28,7 @@ from typing import Annotated, Callable, TypedDict
 from langgraph.graph import END, START, StateGraph
 from langgraph.runtime import Runtime
 
-from app import cleanup
+from app import cleanup, usage
 from app.classifiers import Classifier
 from app.cleanup import OUTSIDE_TYPE, Cleaned, Cut
 from app.judge import JudgeResult
@@ -168,6 +168,7 @@ class _State(TypedDict, total=False):
     verdict: str
     reason: str | None
     cleaned: Cleaned | None
+    usage: Annotated[list[dict], operator.add]  # tokens and cost of every LLM call, appended by each stage
     rounds: int
     widened: bool
     result: dict
@@ -260,14 +261,14 @@ def _judge(state: _State, runtime: Runtime[_Deps]) -> dict:
     flagged = [content[s.start:s.end] for s in state["spans"]] + [h.text for h in state["hints"]] \
         + [f.text for f in state["lid"].flags]
     result = runtime.context.judge(content, state["source"], state["user_task"], flagged)
-    return {"judge": result, "trace": _entry("judge", started, ok=result.ok, attack=result.is_attack,
+    return {"judge": result, "usage": [result.usage] if result.usage else [], "trace": _entry("judge", started, ok=result.ok, attack=result.is_attack,
                                              took_over=result.took_over, quotes=len(result.evidence))}
 
 
 def _sandbox(state: _State, runtime: Runtime[_Deps]) -> dict:
     started = time.perf_counter()
     result = runtime.context.sandbox(state["content"], state["source"], state["user_task"])
-    return {"sandbox": result, "trace": _entry("sandbox", started, ok=result.ok, acted=result.acted,
+    return {"sandbox": result, "usage": result.usage, "trace": _entry("sandbox", started, ok=result.ok, acted=result.acted,
                                                calls=[c["name"] for c in result.calls])}
 
 
@@ -336,6 +337,7 @@ def _recheck(state: _State, runtime: Runtime[_Deps]) -> dict:
     cleaned, deps = state["cleaned"], runtime.context
     left: list[tuple[int, int]] = []  # positions in the original text
     warnings = []
+    extra: dict = {}  # the usage of a second sandbox run, added to every answer below
     if cleaned.detect.strip():
         prepared = prepare(cleaned.detect, source)
         left += [cleaned.to_original(h.start, h.end) for h in match(prepared, source)
@@ -351,25 +353,26 @@ def _recheck(state: _State, runtime: Runtime[_Deps]) -> dict:
             warnings.append("classifiers unavailable in the re-check")
     if deps.sandbox and state.get("sandbox") is not None and state["sandbox"].acted:
         again = deps.sandbox(cleaned.text, source, state["user_task"])
+        extra = {"usage": again.usage}
         if again.ok and again.acted:
             spots = [p for p in located(content, again.calls)
                      if not any(c.start <= p[0] < c.end for c in state["cuts"])]
             left += spots
             if not spots:
-                return {"verdict": "quarantine", "widened": False, "warnings": warnings,
+                return {**extra, "verdict": "quarantine", "widened": False, "warnings": warnings,
                         "reason": "the sandbox was still hijacked after cleaning",
                         "trace": _entry("recheck", started, left=1, sandbox_acted=True)}
     rounds = state["rounds"]
     if not left:
-        return {"widened": False, "warnings": warnings, "trace": _entry("recheck", started, left=0)}
+        return {**extra, "widened": False, "warnings": warnings, "trace": _entry("recheck", started, left=0)}
     if rounds >= MAX_WIDEN:
-        return {"verdict": "quarantine", "reason": f"still flagged after widening the cut {MAX_WIDEN} times",
+        return {**extra, "verdict": "quarantine", "reason": f"still flagged after widening the cut {MAX_WIDEN} times",
                 "widened": False, "warnings": warnings, "trace": _entry("recheck", started, left=len(left))}
     wider = [Cut(*cleanup.sentence(content, units, s, e, neighbours=True), [], ["re-check"]) for s, e in left]
     for cut in wider:  # a widened cut keeps the types of the cut it grew from
         cut.types = list(dict.fromkeys(t for c in state["cuts"] if _overlaps(c.start, c.end, cut.start, cut.end)
                                        for t in c.types))
-    return {"cuts": cleanup.merge(state["cuts"] + wider), "rounds": rounds + 1, "widened": True,
+    return {**extra, "cuts": cleanup.merge(state["cuts"] + wider), "rounds": rounds + 1, "widened": True,
             "warnings": warnings, "trace": _entry("recheck", started, left=len(left), widened=True)}
 
 
@@ -418,6 +421,7 @@ def _report(state: _State) -> dict:
             "quotes": [[e.start, e.end] for e in judge.evidence], "unmatched_quotes": judge.unmatched_quotes},
         "sandbox": None if sandbox is None else {
             "ok": sandbox.ok, "error": sandbox.error, "acted": sandbox.acted, "calls": sandbox.calls},
+        "usage": usage.merge(state.get("usage", [])),
     }
     return {"result": result, "trace": _entry("report", started)}
 
@@ -444,6 +448,7 @@ def run_check(content: str, source: str | None, classifiers: list[Classifier], t
               user_task: str | None = None, judge: Callable[..., JudgeResult] | None = None,
               sandbox: Callable[..., SandboxResult] | None = None) -> dict:
     task = user_task or DEFAULT_TASK.get(source or "", "Can you read this and tell me what it says?")
-    final = PIPELINE.invoke({"content": content, "source": source, "user_task": task, "trace": [], "warnings": []},
+    final = PIPELINE.invoke({"content": content, "source": source, "user_task": task, "trace": [], "warnings": [],
+                             "usage": []},
                             context=_Deps(classifiers, threshold, judge, sandbox))
     return {**final["result"], "trace": final["trace"]}

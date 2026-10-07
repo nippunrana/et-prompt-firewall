@@ -275,7 +275,6 @@ export default function DocumentExtractor() {
   return (
     <div
       style={{
-        marginTop: "2.5rem",
         padding: "1.75rem",
         background: "#ffffff",
         borderRadius: "16px",
@@ -283,15 +282,6 @@ export default function DocumentExtractor() {
         boxShadow: "0 4px 20px -2px rgba(0, 0, 0, 0.05)",
       }}
     >
-      <div style={{ marginBottom: "1.25rem" }}>
-        <h2 style={{ fontSize: "1.3rem", fontWeight: 700, margin: "0 0 0.4rem 0", color: "#0f172a" }}>
-          Document & OCR Extraction Playground
-        </h2>
-        <p style={{ margin: 0, fontSize: "0.92rem", color: "#64748b" }}>
-          Upload any file (Image, PDF, Word doc) to extract text and tables with RapidOCR and SLANet.
-        </p>
-      </div>
-
       {/* Dropzone */}
       <div
         onDragOver={handleDragOver}
@@ -353,7 +343,7 @@ export default function DocumentExtractor() {
           id="extract-submit-button"
           style={{
             padding: "0.65rem 1.5rem",
-            background: !file || loading ? "#94a3b8" : "#2563eb",
+            background: !file || loading ? "#94a3b8" : "#0d0f14",
             color: "#ffffff",
             fontWeight: 600,
             fontSize: "0.95rem",
@@ -454,7 +444,7 @@ export default function DocumentExtractor() {
               }}
             >
               <span>⏱️ Latency:</span>
-              <span style={{ color: "#2563eb" }}>{result.duration_seconds} s</span>
+              <span style={{ color: "#0d0f14" }}>{result.duration_seconds} s</span>
               <span style={{ color: "#64748b", fontWeight: 400 }}>({result.duration_ms} ms)</span>
             </div>
           </div>
@@ -538,7 +528,7 @@ export default function DocumentExtractor() {
                 style={{
                   margin: 0,
                   fontSize: "0.88rem",
-                  fontFamily: "monospace",
+                  fontFamily: "var(--font-mono)",
                   whiteSpace: "pre-wrap",
                   wordBreak: "break-word",
                   color: "#1e293b",
@@ -553,7 +543,7 @@ export default function DocumentExtractor() {
                 style={{
                   margin: 0,
                   fontSize: "0.85rem",
-                  fontFamily: "monospace",
+                  fontFamily: "var(--font-mono)",
                   whiteSpace: "pre-wrap",
                   color: "#0369a1",
                 }}

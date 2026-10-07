@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     const response = await fetch(`${FIREWALL_URL}/check`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: body.content, source: body.source ?? null }),
+      body: JSON.stringify({ content: body.content, source: body.source ?? null, user_task: body.user_task ?? null }),
       // Long text is scored window by window; the firewall's own limit keeps it under this
       signal: AbortSignal.timeout(120000),
     });
