@@ -311,9 +311,9 @@ def _decide(state: _State, runtime: Runtime[_Deps]) -> dict:
     hijacked = sandbox is not None and sandbox.ok and sandbox.acted
 
     cuts, cleared = [], []
-    for span in state["spans"]:
+    for i, span in enumerate(state["spans"]):
         found_by = (["rules"] if span.hits else []) + sorted(span.classifiers)
-        if not span.strong and judged and not judge.is_attack:  # the judge settles weak signals only
+        if not span.strong and judged and not _judge_keeps(judge, i, span):  # the judge settles weak signals only
             cleared.append({"span": [span.start, span.end], "text": content[span.start:span.end], "found_by": found_by})
             continue
         types = _span_types(span) or (list(judge.types) if attack_said else [])
@@ -338,6 +338,18 @@ def _decide(state: _State, runtime: Runtime[_Deps]) -> dict:
     verdict = "quarantine" if reason else ("sanitise" if cuts else "allow")
     return {"cuts": cuts, "cleared": cleared, "verdict": verdict, "reason": reason, "warnings": warnings,
             "rounds": 0, "trace": _entry("decide", started, verdict=verdict, cuts=len(cuts), cleared=len(cleared))}
+
+
+def _judge_keeps(judge: JudgeResult, index: int, span: _Span) -> bool:
+    """Whether the judge's verdict keeps a weak span in the cut. Spans are sent to the judge first, so
+    span i is flagged part F{i+1}. An attack elsewhere in the content no longer takes an ordinary
+    flagged note with it: the part must be voted an attack, or hold one of the judge's quotes.
+    A part the judge did not answer for stays cut (fail closed)."""
+    if not judge.is_attack:
+        return False
+    vote = judge.flagged.get(f"F{index + 1}")
+    quoted = any(_overlaps(e.start, e.end, span.start, span.end) for e in judge.evidence)
+    return vote is None or vote or quoted
 
 
 def _after_decide(state: _State) -> str:
