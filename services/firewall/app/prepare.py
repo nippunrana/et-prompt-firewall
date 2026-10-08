@@ -37,13 +37,14 @@ class Unit:
 
 @dataclass
 class Layer:
-    """Text that was hidden inside the content in encoded form, decoded."""
+    """Text hidden inside the content: encoded (decoded here), or concealed by its format (app/formats.py)."""
 
-    kind: str  # base64 | hex | unicode_tags | variation_selectors
-    start: int  # position of the encoded run in the original text
+    kind: str  # base64 | hex | unicode_tags | variation_selectors | html_comment | html_hidden | pdf_white_text …
+    start: int  # position of the run in the original text
     end: int
     text: str
     depth: int = 1
+    hidden: bool = False  # concealed by its format (a person would not see it), not encoded
 
 
 @dataclass
@@ -96,19 +97,22 @@ def _looks_like_text(s: str) -> bool:
     return printable / len(s) >= 0.9
 
 
-def _normalise(original: str, layers: list[Layer], warnings: list[str]) -> View:
+def _normalise(original: str, layers: list[Layer], warnings: list[str], base: View | None = None) -> View:
+    """`base` is a format's visible view (app/formats.py); positions still map to the original."""
+    source = base.text if base else original
+    at = base.origin.__getitem__ if base else (lambda k: k)
     chars: list[str] = []
     origin: list[int] = []
     invisible = 0
-    i, n = 0, len(original)
+    i, n = 0, len(source)
     while i < n:
-        cp = ord(original[i])
+        cp = ord(source[i])
         if _is_tag(cp) or _is_variation_selector(cp):
             test = _is_tag if _is_tag(cp) else _is_variation_selector
             j = i
-            while j < n and test(ord(original[j])):
+            while j < n and test(ord(source[j])):
                 j += 1
-            run = original[i:j]
+            run = source[i:j]
             if test is _is_tag:
                 decoded = "".join(chr(ord(c) - 0xE0000) for c in run if 0xE0020 <= ord(c) <= 0xE007E)
                 kind = "unicode_tags"
@@ -118,17 +122,17 @@ def _normalise(original: str, layers: list[Layer], warnings: list[str]) -> View:
                 decoded = data.decode("utf-8", errors="ignore")
                 kind = "variation_selectors"
             if _looks_like_text(decoded):
-                layers.append(Layer(kind, i, j, decoded))
+                layers.append(Layer(kind, at(i), at(j - 1) + 1, decoded))
                 warnings.append(f"hidden text in {kind.replace('_', ' ')}")
             i = j
             continue
-        if unicodedata.category(original[i]) == "Cf":  # zero-width characters, direction overrides, soft hyphens
+        if unicodedata.category(source[i]) == "Cf":  # zero-width characters, direction overrides, soft hyphens
             invisible += 1
             i += 1
             continue
-        for out in unicodedata.normalize("NFKC", original[i]):
+        for out in unicodedata.normalize("NFKC", source[i]):
             chars.append(out)
-            origin.append(i)
+            origin.append(at(i))
         i += 1
 
     if invisible:
@@ -227,12 +231,16 @@ def _units(view: View, email: bool) -> list[Unit]:
     return units
 
 
-def prepare(original: str, source: str | None = None) -> Prepared:
-    layers: list[Layer] = []
+def prepare(original: str, source: str | None = None, base: View | None = None,
+            hidden: list[Layer] | None = None) -> Prepared:
+    """`base` and `hidden` come from app/formats.py for HTML and documents; plain text needs neither."""
+    layers: list[Layer] = list(hidden or [])
     warnings: list[str] = []
-    view = _normalise(original, layers, warnings)
+    view = _normalise(original, layers, warnings, base)
     joined = _join_spaced(view)
     _decode_layers(view.text, view.span, 1, layers)
+    for layer in hidden or []:  # an encoded run inside hidden text maps to the hidden run
+        _decode_layers(layer.text, lambda s, e, a=layer.start, b=layer.end: (a, b), 1, layers)
     if any(layer.kind in ("base64", "hex") for layer in layers):
         warnings.append("encoded text decoded")
     return Prepared(original, view, joined, _units(view, email=source == "email"), layers, warnings)

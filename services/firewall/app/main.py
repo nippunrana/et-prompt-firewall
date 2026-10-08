@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from dataclasses import asdict
 from typing import Literal
 
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 
 from app import audit, classifiers
@@ -50,19 +50,27 @@ class CheckRequest(BaseModel):
     source: Literal["user", "email", "document", "web"] | None = None
     # What the user asked the agent to do; the judge and the sandbox read it.
     user_task: str | None = Field(default=None, max_length=2_000)
+    # Stated by the caller, never guessed: an email with a stray <br> must not be read as a web page.
+    format: Literal["text", "html"] = "text"
 
 
-@app.post("/check")
-async def check(request: CheckRequest) -> dict:
+async def _run_check(content: str, source: str | None, user_task: str | None, fmt: str | None = None,
+                     hidden: list[tuple[str, int, int]] | None = None) -> dict:
     loaded = getattr(app.state, "classifiers", None)
     if loaded is None:
         raise HTTPException(status_code=503, detail="The classifiers are not loaded.")
     async with CHECK_SEMAPHORE:
-        result = await asyncio.to_thread(run_check, request.content, request.source, loaded,
-                                         user_task=request.user_task, judge=getattr(app.state, "judge", None),
-                                         sandbox=getattr(app.state, "sandbox", None))
-    audit.record_check(request.content, request.source, result)
+        result = await asyncio.to_thread(run_check, content, source, loaded, user_task=user_task,
+                                         judge=getattr(app.state, "judge", None),
+                                         sandbox=getattr(app.state, "sandbox", None), fmt=fmt, hidden=hidden)
+    audit.record_check(content, source, result)
     return result
+
+
+@app.post("/check")
+async def check(request: CheckRequest) -> dict:
+    return await _run_check(request.content, request.source, request.user_task,
+                            "html" if request.format == "html" else None)
 
 
 class GuardRequest(BaseModel):
@@ -122,3 +130,24 @@ async def extract_text(file: UploadFile = File(...)) -> dict:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Document extraction error: {e}")
+
+
+@app.post("/check-file")
+async def check_file(file: UploadFile = File(...), user_task: str | None = Form(default=None, max_length=2_000)) -> dict:
+    """A file checked the way an agent would read it. HTML is checked as HTML; other files are
+    extracted first, with their hidden text marked."""
+    if file.filename and file.filename.lower().endswith((".html", ".htm")):
+        text = (await file.read()).decode("utf-8", errors="replace")
+        fmt, hidden, extraction = "html", None, {"filename": file.filename, "method": "html"}
+    else:
+        extraction = await extract_text(file)
+        text, fmt = extraction.get("text") or "", None
+        hidden = [(h["kind"], h["start"], h["end"]) for h in extraction.get("hidden", [])]
+        extraction = {k: extraction[k] for k in ("filename", "method", "page_count", "duration_ms")}
+    if not text.strip():
+        raise HTTPException(status_code=422, detail="No text could be found in this file.")
+    if len(text) > MAX_CHECK_CHARS:
+        raise HTTPException(status_code=413, detail=f"This file holds {len(text):,} characters of text; "
+                                                    f"the check takes at most {MAX_CHECK_CHARS:,}.")
+    result = await _run_check(text, "web" if fmt == "html" else "document", user_task, fmt, hidden)
+    return {**result, "extraction": extraction, "content": text}

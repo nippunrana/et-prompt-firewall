@@ -25,6 +25,8 @@ import pdfplumber
 import pypdfium2 as pdfium
 from PIL import Image
 
+from app.hidden_text import Text, docx_text, pdf_page
+
 logger = logging.getLogger(__name__)
 
 # Concurrency semaphore: strictly cap at 2 concurrent OCR tasks to protect CPU/RAM
@@ -168,35 +170,25 @@ def _extract_from_image_sync(img_array: np.ndarray) -> str:
     return text_content.strip()
 
 
-def extract_from_docx_sync(docx_bytes: bytes) -> str:
-    """Extracts text and tables natively from Word (.docx) files."""
-    doc = docx.Document(io.BytesIO(docx_bytes))
-    parts: List[str] = []
-
-    for element in doc.element.body:
-        if element.tag.endswith("p"):
-            p = docx.text.paragraph.Paragraph(element, doc)
-            text = p.text.strip()
-            if text:
-                parts.append(text)
-        elif element.tag.endswith("tbl"):
-            tbl = docx.table.Table(element, doc)
-            table_md: List[str] = []
-            for row_idx, row in enumerate(tbl.rows):
-                # Deduplicate cells while preserving order
-                cells = [cell.text.strip().replace("\n", " ") for cell in row.cells]
-                table_md.append("| " + " | ".join(cells) + " |")
-                if row_idx == 0:
-                    table_md.append("| " + " | ".join(["---"] * max(len(cells), 1)) + " |")
-            if table_md:
-                parts.append("\n".join(table_md))
-
-    return "\n\n".join(parts).strip()
+def extract_from_docx_sync(docx_bytes: bytes) -> tuple[str, list[tuple[str, int, int]]]:
+    """Extracts text and tables natively from Word (.docx) files, with the ranges of hidden text."""
+    out = docx_text(docx.Document(io.BytesIO(docx_bytes)))
+    return out.value(), out.hidden
 
 
-def extract_from_pdf_sync(pdf_bytes: bytes) -> tuple[str, str, int]:
-    """Inspects PDF for digital selectable text; falls back to OCR if scanned."""
-    pages_text: List[str] = []
+def _table_md(tbl: list) -> str:
+    tbl_md = []
+    for r_idx, row in enumerate(tbl):
+        clean_row = [(c or "").strip().replace("\n", " ") for c in row]
+        tbl_md.append("| " + " | ".join(clean_row) + " |")
+        if r_idx == 0:
+            tbl_md.append("| " + " | ".join(["---"] * max(len(clean_row), 1)) + " |")
+    return "\n".join(tbl_md)
+
+
+def extract_from_pdf_sync(pdf_bytes: bytes) -> tuple[str, str, int, list[tuple[str, int, int]]]:
+    """Inspects PDF for digital selectable text (with the ranges of hidden text); falls back to OCR if scanned."""
+    out = Text()
     total_chars = 0
     page_count = 0
 
@@ -205,34 +197,17 @@ def extract_from_pdf_sync(pdf_bytes: bytes) -> tuple[str, str, int]:
         with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
             page_count = len(pdf.pages)
             for page_idx, page in enumerate(pdf.pages):
-                page_parts = []
-                # Check for vector tables in digital PDF
-                tables = page.extract_tables()
-                if tables:
-                    for tbl in tables:
-                        tbl_md = []
-                        for r_idx, row in enumerate(tbl):
-                            clean_row = [(c or "").strip().replace("\n", " ") for c in row]
-                            tbl_md.append("| " + " | ".join(clean_row) + " |")
-                            if r_idx == 0:
-                                tbl_md.append("| " + " | ".join(["---"] * max(len(clean_row), 1)) + " |")
-                        if tbl_md:
-                            page_parts.append("\n".join(tbl_md))
-
-                text = page.extract_text(layout=True)
-                if text and text.strip():
-                    page_parts.append(text.strip())
-
-                if page_parts:
-                    page_content = "\n\n".join(page_parts)
-                    total_chars += len(page_content)
-                    pages_text.append(f"--- Page {page_idx + 1} ---\n{page_content}")
+                page_text = pdf_page(page, _table_md)
+                if page_text.size:
+                    total_chars += page_text.size
+                    out.add(("\n\n" if out.size else "") + f"--- Page {page_idx + 1} ---\n")
+                    out.extend(page_text)
     except Exception as e:
         logger.warning(f"pdfplumber extraction failed: {e}")
 
     # If digital text exists and is substantive (> 30 characters), return immediately
     if total_chars > 30:
-        return "\n\n".join(pages_text).strip(), "digital_pdf", page_count
+        return out.value(), "digital_pdf", page_count, out.hidden
 
     # 2. Scanned PDF fallback: render each page to image and run RapidOCR
     logger.info("PDF has minimal or no digital text. Falling back to RapidOCR vision scan.")
@@ -251,7 +226,7 @@ def extract_from_pdf_sync(pdf_bytes: bytes) -> tuple[str, str, int]:
         logger.error(f"Scanned PDF rendering failed: {e}")
         raise
 
-    return "\n\n".join(scanned_pages).strip(), "scanned_pdf_ocr", page_count
+    return "\n\n".join(scanned_pages).strip(), "scanned_pdf_ocr", page_count, []
 
 
 def extract_from_excel_sync(excel_bytes: bytes) -> tuple[str, int]:
@@ -313,13 +288,14 @@ def _sync_process_document(file_bytes: bytes, filename: str) -> dict:
     name_lower = filename.lower()
 
     if name_lower.endswith(".docx"):
-        text = extract_from_docx_sync(file_bytes)
+        text, hidden = extract_from_docx_sync(file_bytes)
         return {
             "status": "success",
             "filename": filename,
             "method": "word_docx",
             "page_count": 1,
             "text": text,
+            "hidden": [{"kind": k, "start": s, "end": e} for k, s, e in hidden],
         }
 
     if name_lower.endswith(".xlsx"):
@@ -343,13 +319,14 @@ def _sync_process_document(file_bytes: bytes, filename: str) -> dict:
         }
 
     if name_lower.endswith(".pdf"):
-        text, method, pages = extract_from_pdf_sync(file_bytes)
+        text, method, pages, hidden = extract_from_pdf_sync(file_bytes)
         return {
             "status": "success",
             "filename": filename,
             "method": method,
             "page_count": pages,
             "text": text,
+            "hidden": [{"kind": k, "start": s, "end": e} for k, s, e in hidden],
         }
 
     # Assume image format (PNG, JPG, JPEG, WEBP, TIFF, BMP)

@@ -11,6 +11,7 @@ from __future__ import annotations
 import http.client
 import json
 import os
+import re
 import secrets
 import time
 import urllib.error
@@ -22,6 +23,7 @@ from app import usage
 MODEL = os.environ.get("JUDGE_MODEL", "gemma-4-31b-it")
 TIMEOUT = 45  # seconds; a typical call takes about 5 (a few hung for minutes in testing)
 MIN_QUOTE = 8  # shorter quotes match too much innocent text to cut on
+_TAG = re.compile(r"<[^<>]{0,400}>")
 
 TYPES = ["instruction_override", "role_change", "secret_extraction", "tool_abuse", "credential_theft",
          "context_poisoning", "multi_step_jailbreak", "encoded_instructions"]
@@ -102,20 +104,28 @@ def find_quote(content: str, quote: str) -> tuple[int, int] | None:
     i = content.find(quote)
     if i >= 0:
         return i, i + len(quote)
-    chars, origin, space = [], [], True
-    for idx, ch in enumerate(content):
-        if ch.isspace():
-            if not space:
-                chars.append(" ")
-                origin.append(idx)
-            space = True
-        else:
+    q = " ".join(quote.split()).lower()
+    # Then ignoring whitespace runs; then also ignoring HTML tags, which split "ignore <b>all</b> rules".
+    for skip in (None, _TAG):
+        tags = {m.start(): m.end() for m in skip.finditer(content)} if skip else {}
+        chars, origin, space, idx = [], [], True, 0
+        while idx < len(content):
+            ch = content[idx]
+            if idx in tags or ch.isspace():
+                if not space:
+                    chars.append(" ")
+                    origin.append(idx)
+                space = True
+                idx = tags.get(idx, idx + 1)
+                continue
             chars.append(ch.lower())
             origin.append(idx)
             space = False
-    q = " ".join(quote.split()).lower()
-    j = "".join(chars).find(q)
-    return (origin[j], origin[j + len(q) - 1] + 1) if j >= 0 else None
+            idx += 1
+        j = "".join(chars).find(q)
+        if j >= 0:
+            return origin[j], origin[j + len(q) - 1] + 1
+    return None
 
 
 def build_prompt(content: str, source: str | None, user_task: str, flagged: list[str], code: str) -> str:

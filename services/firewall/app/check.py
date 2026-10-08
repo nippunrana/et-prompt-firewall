@@ -28,7 +28,7 @@ from typing import Annotated, Callable, TypedDict
 from langgraph.graph import END, START, StateGraph
 from langgraph.runtime import Runtime
 
-from app import cleanup, usage
+from app import cleanup, formats, usage
 from app.classifiers import Classifier
 from app.cleanup import OUTSIDE_TYPE, Cleaned, Cut
 from app.judge import JudgeResult
@@ -40,6 +40,8 @@ from app.sandbox import SandboxResult, located
 
 THRESHOLD = float(os.environ.get("FIREWALL_THRESHOLD", "0.65"))  # Phase 2 calibrated threshold (0.65 balances recall and FPR)
 MAX_WIDEN = 2
+# Concealment is a signal of its own: any detector signal on text a person cannot see blocks it.
+HIDDEN_STRONG = os.environ.get("FIREWALL_HIDDEN_STRONG", "1") == "1"
 DEFAULT_TASK = {
     "user": "(the content below is the user's own message)",
     "email": "Can you check my latest email and tell me what it says?",
@@ -74,9 +76,12 @@ class _Span:
     hits: list[Hit]
     classifiers: set[str]
     encoded: bool = False
+    hidden: bool = False  # in text its format hides from a person (app/formats.py)
 
     @property
     def strong(self) -> bool:
+        if self.hidden and HIDDEN_STRONG and (self.hits or self.classifiers):
+            return True
         return any(h.strength == STRONG for h in self.hits) or len(self.classifiers) >= 2
 
 
@@ -115,7 +120,8 @@ def _collect(prepared: Prepared, hits: list[Hit], located_: Located | None,
     for k, layer in enumerate(prepared.layers):
         layer_hits = [h for h in hits if h.layer == layer.kind and (h.start, h.end) == (layer.start, layer.end)]
         if layer_hits or layer_flags.get(k):
-            spans.append(_Span(layer.start, layer.end, layer_hits, set(layer_flags.get(k, [])), encoded=True))
+            spans.append(_Span(layer.start, layer.end, layer_hits, set(layer_flags.get(k, [])),
+                               encoded=not layer.hidden, hidden=layer.hidden))
     return spans
 
 
@@ -128,6 +134,7 @@ def _merge(spans: list[_Span]) -> list[_Span]:
             last.hits += span.hits
             last.classifiers |= span.classifiers
             last.encoded = last.encoded or span.encoded
+            last.hidden = last.hidden or span.hidden
         else:
             merged.append(span)
     return merged
@@ -149,6 +156,8 @@ class _Deps:
 class _State(TypedDict, total=False):
     content: str
     source: str | None
+    fmt: str | None  # "html", or None for plain text
+    hidden: list[tuple[str, int, int]] | None  # hidden ranges a document's extraction found
     user_task: str
     trace: Annotated[list[dict], operator.add]  # each stage appends its own entry
     warnings: Annotated[list[str], operator.add]
@@ -182,7 +191,8 @@ def _entry(name: str, started: float, **extra) -> list[dict]:
 
 def _prepare(state: _State) -> dict:
     started = time.perf_counter()
-    prepared = prepare(state["content"], state["source"])
+    base, hidden = formats.split(state["content"], state.get("fmt"), state.get("hidden"))
+    prepared = prepare(state["content"], state["source"], base, hidden)
     return {"prepared": prepared, "warnings": list(prepared.warnings),
             "trace": _entry("prepare", started, units=len(prepared.units), layers=len(prepared.layers))}
 
@@ -339,7 +349,8 @@ def _recheck(state: _State, runtime: Runtime[_Deps]) -> dict:
     warnings = []
     extra: dict = {}  # the usage of a second sandbox run, added to every answer below
     if cleaned.detect.strip():
-        prepared = prepare(cleaned.detect, source)
+        base, hidden = formats.split(cleaned.detect, state.get("fmt"), _moved(state.get("hidden"), cleaned))
+        prepared = prepare(cleaned.detect, source, base, hidden)
         left += [cleaned.to_original(h.start, h.end) for h in match(prepared, source)
                  if h.strength == STRONG and h.layer is None]
         try:
@@ -376,6 +387,14 @@ def _recheck(state: _State, runtime: Runtime[_Deps]) -> dict:
             "warnings": warnings, "trace": _entry("recheck", started, left=len(left), widened=True)}
 
 
+def _moved(hidden: list[tuple[str, int, int]] | None, cleaned: Cleaned) -> list[tuple[str, int, int]] | None:
+    """Hidden ranges in the original, moved to their positions in the kept text."""
+    if not hidden:
+        return hidden
+    return [(kind, d + max(start, o) - o, d + min(end, o + n) - o)
+            for kind, start, end in hidden for d, o, n in cleaned.segments if start < o + n and o < end]
+
+
 def _after_recheck(state: _State) -> str:
     return "cut" if state["widened"] else "report"
 
@@ -385,11 +404,14 @@ def _report(state: _State) -> dict:
     content, verdict = state["content"], state["verdict"]
     outside = state["source"] != "user"  # a missing source is outside content, never the user
     attacks = []
+    hidden_layers = [layer for layer in state["prepared"].layers if layer.hidden]
     for c in state["cuts"]:
         types = [t for t in c.types if t != OUTSIDE_TYPE] + ([OUTSIDE_TYPE] if outside else [])
         attacks.append({"types": types, "channel": "indirect" if outside else "direct", "span": [c.start, c.end],
                         "text": content[c.start:c.end], "found_by": c.found_by,
-                        "confidence": _confidence(c.strong_rule, c.found_by), "rules": c.rules})
+                        "confidence": _confidence(c.strong_rule, c.found_by), "rules": c.rules,
+                        "hidden_in": list(dict.fromkeys(layer.kind for layer in hidden_layers
+                                                        if _overlaps(c.start, c.end, layer.start, layer.end)))})
     warnings = list(state["warnings"]) + ([f"quarantined: {state['reason']}"] if state.get("reason") else [])
     if verdict == "allow":
         clean_content = content
@@ -446,9 +468,10 @@ PIPELINE = _build()
 
 def run_check(content: str, source: str | None, classifiers: list[Classifier], threshold: float = THRESHOLD,
               user_task: str | None = None, judge: Callable[..., JudgeResult] | None = None,
-              sandbox: Callable[..., SandboxResult] | None = None) -> dict:
+              sandbox: Callable[..., SandboxResult] | None = None, fmt: str | None = None,
+              hidden: list[tuple[str, int, int]] | None = None) -> dict:
     task = user_task or DEFAULT_TASK.get(source or "", "Can you read this and tell me what it says?")
-    final = PIPELINE.invoke({"content": content, "source": source, "user_task": task, "trace": [], "warnings": [],
-                             "usage": []},
+    final = PIPELINE.invoke({"content": content, "source": source, "fmt": fmt, "hidden": hidden, "user_task": task,
+                             "trace": [], "warnings": [], "usage": []},
                             context=_Deps(classifiers, threshold, judge, sandbox))
     return {**final["result"], "trace": final["trace"]}

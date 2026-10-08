@@ -51,7 +51,8 @@ def test_docx_extraction():
     doc.save(buf)
     docx_bytes = buf.getvalue()
 
-    result = extract_from_docx_sync(docx_bytes)
+    result, hidden = extract_from_docx_sync(docx_bytes)
+    assert hidden == []
     assert "Candidate Resume" in result
     assert "Experienced Software Engineer." in result
     assert "| Skill | Years |" in result
