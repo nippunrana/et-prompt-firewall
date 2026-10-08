@@ -1,6 +1,6 @@
 # Demo UI and results dashboard
 
-The Next.js app in `web/`: one guided "Try it" flow (scenario, editable inbox, agents side by side), results dashboard, audit log, document extraction. The agent's ready-made scenarios live in `services/demo-agent/app/scenarios.py` and are served by `GET /scenarios`.
+The Next.js app in `web/`: one guided "Try it" flow (scenario, editable inbox, agents side by side), results dashboard, audit log, and the "Any input" checker (every input type, files included, with document extraction below it). The agent's ready-made scenarios live in `services/demo-agent/app/scenarios.py` and are served by `GET /scenarios`.
 
 ## Rules
 
@@ -9,7 +9,7 @@ The Next.js app in `web/`: one guided "Try it" flow (scenario, editable inbox, a
 - **The dashboard only shows saved numbers.** `eval/report_heldout.py` writes `web/src/data/dashboard.json` from the saved runs; the server never runs a benchmark. After a new run, regenerate the file and rebuild `web`.
 - **Never show a lucky run as typical.** Every scenario is measured several times by `eval/run_scenarios.py`; the dashboard shows those rates. The unprotected agent does not fall for every attack every time, so the video may need a retake.
 - **Every browser `fetch()` starts with `BASE_PATH`** (Next.js does not add it to fetch).
-- **There is no separate content-checker page** (user decision, 2026-10-07). Single-email checks live on each inbox email ("Check this email"), and the per-attack-type examples are emails testers add to the inbox. The old checker was a separate tab, so testers saw no way to test their own email; don't bring it back.
+- **The "Any input" tab lists the problem statement's input sources; the type is chosen first** (user decision, 2026-10-08, replacing the 2026-10-07 "no separate checker" rule). The type decides the form (email fields, pasted text, file upload) and the firewall's front end; the detectors after it are shared, never a separate pipeline per type, because the measured reliability only carries over to the shared pipeline. Types without a dedicated front end (Markdown, API response, source code, OCR text) must say they are read as plain text. The inbox keeps its own "Check this email".
 - **Every field of every email is editable, and testers can add their own** (up to the agent's 10-email limit). Once the inbox or request differs from the scenario, the run outcome only reports what the agent did: the scenario's attacker address no longer says whether an attack worked.
 - **Two font families only: Geist and Geist Mono** (via `next/font`, no runtime font requests). Verdict colours (green, amber, red) mean allow, sanitise, block and are used for nothing else.
 - **The agent's reply is rendered by `web/src/app/components/Markdown.tsx`, which builds React elements. Never render it as HTML** (no `dangerouslySetInnerHTML`, no Markdown library with raw HTML on): the reply can quote attacker-written email text.

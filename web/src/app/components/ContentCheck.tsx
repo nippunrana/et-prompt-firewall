@@ -1,34 +1,27 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import { BASE_PATH } from "@/lib/base-path";
-import type { CheckResult } from "@/lib/demo-types";
-import { EXAMPLE_FILES, EXAMPLE_PAGE } from "@/lib/input-examples";
+import { emailText, type CheckResult } from "@/lib/demo-types";
+import { INPUT_TYPES, type InputType } from "@/lib/input-examples";
 import EmailCheck, { type CheckState } from "./EmailCheck";
 import s from "./demo.module.css";
 
-// Each input type has its own front end in the firewall (header block, HTML parse, file extraction with
-// hidden text marked); after that every type goes through the same detectors, whose results are measured.
-const TYPES = [
-  { key: "email", label: "Email", noun: "email", source: "email", format: "text",
-    hint: "Paste an email: From and Subject lines, a blank line, then the body." },
-  { key: "web", label: "Web page (HTML)", noun: "web page", source: "web", format: "html",
-    hint: "Paste a page's HTML. Comments, hidden elements and image text are checked as hidden text." },
-  { key: "chat", label: "Chat message", noun: "message", source: "user", format: "text",
-    hint: "The user's own message: instructions are expected here, so it is checked as a direct attempt." },
-  { key: "document", label: "Document text", noun: "document", source: "document", format: "text",
-    hint: "Paste text copied from a document, an API response or OCR output." },
-  { key: "file", label: "Upload a file", noun: "file", source: "document", format: "text",
-    hint: "HTML, PDF, Word, image, Excel or CSV. The firewall reads it the way the agent would, hidden text included." },
-] as const;
-
 const IDLE: CheckState = { loading: false, error: null, result: null, text: "", ms: 0 };
+const BLANK_EMAIL = { from: "Someone <someone@example.com>", subject: "", body: "" };
 
+// Pick the input type first: it decides the form and the firewall's front end. The detectors after it are shared.
 export default function ContentCheck() {
-  const [type, setType] = useState<(typeof TYPES)[number]>(TYPES[1]);
+  const [type, setType] = useState<InputType>(INPUT_TYPES[0]);
   const [text, setText] = useState("");
+  const [email, setEmail] = useState(BLANK_EMAIL);
   const [state, setState] = useState<CheckState>(IDLE);
-  const fileInput = useRef<HTMLInputElement>(null);
+
+  function pick(t: InputType) {
+    setType(t);
+    setText("");
+    setState(IDLE);
+  }
 
   async function run(request: () => Promise<Response>, checked?: string) {
     setState({ ...IDLE, loading: true });
@@ -43,66 +36,82 @@ export default function ContentCheck() {
     }
   }
 
-  const checkText = () =>
-    run(() => fetch(`${BASE_PATH}/api/check`, {
+  function checkText() {
+    const content = type.form === "email" ? emailText(email) : text;
+    return run(() => fetch(`${BASE_PATH}/api/check`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: text, source: type.source, format: type.format }),
-    }), text);
+      body: JSON.stringify({ content, source: type.source, format: type.format }),
+    }), content);
+  }
 
-  const checkFile = (file: Blob, name: string) => {
+  function checkFile(file: Blob, name: string) {
     const form = new FormData();
     form.append("file", file, name);
     return run(() => fetch(`${BASE_PATH}/api/check-file`, { method: "POST", body: form }));
-  };
+  }
 
-  async function checkExample(name: string) {
+  async function checkExampleFile(name: string) {
     const response = await fetch(`${BASE_PATH}/examples/${name}`);
     await checkFile(await response.blob(), name);
   }
 
+  const ready = type.form === "email" ? email.body.trim() : text.trim();
+
   return (
     <div className={s.check}>
+      <span className="label">1 · What is the input?</span>
       <div className={s.chips} role="group" aria-label="Input type">
-        {TYPES.map((t) => (
-          <button key={t.key} className="chip" aria-pressed={type.key === t.key} disabled={state.loading}
-            onClick={() => { setType(t); setState(IDLE); }}>
+        {INPUT_TYPES.map((t) => (
+          <button key={t.key} className="chip" aria-pressed={type.key === t.key} disabled={state.loading} onClick={() => pick(t)}>
             {t.label}
           </button>
         ))}
       </div>
-      <p className="small muted">{type.hint}</p>
+      <p className="small"><strong>Front end:</strong> {type.frontEnd}</p>
 
-      {type.key === "file" ? (
+      <span className="label">2 · The {type.noun}</span>
+      {type.form === "email" && (
         <>
-          <div className={s.chips} role="group" aria-label="Example files">
-            {EXAMPLE_FILES.map((f) => (
-              <button key={f.file} className="chip" disabled={state.loading} onClick={() => checkExample(f.file)}>{f.label}</button>
-            ))}
-          </div>
-          <div>
-            <input ref={fileInput} type="file" className="field" disabled={state.loading}
-              accept=".html,.htm,.pdf,.docx,.png,.jpg,.jpeg,.webp,.tiff,.bmp,.xlsx,.csv"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) checkFile(f, f.name); }} />
-          </div>
-        </>
-      ) : (
-        <>
-          <textarea className="field mono" rows={10} value={text} disabled={state.loading}
-            placeholder={type.hint} onChange={(e) => setText(e.target.value)} />
-          <div className={s.chips}>
-            <button className="btn btn--primary" onClick={checkText} disabled={state.loading || !text.trim()}>
-              Check this {type.noun}
-            </button>
-            {type.key === "web" && (
-              <button className="btn btn--ghost" disabled={state.loading} onClick={() => setText(EXAMPLE_PAGE)}>
-                Load an example page
-              </button>
-            )}
-          </div>
+          <label><span className="label">From</span>
+            <input className="field" value={email.from} disabled={state.loading} onChange={(e) => setEmail({ ...email, from: e.target.value })} />
+          </label>
+          <label><span className="label">Subject</span>
+            <input className="field" value={email.subject} disabled={state.loading} onChange={(e) => setEmail({ ...email, subject: e.target.value })} />
+          </label>
+          <label><span className="label">Body</span>
+            <textarea className="field mono" rows={8} value={email.body} disabled={state.loading} onChange={(e) => setEmail({ ...email, body: e.target.value })} />
+          </label>
         </>
       )}
+      {type.form === "text" && (
+        <textarea className="field mono" rows={10} value={text} disabled={state.loading}
+          placeholder={`Paste the ${type.noun} here`} onChange={(e) => setText(e.target.value)} />
+      )}
+      {type.form === "file" ? (
+        <div className={s.chips}>
+          <input type="file" className="field" accept={type.accept} disabled={state.loading}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) checkFile(f, f.name); }} />
+          {type.example && (
+            <button className="btn btn--ghost" disabled={state.loading} onClick={() => checkExampleFile(type.example!)}>
+              Check the example {type.noun}
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className={s.chips}>
+          <button className="btn btn--primary" onClick={checkText} disabled={state.loading || !ready}>
+            Check this {type.noun}
+          </button>
+          {type.example && (
+            <button className="btn btn--ghost" disabled={state.loading} onClick={() => setText(type.example!)}>
+              Load an example
+            </button>
+          )}
+        </div>
+      )}
 
+      {(state.loading || state.error || state.result) && <span className="label">3 · What the firewall did</span>}
       <EmailCheck state={state} noun={type.noun} />
     </div>
   );
