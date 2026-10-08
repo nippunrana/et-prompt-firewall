@@ -14,11 +14,20 @@ export interface CheckState {
   ms: number;
 }
 
-const SUMMARY: Record<CheckResult["verdict"], (n: number) => string> = {
-  allow: () => "Nothing to remove. The agent would read this email as written.",
+const SUMMARY: Record<CheckResult["verdict"], (n: number, noun: string) => string> = {
+  allow: (_, noun) => `Nothing to remove. The agent would read this ${noun} as written.`,
   sanitise: (n) => `Removed ${n} part${n === 1 ? "" : "s"}. The agent reads the cleaned version below.`,
-  quarantine: () => "Blocked. The email could not be cleaned safely, so the agent never sees it.",
+  quarantine: (_, noun) => `Blocked. The ${noun} could not be cleaned safely, so the agent never sees it.`,
 };
+
+// Where a removed part was hidden from a person, in words
+const HIDDEN: Record<string, string> = {
+  html_comment: "an HTML comment", html_hidden: "a hidden page element", html_attribute: "image or meta text",
+  pdf_white_text: "white text", pdf_tiny_text: "tiny text", pdf_off_page_text: "text placed off the page",
+  docx_hidden_text: "text marked hidden", docx_white_text: "white text", docx_tiny_text: "tiny text",
+  docx_comment: "a reviewer comment",
+};
+const hiddenIn = (a: Attack) => (a.hidden_in ?? []).map((k) => HIDDEN[k] ?? pretty(k));
 
 // The checked text with every removed span marked, using the firewall's character offsets
 function highlight(text: string, attacks: Attack[]) {
@@ -34,13 +43,13 @@ function highlight(text: string, attacks: Attack[]) {
   return parts;
 }
 
-export default function EmailCheck({ state }: { state: CheckState }) {
+export default function EmailCheck({ state, noun = "email" }: { state: CheckState; noun?: string }) {
   const [showJson, setShowJson] = useState(false);
 
   if (state.loading) {
     return (
       <div className={s.check} aria-live="polite">
-        <span className="small muted">Checking this email… On the live server this can take up to a minute.</span>
+        <span className="small muted">Checking this {noun}… On the live server this can take up to a minute.</span>
         <div className={s.progress}><div className={`${s.progressBar} ${s.progressIndeterminate}`} /></div>
       </div>
     );
@@ -57,7 +66,13 @@ export default function EmailCheck({ state }: { state: CheckState }) {
         {types.map((t) => <span key={t} className="tag">{pretty(t)}</span>)}
         <span className={s.checkTime}>{(state.ms / 1000).toFixed(1)} s</span>
       </div>
-      <p className="small">{SUMMARY[r.verdict](r.attacks.length)}</p>
+      <p className="small">{SUMMARY[r.verdict](r.attacks.length, noun)}</p>
+      {r.attacks.some((a) => hiddenIn(a).length) && (
+        <p className="small">
+          <strong>Hidden from a person:</strong> {[...new Set(r.attacks.flatMap(hiddenIn))].join(", ")}. A reader would never
+          see it; an AI reading the {noun} would.
+        </p>
+      )}
       {r.warnings.length > 0 && <p className={s.warn}>{r.warnings.join(" · ")}</p>}
       <LayerTrack layers={r} lane={r.lane} />
 
@@ -79,6 +94,7 @@ export default function EmailCheck({ state }: { state: CheckState }) {
             <strong>{a.types.map(pretty).join(", ")}</strong>
             <div className="muted">
               Found by {a.found_by.join(", ")} · confidence {a.confidence} · {a.channel}
+              {hiddenIn(a).length > 0 && <> · hidden in {hiddenIn(a).join(", ")}</>}
               {a.rules.length > 0 && <> · rules {a.rules.join(", ")}</>}
             </div>
           </div>

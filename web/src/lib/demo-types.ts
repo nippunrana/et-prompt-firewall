@@ -78,6 +78,7 @@ export interface Attack {
   found_by: string[];
   confidence: string;
   rules: string[];
+  hidden_in?: string[]; // where a person could not see it: html_comment, pdf_white_text, docx_hidden_text …
 }
 
 // What each firewall layer found in one check: the part of /check's answer the layer track reads.

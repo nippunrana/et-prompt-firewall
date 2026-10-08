@@ -4,27 +4,29 @@ export const dynamic = "force-dynamic";
 
 const FIREWALL_URL = process.env.FIREWALL_URL || "http://firewall:8000";
 
+// A file checked the way the agent would read it: the firewall extracts it (marking hidden text), then checks it.
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const formData = await request.formData();
+    const file = formData.get("file");
+    if (!file || !(file instanceof Blob)) {
+      return NextResponse.json({ error: "No valid file uploaded" }, { status: 400 });
+    }
 
-    const response = await fetch(`${FIREWALL_URL}/check`, {
+    const forwardData = new FormData();
+    forwardData.append("file", file, (file as File).name || "upload");
+    const response = await fetch(`${FIREWALL_URL}/check-file`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: body.content, source: body.source ?? null, user_task: body.user_task ?? null,
-                             format: body.format ?? "text" }),
-      // Long text is scored window by window; the firewall's own limit keeps it under this
+      body: forwardData,
+      // Extraction plus a full check with the LLM layers: about as long as a text check
       signal: AbortSignal.timeout(120000),
     });
-
     const data = await response.json();
 
     if (!response.ok) {
-      // FastAPI validation errors arrive as a list under `detail`
       const detail = Array.isArray(data.detail) ? data.detail.map((d: { msg: string }) => d.msg).join("; ") : data.detail;
       return NextResponse.json({ error: detail || "Check failed" }, { status: response.status });
     }
-
     return NextResponse.json(data);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
