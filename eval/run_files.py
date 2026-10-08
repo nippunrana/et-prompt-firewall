@@ -14,6 +14,7 @@ From the repo root:
 
 from __future__ import annotations
 
+import html
 import json
 import multiprocessing as mp
 import os
@@ -47,7 +48,7 @@ def _check(item: dict) -> dict:
             result = run_check(text, source, run._classifiers, fmt=fmt, hidden=hidden)
         error = None
     except Exception as exc:  # recorded, never skipped silently
-        result, error, method = {}, f"{type(exc).__name__}: {exc}", None
+        result, error, method, fmt = {}, f"{type(exc).__name__}: {exc}", None, None
     clean = result.get("clean_content")
     return {"id": item["id"], "set": item["set"], "split": item["split"], "format": item["format"],
             "technique": item["technique"], "rendering": item.get("rendering"), "label": item["label"],
@@ -57,7 +58,8 @@ def _check(item: dict) -> dict:
                         for a in result.get("attacks", [])],
             "warnings": result.get("warnings", []), "scores": result.get("scores", {}),
             # the hidden attack text is gone from what the agent receives (self-made files, where it is known)
-            "payload_gone": None if not item.get("probe") or clean is None else _norm(item["probe"]) not in _norm(clean),
+            "payload_gone": None if not item.get("probe") or clean is None else
+            result.get("verdict") != "allow" and _norm(item["probe"]) not in _norm(html.unescape(clean) if fmt == "html" else clean),
             "judge": result.get("judge"), "sandbox": {k: v for k, v in (result.get("sandbox") or {}).items() if k != "calls"},
             "judge_calls": run._judge.n if run.LLM else 0, "sandbox_calls": run._sandbox.n if run.LLM else 0,
             "usage": result.get("usage")}

@@ -27,6 +27,11 @@ The firewall's core API: prepare the text, screen it with rules and two classifi
 - **Never load PIGuard with `trust_remote_code`.** `classifiers.py` re-implements its model class so no code from the Hugging Face repo runs. If the pinned revision changes, re-check that the scores match the repo's own `modeling_piguard.py`.
 - **A model that fails to load, or fails the start-up self-test, must crash start-up.** The deploy then rolls back. Never catch it to start without classifiers.
 - **The classifier threshold is 0.65 (`FIREWALL_THRESHOLD`), but 0.65 vs 0.50 is a near-even trade, not a fix for false positives.** On 300 held-out items it spared 6 benign items and missed 3 attacks outright; about 42% of benign items are cut at either value (2026-10-06). Never report numbers measured on the set a threshold was chosen on.
+- **Formats split, never strip** (`app/formats.py`, decided 2026-10-08). HTML becomes the visible text the classifiers read as prose, plus hidden layers (comments, CSS- and attribute-hidden elements, alt/title/aria-label/meta text); PDF and Word hidden runs arrive as ranges from extraction. Every detector reads every layer, the language gate included. About 70% of real web injections sit in non-rendered HTML, so a cleaner that throws markup away deletes the attack before any detector sees it.
+- **The caller states the format (`format: text | html`); never sniff it.** An email with a stray `<br>` must not be parsed as a web page.
+- **Hidden layers are scored window by window, like visible text.** Scored as one block, a long hidden attack is diluted: dev attacks that scored 0.99 in plain text scored 0.25–0.45 as a whole hidden block.
+- **Concealment alone does not block (`FIREWALL_HIDDEN_STRONG` off).** On the dev split, counting any signal on hidden text as strong caught no extra attack and flagged benign hidden content (CrackedPDFs look-alikes 18/20 vs 5/20, HTML 2/10 vs 0/10, Word 1/10 vs 0/10). Hidden-text signals are weak signals; the judge settles them.
+- **`<script>` and `<style>` are not read, and text hidden by a stylesheet class is read as visible.** Both are stated limits: the first is code, the second needs a browser render.
 - **Spans always point into the original text.** Normalised and decoded views are extra; whatever is flagged or cut maps back to what the user sees.
 
 ## Packaging

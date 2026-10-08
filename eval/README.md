@@ -51,4 +51,19 @@ OPENROUTER_API_KEY=... python3 eval/adaptive_attack.py
 python3 eval/report_heldout.py
 ```
 
+## Files and web pages with hidden text (Phase 6b)
+
+```sh
+# CrackedPDFs (MIT, about 650 MB) into eval/data/crackedpdfs/download/ (huggingface.co/datasets/volkthienpreecha/crackedpdfs)
+# then the set: CrackedPDFs triplets plus LLMail attacks hidden in HTML and Word carriers we generate
+docker run --rm -v "$PWD/eval:/eval" et-prompt-firewall-firewall:live python -I /eval/build_files.py
+set -a; . ./.env; set +a
+docker run --rm --name eval-files --cpus 5 --memory 7g -e EVAL_LABEL=files-held -e EVAL_SPLIT=held -e EVAL_LLM=1 \
+  -e EVAL_WORKERS=3 -e EVAL_COMMIT=$(git rev-parse HEAD) -e GEMINI_API_KEY -e OPENROUTER_API_KEY \
+  -v "$PWD/eval:/eval" -v "$PWD/services/firewall/app:/app/app:ro" et-prompt-firewall-firewall:live python /eval/run_files.py
+python3 eval/report_files.py files-held   # then report_heldout.py puts it on the dashboard
+```
+
+Decisions were made on `EVAL_SPLIT=dev` (CrackedPDFs validation triplets, 10 LLMail attacks from template families the held-out split does not contain); `held` is reported. Everything sent to the LLM APIs here is public data (no Enron mail).
+
 `typed_attacks.py` is our own writing: the per-type table reports it apart from the public sets, never blended in.

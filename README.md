@@ -15,7 +15,7 @@ The UI has four views:
 - **Try it:** pick a ready-made scenario (invoices sent to an attacker, a stolen one-time code, an attack in romanized Hindi, a legitimate request that must still go through, and more) or start from a blank inbox. Every email's sender, subject and body can be edited, and you can add your own email or an example of each attack type. **Check this email** shows what the firewall removes from one email, why, and what the agent would receive. **Run both agents** sends the same inbox to an unprotected email assistant and to one protected by the firewall, side by side.
 - **Results:** the measured results (below).
 - **Audit log:** every decision both checkpoints made.
-- **Documents:** turn a PDF, Word, Excel, CSV or image (via OCR) into the text the firewall would check.
+- **Any input:** pick the input type (email, user message, web page/HTML, PDF, Word, image, Markdown, API response, source code, OCR text), give it the content or a file, and see what the firewall removes, including text hidden from a person (HTML comments and hidden elements, white or tiny PDF text, hidden Word text). Example files are included.
 
 ## How it works
 
@@ -34,7 +34,9 @@ Measured on held-out data the firewall was never tuned on. Details, per-item IDs
 | :--- | :--- |
 | Public held-out attacks caught (LLMail-Inject, boundary pairs) | **104 / 120 (87%)** |
 | Real email wrongly flagged (Enron, LLMail benign) | **0 / 140 (0%)** |
-| Attacker's address still reaching the AI after cleaning (LLMail) | 17 / 90 (19%) |
+| Attacker's address still reaching the AI after cleaning (LLMail) | 21 / 90 (23%) |
+| Injected PDFs caught (CrackedPDFs) → benign originals / look-alikes flagged | **50 / 50** → 0 / 50 · 11 / 50 |
+| LLMail attacks hidden in HTML / Word files we generated → benign twins flagged | 26 / 30 · 25 / 30 → 0 / 60 |
 | Attack emails that made the unprotected agent send data out → with the tool-call guard | **8 → 0** (of 33) |
 | Legitimate send, forward and pay requests completed with full protection | 8 / 8 |
 
@@ -43,16 +45,16 @@ Per attack type (held-out; *ours* = sets we wrote for types public data barely c
 | Type | Caught | Type named |
 | :--- | :--- | :--- |
 | Instruction override | 9/9 | 9/9 |
-| Role change | 15/18 | 5/18 |
+| Role change | 15/18 | 4/18 |
 | Secret extraction | 3/5 · ours 5/5 | 3/5 · ours 3/5 |
-| Tool abuse | 78/90 | 75/90 |
+| Tool abuse | 78/90 | 73/90 |
 | Credential theft | ours 6/6 | ours 3/6 |
-| Context poisoning | 14/14 | 3/14 |
+| Context poisoning | 14/14 | 2/14 |
 | Multi-step jailbreak | ours 6/6 | ours 1/6 |
-| Encoded instructions | 7/7 · ours 5/5 | 6/7 · ours 2/5 |
-| Indirect injection | 82/95 · ours 22/22 | 80/95 · ours 21/22 |
+| Encoded instructions | 7/7 · ours 5/5 | 5/7 · ours 2/5 |
+| Indirect injection | 82/95 · ours 22/22 | 80/95 · ours 22/22 |
 
-"Caught" means the attack was removed or the content withheld; the type is sometimes named differently (a fake approval is often named instruction override rather than context poisoning). Without the LLM layers, the local detectors alone wrongly flag 36% of real email (432 of 1,203; [v6.md](eval/results/v6.md)): the judge is what makes the firewall usable on ordinary mail. A check takes a median of 13.5 s on a laptop with the LLM layers on.
+"Caught" means the attack was removed or the content withheld; the type is sometimes named differently (a fake approval is often named instruction override rather than context poisoning). Without the LLM layers, the local detectors alone wrongly flag 36% of real email (432 of 1,203; [v6.md](eval/results/v6.md)): the judge is what makes the firewall usable on ordinary mail. A check takes a median of 13.2 s on a laptop with the LLM layers on (a file, 23.6 s).
 
 ## Run it locally
 

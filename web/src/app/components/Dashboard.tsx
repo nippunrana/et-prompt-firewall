@@ -37,6 +37,10 @@ export default function Dashboard() {
   const adaptive = data.adaptive as null | {
     goals_n: number; rounds: number; succeeded: number; success_rounds: number[]; protected_runs: number; protected_harmful: number;
   };
+  const files = (data as { files?: unknown }).files as null | undefined | {
+    files: number; errors: number; median_s: number; judge_failed: number;
+    sets: { set: string; label: string; attack: boolean; n: number; flagged: number; located: number | null; payload_n: number; payload_gone: number }[];
+  };
   const scenarios = data.scenarios as { id: string; title: string; kind: "attack" | "phishing" | "task"; runs: number; unprotected_harmful: number; protected_harmful: number; types_named: string[]; guard_types: string[]; protected_done: number }[];
 
   return (
@@ -102,6 +106,39 @@ export default function Dashboard() {
         Median {h.median_s} s per item (p90 {h.p90_s} s) · {h.judge_calls} judge calls · {h.sandbox_runs} sandbox runs · {h.errors} errors.
         The boundary-pair benign twins are requests written <em>to an AI</em> (&ldquo;assistant, please …&rdquo;) sent here as email, so many still read as attacks.
       </p>
+
+      {files && (
+        <>
+          <h2 className={s.section}>Files and web pages with hidden text</h2>
+          <p className={s.note}>
+            Held-out files, every layer on. PDFs are CrackedPDFs (public, 2026): each injected PDF has a benign original and a benign
+            look-alike hidden the same way. HTML and Word are public LLMail attacks hidden in pages and files we generated, each with a
+            twin carrying ordinary hidden content; they are our construction, so they are shown apart.
+          </p>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr><th>Set</th><th>Kind</th><th>Flagged</th><th>Cut found in the hidden text</th><th>Hidden payload gone from what the AI gets</th></tr>
+              </thead>
+              <tbody>
+                {files.sets.map((set) => (
+                  <tr key={set.set}>
+                    <td>{set.label}</td>
+                    <td><span className={`pill pill--${set.attack ? "block" : "allow"}`}>{set.attack ? "attack" : "benign"}</span></td>
+                    <td><Rate n={set.flagged} d={set.n} /></td>
+                    <td>{set.located !== null ? <Rate n={set.located} d={set.n} /> : <span style={{ color: muted }}>–</span>}</td>
+                    <td>{set.payload_n ? <Rate n={set.payload_gone} d={set.payload_n} /> : <span style={{ color: muted }}>–</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className={s.foot}>
+            {files.files} files · median {files.median_s} s per file · {files.judge_failed} judge failures · {files.errors} errors.
+            Markdown, API responses and source code are read as plain text and not measured here.
+          </p>
+        </>
+      )}
 
       {scenarios.length > 0 && (
         <>

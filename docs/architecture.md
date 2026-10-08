@@ -51,7 +51,7 @@ A LangGraph graph, one node per stage. **Every edge is decided by code, never by
 
 ```mermaid
 flowchart TB
-    P["<b>prepare</b><br/>normalise Unicode (NFKC, look-alike letters, invisible characters),<br/>decode Base64 / hex / Unicode tags, split into sentences and an email header block"]
+    P["<b>prepare</b><br/>per input type: HTML and files split into visible text + hidden layers;<br/>normalise Unicode (NFKC, look-alike letters, invisible characters),<br/>decode Base64 / hex / Unicode tags, split into sentences and an email header block"]
     R["<b>rules</b><br/>known attack phrasing; strong rules = evidence, weak rules = hints"]
     C["<b>classifiers</b><br/>PIGuard + Prompt Guard 2 score the whole text and every 3-sentence window,<br/>then drill down to the culprit sentence"]
     L["<b>language gate</b><br/>GlotLID flags non-English and romanized Hindi/Urdu lines<br/>(English classifiers miss them)"]
@@ -79,7 +79,7 @@ flowchart TB
 | Signal | Strength | What happens |
 | :--- | :--- | :--- |
 | A strong rule; both classifiers on the same window; a sandbox tool call; the judge calling it an attack **with a quote code finds in the content** | Strong | Cut on its own. **The judge can never clear a strong signal**, so an attacker who talks the judge into "safe" must still beat every other layer. |
-| One classifier; a weak rule; the language gate | Weak | The judge settles it: cut if the judge confirms, cleared if not. |
+| One classifier; a weak rule; the language gate | Weak | The judge settles it, part by part: each flagged part is numbered (F1, F2 …) and cut only if the judge votes it an attack or quotes it; cleared if not. A part the judge does not answer for stays cut. |
 | The judge's reply has the wrong check code | — | The content took over the judge: quarantine. |
 | The judge is unavailable | — | Fail closed: classifier flags are cut as before; the answer says the judge was off. |
 | The cleaned text still holds a strong signal after two widenings | — | Quarantine: the content is withheld and logged. |
@@ -135,7 +135,19 @@ Per-type detection rates on held-out data are in [`eval/results/heldout-llm.md`]
 
 ## 8. Inputs
 
-Text arrives as a string with a `source` label. Documents are turned into text first by `POST /extract-text`: digital PDFs (pdfplumber), scanned PDFs and images (RapidOCR), Word (python-docx), Excel and CSV. **The extraction is built but not wired into `/check` automatically and has not been evaluated for detection**, so the measured reliability claims cover text and email content only.
+The input type is stated, never guessed, and decides the front end; after it, every type goes through the same detectors.
+
+| Input type | Front end |
+| :--- | :--- |
+| Email | The header block is scored as one unit, the body sentence by sentence. |
+| User message | The user's own words: only overrides, extraction and jailbreaks count; no sandbox run. |
+| Web page / HTML (`format: html`) | Split into the visible text and hidden layers: comments, CSS- or attribute-hidden elements, alt / title / aria-label / meta text. `<script>` and `<style>` are not read. |
+| PDF (`POST /check-file`) | pdfplumber, page by page; white, under-2-pt and off-page characters kept and marked as a hidden layer. Scanned pages by RapidOCR. |
+| Word (`POST /check-file`) | Body, tables, text boxes, headers and footers; hidden (`w:vanish`), white or tiny runs and comments kept and marked as hidden. |
+| Image (`POST /check-file`) | RapidOCR text and tables. |
+| Markdown, API response, source code, OCR text | Plain text for now (Unicode normalisation and decoding apply to every type). |
+
+**Split, never strip.** About 70% of real web injections sit in HTML a browser never shows, and PDF and Word attacks hide in white, tiny or hidden-flagged text, so a cleaner that throws those parts away deletes the attack before any detector sees it. The hidden layers are read by every detector, window by window like visible text; a cut removes exactly the hidden element, comment or run. Concealment alone does not block: on the dev split, counting any signal on hidden text as an attack caught nothing extra and flagged benign files that hide ordinary text the same way.
 
 ## 9. Oversight without a human in the loop
 
@@ -152,6 +164,8 @@ The system never pauses for approval: the firewall decides, the agent acts or is
 - **Our own sets are reported apart:** attacks aimed at our judge, and a small typed set for credential theft, multi-step jailbreaks, secret extraction and encoded instructions, which public data barely covers.
 - **End to end:** the agent with and without each checkpoint, the demo scenarios repeated, and adaptive attacks that rewrite themselves against the firewall's feedback.
 
+**Files with hidden text (held-out, every layer on):** CrackedPDFs (public): 50 of 50 injected PDFs caught, 0 of 50 benign originals and 11 of 50 benign look-alikes (ordinary text hidden the same way) flagged. Public LLMail attacks hidden in HTML pages and Word files we generated: 26 of 30 and 25 of 30 caught, 0 of 60 benign twins flagged. Per technique: [`eval/results/files-held.md`](../eval/results/files-held.md).
+
 **Headline (held-out, every layer on):** 104 of 120 public attacks caught (87%) and 0 of 140 real emails wrongly flagged; with the tool-call guard, 0 of 33 attack emails made the agent send data out (8 did without it), and 8 of 8 legitimate tasks still completed. Per-type rates: [`eval/results/heldout-llm.md`](../eval/results/heldout-llm.md).
 
 ## 11. Known limits
@@ -159,6 +173,9 @@ The system never pauses for approval: the firewall decides, the agent acts or is
 - **No defence is unbreakable.** Adaptive attacks beat every published defence ("The Attacker Moves Second", 2025). Our adaptive-attack run shows where this one breaks.
 - **Clean-lane misses:** an attack that every local detector scores as clean never reaches the judge. The guard is the backstop, but it stops actions, not words: a false summary or a phishing link the agent repeats to the user gets through.
 - **The guard cannot stop** data sent to a recipient the user really named when the user really asked to send.
-- **Long documents:** detection far beyond a classifier's window is an open research problem; the measured results cover email-length text.
+- **Long documents:** detection far beyond a classifier's window is an open research problem; the measured results cover email-length text and files of a few pages.
+- **Hidden text not detected:** text hidden by a stylesheet class (needs a browser render), PDF text under a shape or matching a coloured background, PDF invisible render mode (read, but not marked hidden: OCR'd scans use it legitimately), Word footnotes, hidden Excel rows and sheets. Markdown, API responses and source code have no dedicated front end yet.
+- **Benign look-alikes:** PDFs that hide ordinary text in tiny or margin print are flagged about a fifth of the time (11/50).
+- **Per-part judging trades a little payload for fewer false cuts:** since the judge rules on each flagged part, ordinary notes next to an attack are kept, but in 3 of 90 LLMail attacks a payload fragment it voted harmless stayed in the cleaned text (the attack itself was still cut).
 - **The intent check is keyword-based:** a legitimate request worded without a send/pay/forward verb is blocked (the safe failure direction).
 - **Latency:** the LLM layers add seconds per flagged email; on the live server's single CPU a protected agent run takes minutes.

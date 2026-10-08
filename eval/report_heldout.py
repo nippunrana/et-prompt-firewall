@@ -129,16 +129,16 @@ if (DATA / "results-agent.jsonl").exists():
 scenarios = json.loads((ROOT / "results" / "scenarios.json").read_text()) \
     if (ROOT / "results" / "scenarios.json").exists() else []
 adaptive = json.loads((ROOT / "results" / "adaptive.json").read_text()) if (ROOT / "results" / "adaptive.json").exists() else None
+# Files and web pages with hidden text (report_files.py on the held-out file run).
+files = json.loads((ROOT / "results" / "files-held.json").read_text()) if (ROOT / "results" / "files-held.json").exists() else None
 
 DASH.parent.mkdir(exist_ok=True)
-DASH.write_text(json.dumps({"heldout": heldout, "agent": agent, "scenarios": scenarios, "adaptive": adaptive}, indent=1) + "\n")
+DASH.write_text(json.dumps({"heldout": heldout, "agent": agent, "scenarios": scenarios, "adaptive": adaptive, "files": files},
+                           indent=1) + "\n")
 
 h = heldout
 lines = ["# Held-out run with the LLM layers on (D2 evidence)", "",
-         f"Commit `{h['commit']}` · {h['items']} items · errors {h['errors']} · not run {h['missing']}. "
-         "One item (apibp_0082_b) first failed on a dropped connection to the judge, which crashed the check instead of "
-         "falling back; that bug was fixed (`judge.py` now treats any connection failure as the judge being unavailable) "
-         "and the item re-ran on the fixed code.", "",
+         f"Commit `{h['commit']}` · {h['items']} items · errors {h['errors']} · not run {h['missing']}.", "",
          "All 300 held-out items (never used to tune anything), the 10 attacks aimed at our judge, and a typed set we "
          "wrote for the attack types public data barely covers. Rows marked *ours* are our own writing and are never "
          "blended into the public numbers.", "",

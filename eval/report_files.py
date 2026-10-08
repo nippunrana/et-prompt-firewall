@@ -33,6 +33,7 @@ def _pct(n: int, d: int) -> str:
 def summarise(label: str) -> str:
     rows = [json.loads(line) for line in open(ROOT / "data" / f"results-{label}.jsonl")]
     meta = json.loads((ROOT / "data" / f"results-{label}.meta.json").read_text())
+    summary = {"commit": meta.get("commit"), "files": len(rows), "errors": sum(1 for r in rows if r["error"]), "sets": []}
     out = [f"# {label}", "",
            f"Split `{meta['split']}`, commit `{(meta.get('commit') or '')[:7]}`, LLM layers {'on' if meta.get('llm') else 'off'}, "
            f"concealment rule (`FIREWALL_HIDDEN_STRONG`) {'on' if meta.get('hidden_strong') == '1' else 'off'}. "
@@ -45,6 +46,9 @@ def summarise(label: str) -> str:
             continue
         located = sum(1 for r in group if any(a.get("hidden_in") for a in r["attacks"]))
         gone = [r for r in group if r["payload_gone"] is not None]
+        summary["sets"].append({"set": key, "label": name, "attack": bool(group[0]["label"]), "n": len(group),
+                                "flagged": sum(map(_flagged, group)), "located": located if group[0]["label"] else None,
+                                "payload_n": len(gone), "payload_gone": sum(r["payload_gone"] for r in gone)})
         out.append(f"| {name} | {len(group)} | {_pct(sum(map(_flagged, group)), len(group))} | "
                    f"{_pct(located, len(group)) if group[0]['label'] else '–'} | "
                    f"{_pct(sum(r['payload_gone'] for r in gone), len(gone)) if gone else '–'} |")
@@ -67,6 +71,9 @@ def summarise(label: str) -> str:
     ms = [r["ms"] for r in rows if not r["error"]]
     out += ["", f"Median {statistics.median(ms) / 1000:.1f} s per file; {sum(r['judge_calls'] for r in rows)} judge calls, "
             f"{sum(r['sandbox_calls'] for r in rows)} sandbox runs.", ""]
+    summary["median_s"] = round(statistics.median(ms) / 1000, 1)
+    summary["judge_failed"] = sum(1 for r in rows if r["judge"] and not r["judge"]["ok"])
+    (ROOT / "results" / f"{label}.json").write_text(json.dumps(summary, indent=1) + "\n")
     return "\n".join(out)
 
 
