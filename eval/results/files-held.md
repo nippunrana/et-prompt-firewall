@@ -31,6 +31,8 @@ Split `held`, commit `491654f`, LLM layers on, concealment rule (`FIREWALL_HIDDE
 | pdf | tiny_font | 12/12 (100%) | 8/24 (33%) |
 | pdf | white_text | 11/11 (100%) | 0/22 (0%) |
 
+The PDF techniques and families are CrackedPDFs' own labels for how it hid the text, not what the firewall detected. Its generator writes the appended text below the page edge, so the extractor marked nearly all of it as off-page text. Invisible render mode is never marked hidden (OCR'd scans use it legitimately); that text is read as visible.
+
 **CrackedPDFs injected, per attack family:**
 
 | Family | Flagged |

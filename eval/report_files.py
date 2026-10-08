@@ -66,7 +66,10 @@ def summarise(label: str) -> str:
         if r["set"] == "cpdf_injected_attack" and not r["error"]:
             pdf_family[r["technique"]].append(r)
     if pdf_family:
-        out += ["", "**CrackedPDFs injected, per attack family:**", "", "| Family | Flagged |", "| :--- | ---: |"]
+        out += ["", "The PDF techniques and families are CrackedPDFs' own labels for how it hid the text, not what the firewall "
+                "detected. Its generator writes the appended text below the page edge, so the extractor marked nearly all of it "
+                "as off-page text. Invisible render mode is never marked hidden (OCR'd scans use it legitimately); that text is read as visible.",
+                "", "**CrackedPDFs injected, per attack family:**", "", "| Family | Flagged |", "| :--- | ---: |"]
         out += [f"| {fam} | {_pct(sum(map(_flagged, g)), len(g))} |" for fam, g in sorted(pdf_family.items())]
     ms = [r["ms"] for r in rows if not r["error"]]
     out += ["", f"Median {statistics.median(ms) / 1000:.1f} s per file; {sum(r['judge_calls'] for r in rows)} judge calls, "

@@ -1,0 +1,79 @@
+{
+ "commit": "e16a16dfcb260e14163eb5532320f48a45c4ff27",
+ "files": 100,
+ "errors": 0,
+ "sets": [
+  {
+   "set": "html_attack",
+   "label": "HTML: LLMail attacks hidden in our carrier pages",
+   "attack": true,
+   "n": 10,
+   "flagged": 7,
+   "located": 7,
+   "payload_n": 10,
+   "payload_gone": 6
+  },
+  {
+   "set": "html_benign",
+   "label": "HTML: the same pages with ordinary hidden content",
+   "attack": false,
+   "n": 10,
+   "flagged": 2,
+   "located": null,
+   "payload_n": 0,
+   "payload_gone": 0
+  },
+  {
+   "set": "docx_attack",
+   "label": "Word: LLMail attacks hidden in our carrier files",
+   "attack": true,
+   "n": 10,
+   "flagged": 6,
+   "located": 6,
+   "payload_n": 10,
+   "payload_gone": 6
+  },
+  {
+   "set": "docx_benign",
+   "label": "Word: the same files with ordinary hidden content",
+   "attack": false,
+   "n": 10,
+   "flagged": 1,
+   "located": null,
+   "payload_n": 0,
+   "payload_gone": 0
+  },
+  {
+   "set": "cpdf_injected_attack",
+   "label": "PDF (CrackedPDFs): injected",
+   "attack": true,
+   "n": 20,
+   "flagged": 20,
+   "located": 19,
+   "payload_n": 0,
+   "payload_gone": 0
+  },
+  {
+   "set": "cpdf_benign_confounder",
+   "label": "PDF (CrackedPDFs): benign look-alike (same hiding, benign text)",
+   "attack": false,
+   "n": 20,
+   "flagged": 18,
+   "located": null,
+   "payload_n": 0,
+   "payload_gone": 0
+  },
+  {
+   "set": "cpdf_benign_original",
+   "label": "PDF (CrackedPDFs): benign original",
+   "attack": false,
+   "n": 20,
+   "flagged": 0,
+   "located": null,
+   "payload_n": 0,
+   "payload_gone": 0
+  }
+ ],
+ "median_s": 21.2,
+ "judge_failed": 1
+}
