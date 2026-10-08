@@ -37,7 +37,9 @@ class Text:
     def add(self, piece: str, kind: str | None = None) -> None:
         if not piece:
             return
-        if kind:
+        if kind and self.hidden and self.hidden[-1][0] == kind and self.hidden[-1][2] == self.size:
+            self.hidden[-1] = (kind, self.hidden[-1][1], self.size + len(piece))  # one hidden run split by formatting
+        elif kind:
             self.hidden.append((kind, self.size, self.size + len(piece)))
         self.parts.append(piece)
         self.size += len(piece)

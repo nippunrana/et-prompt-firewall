@@ -73,7 +73,7 @@ def main() -> None:
     meta = DATA / f"results-{label}.meta.json"
     if not meta.exists():
         meta.write_text(json.dumps({"label": label, "split": split, "commit": os.environ.get("EVAL_COMMIT"), "llm": run.LLM,
-                                    "hidden_strong": os.environ.get("FIREWALL_HIDDEN_STRONG", "1"),
+                                    "hidden_strong": os.environ.get("FIREWALL_HIDDEN_STRONG", "0"),
                                     "started": time.strftime("%Y-%m-%dT%H:%M:%S%z")}))
     print(f"{len(todo)} to run, {len(done)} already done", flush=True)
     with mp.get_context("spawn").Pool(run.WORKERS, initializer=run._init) as pool, out.open("a") as f:

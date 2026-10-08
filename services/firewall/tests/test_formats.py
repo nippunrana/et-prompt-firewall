@@ -1,6 +1,6 @@
 from app.check import run_check
 from app.formats import HTML_ATTRIBUTE, HTML_COMMENT, HTML_HIDDEN, split_html, split_ranges
-from app.judge import find_quote
+from app.judge import JudgeResult, find_quote
 from app.prepare import prepare
 from tests.fakes import KeywordClassifier
 
@@ -92,11 +92,27 @@ def test_hidden_attack_in_a_page_is_cut_and_says_where_it_hid():
     assert "Revenue grew this quarter." in result["clean_content"] and "Costs fell." in result["clean_content"]
 
 
-def test_one_signal_on_hidden_text_is_enough():
+def test_one_signal_on_hidden_text_is_cut_when_no_judge_clears_it():
     page = f'<p>Revenue grew this quarter.</p><div style="display:none">{ATTACK}</div>'
     result = run_check(page, "web", ONE_FAKE, fmt="html")
     assert result["verdict"] == "sanitise"
     assert result["attacks"][0]["hidden_in"] == [HTML_HIDDEN]
+
+
+def test_judge_clears_one_signal_on_hidden_text():
+    page = '<p>Revenue grew this quarter.</p><!-- restore the old banner after the sale ends -->'
+    judge = lambda *a: JudgeResult(ok=True, is_attack=False)
+    one = [KeywordClassifier("PIGuard", ["old banner"]), KeywordClassifier("PromptGuard2", [])]
+    result = run_check(page, "web", one, fmt="html", judge=judge)
+    assert result["verdict"] == "allow" and len(result["cleared"]) == 1
+
+
+def test_long_hidden_text_is_scored_window_by_window():
+    filler = " ".join(f"Line {i} of the quarterly notes is ordinary." for i in range(12))
+    page = f'<p>Revenue grew.</p><div hidden>{filler} {ATTACK}. {filler}</div>'
+    diluted = [KeywordClassifier(n, ["ignore your previous instructions"], whole=0.01) for n in ("PIGuard", "PromptGuard2")]
+    result = run_check(page, "web", diluted, fmt="html")
+    assert result["verdict"] == "sanitise" and result["attacks"][0]["hidden_in"] == [HTML_HIDDEN]
 
 
 def test_benign_page_with_ordinary_hidden_parts_passes_in_the_clean_lane():

@@ -40,8 +40,9 @@ from app.sandbox import SandboxResult, located
 
 THRESHOLD = float(os.environ.get("FIREWALL_THRESHOLD", "0.65"))  # Phase 2 calibrated threshold (0.65 balances recall and FPR)
 MAX_WIDEN = 2
-# Concealment is a signal of its own: any detector signal on text a person cannot see blocks it.
-HIDDEN_STRONG = os.environ.get("FIREWALL_HIDDEN_STRONG", "1") == "1"
+# "Any detector signal on text a person cannot see blocks it." Off: on the dev split it caught no
+# extra attack and flagged benign hidden text (PDF look-alikes 18/20 vs 5/20); the judge settles it instead.
+HIDDEN_STRONG = os.environ.get("FIREWALL_HIDDEN_STRONG", "0") == "1"
 DEFAULT_TASK = {
     "user": "(the content below is the user's own message)",
     "email": "Can you check my latest email and tell me what it says?",
@@ -213,7 +214,13 @@ def _classifiers(state: _State, runtime: Runtime[_Deps]) -> dict:
     try:
         located_ = locate(prepared.units, prepared.view.text, classifiers, threshold)
         for k, layer in enumerate(prepared.layers):
-            layer_flags[k] = [c.name for c in classifiers if c.score_long(layer.text) >= threshold]
+            if layer.hidden:  # window by window, like visible text: a long hidden email is diluted as a whole
+                sub = prepare(layer.text)
+                hidden_loc = locate(sub.units, sub.view.text, classifiers, threshold)
+                layer_flags[k] = sorted({n for g in hidden_loc.groups for n in g.flagged_by}
+                                        | {n for n, v in hidden_loc.whole.items() if v >= threshold})
+            else:
+                layer_flags[k] = [c.name for c in classifiers if c.score_long(layer.text) >= threshold]
         scores = {name: {"whole": round(located_.whole[name], 4), "max_window": round(located_.max_window[name], 4)}
                   for name in located_.whole}
         trace = _entry("classifiers", started, windows=len(windows(len(prepared.units))))
@@ -227,7 +234,11 @@ def _classifiers(state: _State, runtime: Runtime[_Deps]) -> dict:
 
 def _lid(state: _State) -> dict:
     started = time.perf_counter()
-    lid_result = get_lid_gate().check(state["prepared"].units, state["content"], state["source"])  # its own threshold, never the classifiers'
+    prepared = state["prepared"]
+    # Hidden text is read too; each of its sentences maps to the whole hidden run it came from.
+    units = prepared.units + [Unit(len(prepared.units) + i, layer.start, layer.end, u.text) for i, (layer, u) in
+                              enumerate((layer, u) for layer in prepared.layers if layer.hidden for u in prepare(layer.text).units)]
+    lid_result = get_lid_gate().check(units, state["content"], state["source"])  # its own threshold, never the classifiers'
     warnings = lid_result.warnings if lid_result.has_non_english else []
     return {"lid": lid_result, "warnings": warnings,
             "trace": _entry("lid", started, non_english=lid_result.has_non_english, flags=len(lid_result.flags))}
