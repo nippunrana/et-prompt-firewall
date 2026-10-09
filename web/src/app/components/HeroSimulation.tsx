@@ -310,51 +310,53 @@ export default function HeroSimulation() {
         </span>
       </div>
 
-      <div className={s.email} data-blocked={decided && sc.verdict === "block"}>
-        <Steady variants={SCENARIOS.map((x) => <Email key={x.label} sc={x} decided />)}><Email sc={sc} decided={decided} /></Steady>
-      </div>
+      <div className={s.body}>
+        <div className={s.email} data-blocked={decided && sc.verdict === "block"}>
+          <Steady variants={SCENARIOS.map((x) => <Email key={x.label} sc={x} decided />)}><Email sc={sc} decided={decided} /></Steady>
+        </div>
 
-      <ol className={`${p.pipe} ${s.pipe}`} aria-label="Simulated steps">
-        {items.map((it) => (
-          <li key={it.key} className={p.item} data-state={it.state}>
-            <Mark state={it.state} />
-            <div>
-              {it.checkpoint && <span className={p.checkpoint}>Checkpoint {it.checkpoint}</span>}
-              <SteadyText row={it} values={it.values} />
-              {it.rows && (
-                <div className={s.checkpointTracker}>
-                  <div
-                    className={s.segmentedTrack}
-                    role="progressbar"
-                    aria-label="9 defense layers progress"
-                    aria-valuenow={Math.min(9, Math.max(0, n - tick("request")))}
-                    aria-valuemin={0}
-                    aria-valuemax={9}
-                  >
-                    {STAGES.map(([key, name]) => {
-                      const stageState = at(key, sc.stages[key]).state;
-                      return (
-                        <span
-                          key={key}
-                          className={s.segment}
-                          data-stage={key}
-                          data-state={stageState}
-                          title={`${name}: ${sc.stages[key][1]}`}
-                        />
-                      );
-                    })}
+        <ol className={`${p.pipe} ${s.pipe}`} aria-label="Simulated steps">
+          {items.map((it) => (
+            <li key={it.key} className={p.item} data-state={it.state}>
+              <Mark state={it.state} />
+              <div>
+                {it.checkpoint && <span className={p.checkpoint}>Checkpoint {it.checkpoint}</span>}
+                <SteadyText row={it} values={it.values} />
+                {it.rows && (
+                  <div className={s.checkpointTracker}>
+                    <div
+                      className={s.segmentedTrack}
+                      role="progressbar"
+                      aria-label="9 defense layers progress"
+                      aria-valuenow={Math.min(9, Math.max(0, n - tick("request")))}
+                      aria-valuemin={0}
+                      aria-valuemax={9}
+                    >
+                      {STAGES.map(([key, name]) => {
+                        const stageState = at(key, sc.stages[key]).state;
+                        return (
+                          <span
+                            key={key}
+                            className={s.segment}
+                            data-stage={key}
+                            data-state={stageState}
+                            title={`${name}: ${sc.stages[key][1]}`}
+                          />
+                        );
+                      })}
+                    </div>
+                    <div className={s.trackerSummary}>
+                      <Steady variants={TRACKER_VARIANTS}>
+                        <span className={s.trackerText}>{trackerText}</span>
+                      </Steady>
+                    </div>
                   </div>
-                  <div className={s.trackerSummary}>
-                    <Steady variants={TRACKER_VARIANTS}>
-                      <span className={s.trackerText}>{trackerText}</span>
-                    </Steady>
-                  </div>
-                </div>
-              )}
-            </div>
-          </li>
-        ))}
-      </ol>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
 
       <div className={s.foot}>
         <div className={s.footRow}>

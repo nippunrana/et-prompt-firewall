@@ -94,21 +94,54 @@
   text-transform: uppercase;
 }
 
+/* Measured results, straight from dashboard.json */
+.proof {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-5);
+  margin: var(--space-5) 0 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+  color: var(--ink-500);
+  font-size: var(--text-sm);
+}
+
+.proof strong {
+  color: var(--ink-900);
+  font-weight: 650;
+}
+
+.proofLabel {
+  color: var(--ink-400);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.heroVisual {
+  min-width: 0;
+}
+
+/* The text takes most of the row; the diagram is a narrow supporting column */
 @media (min-width: 1024px) {
   .heroGrid {
-    grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.15fr);
-    column-gap: var(--space-8);
+    grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+    column-gap: var(--space-12);
     align-items: center;
   }
 
-  .heroNarrative {
-    align-self: center;
+  .lede,
+  .proof {
+    max-width: 40rem;
   }
 }
 
-/* The looping simulation; on wide screens it stretches to the narrative's height */
+/* The looping simulation, below the choice: it folds away with the hero once an input is picked */
 .heroPipeline {
   min-width: 0;
+  margin-top: var(--space-12);
 }
 
 /* The email demo choice: a light card in the page's blue, with a solid button as its call to action */

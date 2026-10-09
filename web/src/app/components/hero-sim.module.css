@@ -99,6 +99,19 @@
   transition: width 600ms linear;
 }
 
+/* The email and the checklist: stacked, or side by side once the card spans the page */
+@media (min-width: 900px) {
+  .body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .body > .email {
+    margin-bottom: var(--space-4);
+  }
+}
+
 /* The example email */
 .email {
   margin: var(--space-4) var(--space-5) 0;

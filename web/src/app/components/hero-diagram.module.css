@@ -1,0 +1,175 @@
+/* The hero's diagram: input → firewall → agent, stacked for a narrow column. Ink tones throughout; the hidden
+   order keeps the simulation's amber dashed look, and the accent marks the firewall. */
+
+.diagram {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 22rem;
+  margin: 0 auto;
+}
+
+.stage {
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.label {
+  margin: 0 0 var(--space-2);
+  color: var(--ink-500);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: var(--space-3);
+}
+
+.source {
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-500);
+  font-size: 11px;
+  font-weight: 550;
+}
+
+.source[data-active] {
+  border-color: var(--ink-700);
+  color: var(--ink-900);
+}
+
+.doc {
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--canvas);
+}
+
+.line {
+  margin: 0;
+  color: var(--ink-700);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.order {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  margin: var(--space-2) 0 0;
+  padding: 5px 7px;
+  border: 1px dashed rgba(245, 158, 11, 0.5);
+  border-radius: var(--radius-sm);
+  background: rgba(254, 243, 199, 0.4);
+}
+
+.orderTag {
+  color: #b45309;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.orderText {
+  color: var(--ink-700);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.cut {
+  display: inline-block;
+  margin: var(--space-2) 0 0;
+  padding: 2px 8px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 999px;
+  color: var(--ink-500);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* The connector, with one dot that travels down it slowly */
+.wire {
+  position: relative;
+  align-self: center;
+  width: 2px;
+  height: 28px;
+  background: var(--line-strong);
+}
+
+.pulse {
+  position: absolute;
+  left: -3px;
+  top: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0;
+  animation: travel-in 6s var(--ease-out) infinite;
+}
+
+.pulse[data-late] {
+  animation-name: travel-out;
+}
+
+.firewall {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, #f8faff, #eff6ff);
+  box-shadow: 0 6px 22px -8px rgba(37, 99, 235, 0.35);
+}
+
+.shield {
+  flex: none;
+  color: var(--accent);
+}
+
+.firewallText {
+  display: flex;
+  flex-direction: column;
+  color: var(--ink-500);
+  font-size: var(--text-xs);
+}
+
+.firewallText strong {
+  color: var(--ink-900);
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+
+@keyframes travel-in {
+  0% { top: 0; opacity: 0; }
+  5% { opacity: 1; }
+  25% { top: 20px; opacity: 1; }
+  30%, 100% { top: 20px; opacity: 0; }
+}
+
+@keyframes travel-out {
+  0%, 45% { top: 0; opacity: 0; }
+  50% { opacity: 1; }
+  70% { top: 20px; opacity: 1; }
+  75%, 100% { top: 20px; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
+}

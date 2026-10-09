@@ -1,18 +1,21 @@
 "use client";
 
 import React from "react";
+import dashboard from "@/data/dashboard.json";
 import { INPUT_TYPES } from "@/lib/input-examples";
+import HeroDiagram from "./HeroDiagram";
 import HeroSimulation from "./HeroSimulation";
 import s from "./hero.module.css";
 
 export const EMAIL = "email";
 
-// The pain in plain words, a looping simulation of the checks beside it, then one choice: what the AI reads.
+// The pain in plain words with a quiet diagram beside it, then one choice: what the AI reads. The looping simulation
+// of the checks sits below the choice, so it never competes with the headline.
 export default function Hero({ selected, onPick }: { selected: string | null; onPick: (key: string) => void }) {
+  const h = dashboard.heldout;
   return (
     <section className={s.hero} aria-labelledby="hero-title">
       <div className={s.heroGrid}>
-        
         {/* Left Column: Narrative */}
         <div className={s.heroNarrative}>
           <div className={s.eyebrowBadge}>
@@ -28,10 +31,15 @@ export default function Hero({ selected, onPick }: { selected: string | null; on
             email, a web page or a file can make an agent send your data or pay a stranger. The firewall reads everything first
             and removes those lines before the agent acts.
           </p>
+          <p className={s.proof}>
+            <span className={s.proofLabel}>Held-out tests</span>
+            <span><strong>{h.public_attacks.caught} of {h.public_attacks.n}</strong> public attacks caught</span>
+            <span><strong>{h.real_benign.flagged} of {h.real_benign.n}</strong> real emails wrongly flagged</span>
+          </p>
         </div>
 
-        <div className={s.heroPipeline}>
-          <HeroSimulation />
+        <div className={s.heroVisual}>
+          <HeroDiagram />
         </div>
       </div>
 
@@ -86,6 +94,11 @@ export default function Hero({ selected, onPick }: { selected: string | null; on
             </div>
           </div>
         </div>
+      </div>
+
+      <div className={s.heroPipeline}>
+        <p className={s.choiceLabel}>How it works</p>
+        <HeroSimulation />
       </div>
     </section>
   );
