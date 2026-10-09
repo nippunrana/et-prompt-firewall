@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { BASE_PATH } from "@/lib/base-path";
 import { ATTACK_EXAMPLES } from "@/lib/attack-examples";
-import { emailText, VERDICT_LABEL, type Email, type InboxEmail } from "@/lib/demo-types";
+import { emailText, VERDICT_LABEL, type Email, type InboxEmail, type Scenario } from "@/lib/demo-types";
 import EmailCheck, { type CheckState } from "./EmailCheck";
 import s from "./demo.module.css";
 
@@ -35,9 +35,10 @@ interface Props {
   onChange: (emails: InboxEmail[]) => void;
   userRequest: string;
   disabled: boolean;
+  kind?: Scenario["kind"]; // the picked scenario's kind, to say what its marked email contains
 }
 
-export default function InboxEditor({ emails, onChange, userRequest, disabled }: Props) {
+export default function InboxEditor({ emails, onChange, userRequest, disabled, kind }: Props) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [checks, setChecks] = useState<Record<string, CheckState>>({});
 
@@ -95,7 +96,7 @@ export default function InboxEditor({ emails, onChange, userRequest, disabled }:
                 <span className={s.emailFrom}>{e.from}</span>
               </span>
               <span className={s.emailBadges}>
-                {e.attack && <span className={`tag ${s.tagAttack}`}>Attacker&apos;s email</span>}
+                {e.attack && <span className={`tag ${s.tagAttack}`}>{kind === "phishing" ? "Contains a phishing link" : "Contains a prompt injection"}</span>}
                 {e.added && <span className="tag">Added</span>}
                 {c?.result && <span className={`pill pill--${c.result.verdict}`}>{VERDICT_LABEL[c.result.verdict]}</span>}
               </span>

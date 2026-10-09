@@ -198,7 +198,7 @@ export default function AgentDemo({ first = 1, active = true }: { first?: number
             <span className="label">You ask the agent</span>
             <input className="field" value={userRequest} disabled={running} maxLength={2000} onChange={(e) => setUserRequest(e.target.value)} />
           </label>
-          <InboxEditor emails={emails} onChange={setEmails} userRequest={userRequest} disabled={running} />
+          <InboxEditor emails={emails} onChange={setEmails} userRequest={userRequest} disabled={running} kind={selected?.kind} />
         </div>
       </section>}
 
