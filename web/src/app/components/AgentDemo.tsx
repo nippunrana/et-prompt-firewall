@@ -55,12 +55,10 @@ const { techniques } = dashboard;
 const share = (sc: Scenario) =>
   sc.technique ? Math.round((100 * (techniques.counts as Record<string, number>)[sc.technique]) / techniques.n) : null;
 
-// The steps appear one at a time; a scenario is already picked, so one "Next" shows the inbox and the run bar.
+// Both steps show at once: the first attack is already picked, so its inbox and the run bar are ready.
 // `first` is the number of its first step; `active` is false while another input type is shown.
 export default function AgentDemo({ first = 1, active = true }: { first?: number; active?: boolean }) {
-  const root = useRef<HTMLDivElement>(null);
   const dock = useRef<HTMLDivElement>(null);
-  const [stage, setStage] = useState(1);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -74,19 +72,9 @@ export default function AgentDemo({ first = 1, active = true }: { first?: number
   const [drawerOpen, setDrawerOpen] = useState(false);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
-  // A step that just appeared slides in, scrolls into view and takes focus (its "Next" button is gone)
-  useGSAP(() => {
-    const step = root.current?.querySelector<HTMLElement>(`[data-stage="${stage}"]`);
-    if (stage === 1 || !step) return;
-    const field = step.querySelector<HTMLElement>("input, button:not(:disabled)");
-    gsap.fromTo(step, { autoAlpha: 0, y: 24 },
-      { autoAlpha: 1, y: 0, duration: duration(0.5), ease: "power3.out", onComplete: () => field?.focus({ preventScroll: true }) });
-    step.scrollIntoView({ behavior: duration(1) ? "smooth" : "instant", block: "start" });
-  }, { dependencies: [stage], scope: root });
-
-  // The run bar, fixed to the bottom of the window once the inbox is shown. It sits outside the step
-  // sections: their slide-in leaves a transform, which would pin a fixed bar to the section instead.
-  const showDock = active && stage >= 2 && Boolean(selectedId);
+  // The run bar, fixed to the bottom of the window. It sits outside the step sections, so a transform on
+  // one of them can never pin the fixed bar to the section instead of the window.
+  const showDock = active && Boolean(selectedId);
   useGSAP(() => {
     if (showDock && dock.current) gsap.fromTo(dock.current, { yPercent: 100 }, { yPercent: 0, duration: duration(0.5), ease: "power3.out" });
   }, { dependencies: [showDock] });
@@ -180,8 +168,8 @@ export default function AgentDemo({ first = 1, active = true }: { first?: number
   const emptyEmail = emails.some((e) => !e.body.trim());
 
   return (
-    <div ref={root}>
-      <section className={s.step} data-stage={1}>
+    <div>
+      <section className={s.step}>
         <StepHeader n={first} title="Pick an attack"
           hint="The techniques attackers use most against AI email assistants, most common first. Each one opens a realistic inbox with that attack hidden in it." />
         <div className={s.stepBody}>
@@ -192,19 +180,13 @@ export default function AgentDemo({ first = 1, active = true }: { first?: number
                 {share(sc) !== null && <span className={s.chipShare}>{share(sc)}%</span>}
               </button>
             ))}
+            <button className="chip" aria-pressed={selectedId === BLANK_ID} disabled={running} onClick={() => pick(null)}>Blank inbox</button>
           </div>
           <p className={s.source}>
             % = share of the {techniques.n} attacks we labelled from Microsoft&apos;s public LLMail-Inject challenge (2025), all of which
             beat an AI email assistant. One attack can use several techniques, so the shares add up to more than 100%.
             Prompt injection is #1 on the OWASP Top 10 for LLM applications.
           </p>
-          <div className={`${s.chips} ${s.moreChips}`}>
-            <span className={s.addLabel}>Also try:</span>
-            {scenarios.filter((sc) => !sc.featured).map((sc) => (
-              <button key={sc.id} className="chip" aria-pressed={sc.id === selectedId} disabled={running} onClick={() => pick(sc)}>{sc.title}</button>
-            ))}
-            <button className="chip" aria-pressed={selectedId === BLANK_ID} disabled={running} onClick={() => pick(null)}>Blank inbox</button>
-          </div>
           {selected && !custom && (
             <div className={s.pickNote}>
               <p><strong>How it works:</strong> {selected.how}</p>
@@ -222,11 +204,10 @@ export default function AgentDemo({ first = 1, active = true }: { first?: number
               {selectedId === BLANK_ID ? "Your own inbox" : "You changed this scenario"}: the results will report what each agent actually did.
             </p>
           )}
-          {stage === 1 && <button className={`btn btn--primary ${s.next}`} onClick={() => setStage(2)}>Next: see the inbox</button>}
         </div>
       </section>
 
-      {stage >= 2 && <section className={s.step} data-stage={2}>
+      <section className={s.step}>
         <StepHeader n={first + 1} title="Edit the inbox" hint="Change anything: the request, the sender, the subject or the body. Add your own email, or one of the example attacks." />
         <div className={s.stepBody}>
           <label>
@@ -235,7 +216,7 @@ export default function AgentDemo({ first = 1, active = true }: { first?: number
           </label>
           <InboxEditor emails={emails} onChange={setEmails} userRequest={userRequest} disabled={running} kind={selected?.kind} />
         </div>
-      </section>}
+      </section>
 
       {showDock && (
         <div ref={dock} className={s.dock} role="region" aria-label="Run both agents">

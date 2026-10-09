@@ -55,7 +55,7 @@ export default function TryIt() {
   }, { dependencies: [key, heroOpen], scope: root });
 
   const instruction = key === EMAIL
-    ? "Pick a scenario, look at the inbox, then run both agents."
+    ? "Pick an attack, edit the inbox, then run both agents."
     : type && `${type.form === "file" ? "Upload your" : "Paste your"} ${type.noun} or use the example. The firewall shows what it removed and why.`;
 
   return (
