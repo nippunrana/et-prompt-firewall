@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { INPUT_TYPES } from "@/lib/input-examples";
 import { duration, gsap, useGSAP } from "@/lib/motion";
 import AgentDemo from "./AgentDemo";
+import { HOME_EVENT } from "./AppShell";
 import ContentCheck from "./ContentCheck";
 import Hero, { EMAIL } from "./Hero";
 import s from "./hero.module.css";
@@ -20,6 +21,13 @@ export default function TryIt() {
   const toTop = () => window.scrollTo({ top: 0, behavior: duration(1) ? "smooth" : "instant" });
   function pick(next: string) { setKey(next); setHeroOpen(false); toTop(); }
   function reopen() { setHeroOpen(true); toTop(); }
+
+  // The logo opens the hero again, like the bar does; a running agent job keeps going behind it.
+  useEffect(() => {
+    const home = () => setHeroOpen(true);
+    window.addEventListener(HOME_EVENT, home);
+    return () => window.removeEventListener(HOME_EVENT, home);
+  }, []);
 
   useGSAP(() => {
     if (!key) return; // first load: the hero is open and nothing is picked yet

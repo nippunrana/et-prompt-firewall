@@ -40,7 +40,7 @@ export default function AuditLog() {
     <div>
       <button className="btn" onClick={load} style={{ marginBottom: "var(--space-4)" }}>Refresh</button>
       {error && <p style={{ color: "var(--block)" }}>{error}</p>}
-      {entries && entries.length === 0 && <p className="muted">No decisions yet. Check an email or run the agents on the Try it page.</p>}
+      {entries && entries.length === 0 && <p className="muted">No decisions yet. Check an email or run the agents on the home page.</p>}
       {entries && entries.length > 0 && (
         <div className="table-wrap card">
           <table className="table">

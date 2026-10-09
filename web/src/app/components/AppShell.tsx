@@ -11,6 +11,8 @@ export interface View {
   content: React.ReactNode;
 }
 
+export const HOME_EVENT = "et-home";
+
 // Every view stays mounted, so a running agent demo keeps polling while another view is open.
 export default function AppShell({ views, status, repo }: { views: View[]; status: [string, string][]; repo: string }) {
   const [active, setActive] = useState(0);
@@ -20,13 +22,15 @@ export default function AppShell({ views, status, repo }: { views: View[]; statu
     <>
       <header className={s.bar}>
         <div className={`container ${s.inner}`}>
-          <span className={s.brand} onClick={() => { setActive(0); window.scrollTo({ top: 0 }); }} style={{ cursor: "pointer" }} title="ET Prompt Firewall">
-            <Logo height={32} />
-          </span>
+          {/* The logo is the way home: the first view, with its hero open again (TryIt listens for HOME_EVENT) */}
+          <button type="button" className={s.brand} title="ET Prompt Firewall: home"
+            onClick={() => { setActive(0); window.scrollTo({ top: 0 }); window.dispatchEvent(new Event(HOME_EVENT)); }}>
+            <Logo height={26} />
+          </button>
           <nav className={s.nav} role="tablist" aria-label="Views">
-            {views.map((v, i) => (
-              <button key={v.label} role="tab" aria-selected={i === active} className={s.navItem}
-                onClick={() => { setActive(i); window.scrollTo({ top: 0 }); }}>
+            {views.slice(1).map((v, n) => (
+              <button key={v.label} role="tab" aria-selected={n + 1 === active} className={s.navItem}
+                onClick={() => { setActive(n + 1); window.scrollTo({ top: 0 }); }}>
                 {v.label}
               </button>
             ))}
