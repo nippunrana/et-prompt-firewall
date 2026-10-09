@@ -1,5 +1,7 @@
 # ET Prompt Firewall
 
+<p align="center"><img src="assets/ET-Firewall-Logo-new.webp" alt="ET Prompt Firewall" width="560"></p>
+
 A prompt injection firewall that sits in front of an AI agent. It checks everything the agent reads, finds hidden instructions, names the attack type and removes only the attack. It then checks every action the agent tries to take, so an attack that slips through still cannot make the agent send, forward or pay. No step waits for a person; an audit log records every decision.
 
 Built for the ET AI Hackathon: Agentic Edition (Problem 2: Prompt Injection Firewall).
@@ -12,17 +14,19 @@ Built for the ET AI Hackathon: Agentic Edition (Problem 2: Prompt Injection Fire
 
 The UI has three views:
 
-- **Try it:** first pick what the agent reads: email, user message, web page/HTML, PDF, Word, image, Markdown, API response, source code or OCR text.
-  - **Email** opens the agent demo: pick a ready-made scenario (invoices sent to an attacker, a stolen one-time code, an attack in romanized Hindi, a legitimate request that must still go through, and more) or start from a blank inbox. Every email's sender, subject and body can be edited, and you can add your own email or an example of each attack type. **Check this email** shows what the firewall removes from one email, why, and what the agent would receive. **Run both agents** sends the same inbox to an unprotected email assistant and to one protected by the firewall, side by side.
-  - **Every other type** is checked on its own: paste it or upload the file (example files included) and see what the firewall removes, including text hidden from a person (HTML comments and hidden elements, white or tiny PDF text, hidden Word text).
+- **Try it** (the landing page): pick what your agent reads. The page also shows a looping, clearly labelled simulation of the checks, so you can see how the firewall works before trying it. Picking an input folds this intro into a bar at the top; click the bar (or the logo) to switch.
+  - **Email inbox** is the full agent demo. Pick a ready-made scenario (invoices sent to an attacker, a stolen one-time code, an attack in romanized Hindi, a legitimate request that must still go through, and more) or start from a blank inbox, then **Next: see the inbox**. Every email's sender, subject and body can be edited, and you can add your own email or an example of each attack type. **Check this email** shows what the firewall removes from one email, why, and what the agent would receive. **Run the AI orchestration** (the bar at the bottom of the window) sends the same inbox to an unprotected email assistant and to one protected by the firewall, side by side. While it runs, a drawer ticks off each step as it really happens, including every firewall stage for the email being checked.
+  - **Every other type** (user message, web page/HTML, PDF, Word, image, Markdown, API response, source code, OCR text) is checked on its own: paste it or upload the file (example files included) and see what the firewall removes, including text hidden from a person (HTML comments and hidden elements, white or tiny PDF text, hidden Word text).
 - **Results:** the measured results (below).
 - **Audit log:** every decision both checkpoints made.
+
+The logo always brings you back to the start of Try it, without stopping an agent run in progress.
 
 ## How it works
 
 Two checkpoints ([full architecture](docs/architecture.md)):
 
-1. **Content check (`POST /check`)**: rules, two local injection classifiers (PIGuard, Llama Prompt Guard 2) and a language gate score every sentence window. Anything they flag goes to an LLM judge (Gemma 4 31B), which names the attack and quotes it, and to a sandbox (a deliberately gullible model with fake tools: if the content makes it try to act, that is an attack). Code, never a model, makes the decision; the judge can never clear a strong signal. The attack is cut, the cleaned text is re-checked, and content that cannot be cleaned is withheld.
+1. **Content check (`POST /check`)**: rules, two local injection classifiers (PIGuard, Llama Prompt Guard 2) and a language gate score every sentence window. Anything they flag goes to an LLM judge (Gemma 4 31B), which names the attack and quotes it, and to a sandbox (a deliberately gullible model with fake tools: if the content makes it try to act, that is an attack). Code, never a model, makes the decision; the judge can never clear a strong signal. The attack is cut, the cleaned text is re-checked, and content that cannot be cleaned is withheld. `POST /check/stream` runs the same check and reports each stage as it finishes (one JSON line per stage, then the answer); the demo agent uses it to show progress live.
 2. **Tool-call guard (`POST /guard`)**: plain code that never reads the content. It blocks an action when a secret is leaving, when a recipient or account did not come from the user, or when the user never asked for that kind of action.
 
 It names nine attack types: instruction override, role change, secret extraction, tool abuse, credential theft, context poisoning, multi-step jailbreak, encoded instructions and indirect injection.
@@ -55,7 +59,7 @@ Per attack type (held-out; *ours* = sets we wrote for types public data barely c
 | Encoded instructions | 7/7 · ours 5/5 | 5/7 · ours 2/5 |
 | Indirect injection | 82/95 · ours 22/22 | 80/95 · ours 22/22 |
 
-"Caught" means the attack was removed or the content withheld; the type is sometimes named differently (a fake approval is often named instruction override rather than context poisoning). Without the LLM layers, the local detectors alone wrongly flag 36% of real email (432 of 1,203; [v6.md](eval/results/v6.md)): the judge is what makes the firewall usable on ordinary mail. A check takes a median of 13.2 s on a laptop with the LLM layers on (a file, 23.6 s).
+"Caught" means the attack was removed or the content withheld; the type is sometimes named differently (a fake approval is often named instruction override rather than context poisoning). Without the LLM layers, the local detectors alone wrongly flag 36% of real email (432 of 1,203; [v6.md](eval/results/v6.md)): the judge is what makes the firewall usable on ordinary mail. A check takes a median of 13.2 s on a laptop with the LLM layers on (a file, 23.8 s).
 
 ## Run it locally
 
