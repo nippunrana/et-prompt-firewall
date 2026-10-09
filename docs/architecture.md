@@ -28,7 +28,7 @@ flowchart TB
 ```mermaid
 flowchart LR
     B["Browser"] --> W["web<br/>Next.js UI + API routes"]
-    W --> F["firewall<br/>FastAPI + LangGraph<br/>/check · /guard · /audit · /extract-text"]
+    W --> F["firewall<br/>FastAPI + LangGraph<br/>/check · /check/stream · /guard · /audit · /extract-text"]
     W --> A["demo-agent<br/>FastAPI + LangGraph<br/>/runs · /scenarios"]
     A --> F
     F --> G["Gemini API<br/>Gemma 4 31B (judge)"]
@@ -155,7 +155,7 @@ The system never pauses for approval: the firewall decides, the agent acts or is
 
 - **Audit log** (`GET /audit`, the UI's Audit log tab): every content check (verdict, lane, types, cuts, which layer cut) and every outgoing action the guard decided on (decision, types, reason). It stores a hash and the length of the checked text, never the text itself, so a public demo never keeps what visitors paste.
 - **Guard review log:** blocked actions, plus allowed actions a human would normally have been asked about (any payment, delete, or new outside recipient), with their arguments, for setting rules later.
-- **Every `/check` answer carries a trace** (each stage and its time) and its warnings (for example, "judge unavailable").
+- **Every `/check` answer carries a trace** (each stage and its time) and its warnings (for example, "judge unavailable"). `/check/stream` runs the same check and reports each stage as it finishes; the demo's run drawer shows them live.
 
 ## 10. Evaluation
 

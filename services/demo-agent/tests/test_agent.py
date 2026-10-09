@@ -68,7 +68,7 @@ def test_guard_blocks_the_send_and_the_agent_still_answers():
 def test_firewall_checks_every_email_before_the_agent_reads_it():
     checked = []
 
-    def check(body):
+    def check(body, on_stage):
         checked.append(body["content"])
         bad = "audit@vendor.example" in body["content"]
         return {"verdict": "sanitise" if bad else "allow", "lane": "unsure" if bad else "clean",
@@ -84,7 +84,7 @@ def test_firewall_checks_every_email_before_the_agent_reads_it():
 
 
 def test_an_unreachable_firewall_withholds_email():
-    def down(body):
+    def down(body, on_stage):
         raise ConnectionError("no route")
 
     model = ScriptedModel(hijacked=False)
@@ -129,7 +129,7 @@ def test_each_step_carries_the_tokens_and_cost_of_its_model_call():
     def priced(messages, tools):
         return {**model(messages, tools), "usage": paid}
 
-    def check(body):
+    def check(body, on_stage):
         return {"verdict": "allow", "lane": "clean", "attacks": [], "clean_content": body["content"], "usage": judged}
 
     result = agent.run(settings(priced, firewall=True, check=check))
@@ -142,8 +142,43 @@ def test_each_firewall_step_carries_what_every_layer_found():
               "non_english_spans": [], "judge": {"ok": True, "is_attack": False}, "sandbox": None,
               "trace": [{"step": "rules", "ms": 1}]}
 
-    def check(body):
+    def check(body, on_stage):
         return {"verdict": "allow", "lane": "unsure", "clean_content": body["content"], "warnings": [], **layers}
 
     result = agent.run(settings(ScriptedModel(hijacked=False), firewall=True, check=check))
     assert all(s["layers"] == layers for s in result["steps"] if s["step"] == "firewall")
+
+
+def test_each_firewall_stage_is_reported_live_with_its_email():
+    seen = []
+
+    def check(body, on_stage):
+        on_stage({"step": "rules", "ms": 1})
+        on_stage({"step": "report", "ms": 1})
+        return {"verdict": "allow", "lane": "clean", "attacks": [], "clean_content": body["content"]}
+
+    s = settings(ScriptedModel(hijacked=False), firewall=True, check=check)
+    s.on_check = lambda email_id, stage: seen.append((email_id, stage["step"]))
+    agent.run(s)
+    assert seen[:4] == [("1", "rules"), ("1", "report"), ("2", "rules"), ("2", "report")]
+    assert len(seen) == 8
+
+
+def test_a_stream_that_ends_without_an_answer_is_a_failure(monkeypatch):
+    import io
+
+    import pytest
+
+    class Response(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(agent.urllib.request, "urlopen",
+                        lambda req, timeout: Response(b'{"step": "prepare", "ms": 1}\n{"step": "rules", "ms": 2}\n'))
+    stages = []
+    with pytest.raises(ConnectionError):
+        agent._stream("/check/stream", {}, 5, stages.append)
+    assert [s["step"] for s in stages] == ["prepare", "rules"]

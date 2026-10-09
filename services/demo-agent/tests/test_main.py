@@ -32,6 +32,7 @@ def test_a_background_run_reports_its_steps_and_result(monkeypatch):
         time.sleep(0.05)
     assert job["status"] == "done" and job["result"]["answer"] == "Nothing to do."
     assert job["steps"][0]["step"] == "model"
+    assert job["live"] is None  # no firewall in this run, so no stage was reported
 
 
 def test_an_unknown_run_is_404():

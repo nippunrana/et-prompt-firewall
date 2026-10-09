@@ -1,6 +1,6 @@
 """Phase 3: the judge and the sandbox give evidence; code decides. Fakes only, no network."""
 
-from app.check import run_check
+from app.check import run_check, stream_check
 from app.judge import Evidence, JudgeResult, find_quote
 from app.sandbox import SandboxResult
 from tests.fakes import BENIGN_EMAIL, DIRECT_ATTACK_EMAIL, DIRECT_ATTACK_LINE, KeywordClassifier
@@ -211,3 +211,26 @@ def test_judge_reply_flagged_ids_are_normalised():
     raw = '{"check_code": "abc", "is_attack": true, "attack_types": [], "evidence": [], ' \
           '"flagged": [{"id": "[f2]", "attack": false}, {"id": "F1", "attack": true}], "confidence": "high", "reason": ""}'
     assert parse(raw, "content", "abc").flagged == {"F1": True, "F2": False}
+
+
+def test_the_stream_reports_each_stage_in_order_and_ends_with_the_same_answer():
+    def check(run):
+        return run(SUBTLE_EMAIL, "email", PIGUARD_ONLY, judge=FakeJudge(attack=False),
+                   sandbox=FakeSandbox(send("audit@vendor.example")))
+
+    *stages, last = check(stream_check)
+    names = [s["step"] for s in stages]
+    assert names[:5] == ["prepare", "rules", "classifiers", "lid", "triage"]
+    assert {"judge", "sandbox"} <= set(names[5:7])  # in parallel: each reported as it ends
+    assert names[7:] == ["decide", "cut", "recheck", "report"]
+    assert "PIGuard" in stages[2]["scores"]  # the classifiers' event carries their scores
+    without_id = lambda r: {k: v for k, v in r.items() if k not in ("id", "trace")}
+    assert without_id(last["result"]) == without_id(check(run_check))
+    assert [s["step"] for s in last["result"]["trace"]] == names
+
+
+def test_a_clean_check_streams_no_llm_stage():
+    *stages, last = stream_check(BENIGN_EMAIL, "email", QUIET, judge=FakeJudge(), sandbox=FakeSandbox())
+    assert [s["step"] for s in stages] == ["prepare", "rules", "classifiers", "lid", "triage", "decide", "report"]
+    assert stages[4]["lane"] == "clean"
+    assert last["result"]["verdict"] == "allow"

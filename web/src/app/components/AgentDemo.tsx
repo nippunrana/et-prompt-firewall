@@ -12,7 +12,6 @@ import s from "./demo.module.css";
 
 const BLANK_ID = "blank";
 const DEFAULT_REQUEST = "Can you go through my unread emails and summarise them for me?";
-const REPO = "https://github.com/nippunrana/et-prompt-firewall";
 const TONE_DOT: Record<Tone, string> = { good: "var(--allow)", bad: "var(--block)", warn: "var(--sanitise)", neutral: "var(--ink-400)" };
 
 // Comparable form of an inbox, to tell whether the tester changed the scenario
@@ -43,29 +42,11 @@ function Measured({ scenario }: { scenario: Scenario }) {
   );
 }
 
-// Where the firewall's two checkpoints sit, shown right before the run that tests them
-function Checkpoints() {
-  return (
-    <ol className={`${s.flow} ${s.flowCompact}`} aria-label="Where the firewall sits">
-      <li className={s.flowNode}>Inbox</li>
-      <li className={s.flowGate}>
-        <strong>1 · Content check</strong>
-        <span>Removes hidden orders from each email and names the attack</span>
-      </li>
-      <li className={s.flowNode}>AI agent</li>
-      <li className={s.flowGate}>
-        <strong>2 · Action guard</strong>
-        <span>Blocks sends, forwards and payments you did not ask for</span>
-      </li>
-      <li className={s.flowNode}>Tools</li>
-    </ol>
-  );
-}
-
-// The three steps appear one at a time; a scenario is already picked, so "Next" twice reaches the run.
-// `first` is the number of its first step.
-export default function AgentDemo({ first = 1 }: { first?: number }) {
+// The steps appear one at a time; a scenario is already picked, so one "Next" shows the inbox and the run bar.
+// `first` is the number of its first step; `active` is false while another input type is shown.
+export default function AgentDemo({ first = 1, active = true }: { first?: number; active?: boolean }) {
   const root = useRef<HTMLDivElement>(null);
+  const dock = useRef<HTMLDivElement>(null);
   const [stage, setStage] = useState(1);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -89,6 +70,20 @@ export default function AgentDemo({ first = 1 }: { first?: number }) {
       { autoAlpha: 1, y: 0, duration: duration(0.5), ease: "power3.out", onComplete: () => field?.focus({ preventScroll: true }) });
     step.scrollIntoView({ behavior: duration(1) ? "smooth" : "instant", block: "start" });
   }, { dependencies: [stage], scope: root });
+
+  // The run bar, fixed to the bottom of the window once the inbox is shown. It sits outside the step
+  // sections: their slide-in leaves a transform, which would pin a fixed bar to the section instead.
+  const showDock = active && stage >= 2 && Boolean(selectedId);
+  useGSAP(() => {
+    if (showDock && dock.current) gsap.fromTo(dock.current, { yPercent: 100 }, { yPercent: 0, duration: duration(0.5), ease: "power3.out" });
+  }, { dependencies: [showDock] });
+
+  // While the bar shows, the page gets room for it, so it never covers the last email or the footer
+  useEffect(() => {
+    if (!showDock || !dock.current) return;
+    document.body.style.paddingBottom = `${dock.current.offsetHeight}px`;
+    return () => { document.body.style.paddingBottom = ""; };
+  }, [showDock, ranAs]);
 
   useEffect(() => {
     fetch(`${BASE_PATH}/api/scenarios`)
@@ -204,47 +199,47 @@ export default function AgentDemo({ first = 1 }: { first?: number }) {
             <input className="field" value={userRequest} disabled={running} maxLength={2000} onChange={(e) => setUserRequest(e.target.value)} />
           </label>
           <InboxEditor emails={emails} onChange={setEmails} userRequest={userRequest} disabled={running} />
-          {stage === 2 && <button className={`btn btn--primary ${s.next}`} onClick={() => setStage(3)}>Next: run it</button>}
         </div>
       </section>}
 
-      {stage >= 3 && <section className={s.step} data-stage={3}>
-        <StepHeader n={first + 2} title="Run both agents"
-          hint="The same inbox goes to two copies of the agent at once: one reads it as it is, the other sits behind the firewall's two checkpoints. Its tools are fake: nothing is ever really sent or paid." />
-        <div className={s.stepBody}>
-          <Checkpoints />
-          <div className={s.runBar}>
-            <button className="btn btn--primary" onClick={start} disabled={running || !userRequest.trim() || emptyEmail}>
-              {running ? "Running…" : "Run both agents"}
-            </button>
-            <p className={s.runNote}>
-              {emptyEmail
-                ? "Every email needs a body before the agents can run."
-                : <>On this shared server the firewall has 1.5 CPUs and 3 GB of memory, so the protected run takes a few minutes. For full speed, <a href={`${REPO}#readme`} target="_blank" rel="noreferrer">run it on your own machine</a>.</>}
-            </p>
-          </div>
-          {ranAs && Object.keys(jobs).length > 0 && (
-            <div className={s.lastRun}>
-              <span className="label">{running ? "Running now" : "Last run"}</span>
-              {MODES.map((m) => {
-                const job = jobs[m.key];
-                const o = job?.status === "done" ? outcome(job, ranAs.scenario, ranAs.custom, m.key === "protected") : null;
-                return (
-                  <span key={m.key} className={s.lastRunItem}>
-                    <span className={s.lastRunDot} style={{ background: o ? TONE_DOT[o.tone] : job?.status === "error" ? "var(--block)" : "var(--ink-400)" }} />
-                    {m.label}: <strong>{o?.title ?? (job?.status === "error" ? "failed" : "running…")}</strong>
-                  </span>
-                );
-              })}
-              <button className="btn" onClick={() => setDrawerOpen(true)}>{running ? "Watch the run" : "Open results"}</button>
+      {showDock && (
+        <div ref={dock} className={s.dock} role="region" aria-label="Run both agents">
+          <div className={`container ${s.dockInner}`}>
+            <div className={s.dockText}>
+              <strong className={s.dockTitle}>Run both agents</strong>
+              <p className={s.dockLine}>
+                {emptyEmail
+                  ? "Every email needs a body before the agents can run."
+                  : "The same inbox goes to two copies of the agent at once: one with prompt firewall, one without."}
+              </p>
+              {ranAs && Object.keys(jobs).length > 0 && (
+                <p className={s.lastRun}>
+                  {MODES.map((m) => {
+                    const job = jobs[m.key];
+                    const o = job?.status === "done" ? outcome(job, ranAs.scenario, ranAs.custom, m.key === "protected") : null;
+                    return (
+                      <span key={m.key} className={s.lastRunItem}>
+                        <span className={s.lastRunDot} style={{ background: o ? TONE_DOT[o.tone] : job?.status === "error" ? "var(--block)" : "var(--ink-400)" }} />
+                        {m.label}: <strong>{o?.title ?? (job?.status === "error" ? "failed" : "running…")}</strong>
+                      </span>
+                    );
+                  })}
+                </p>
+              )}
             </div>
-          )}
+            <div className={s.dockActions}>
+              {ranAs && <button className="btn" onClick={() => setDrawerOpen(true)}>{running ? "Watch the run" : "Open results"}</button>}
+              <button className="btn btn--primary" onClick={start} disabled={running || !userRequest.trim() || emptyEmail}>
+                {running ? "Running…" : "Run the AI orchestration"}
+              </button>
+            </div>
+          </div>
         </div>
-      </section>}
+      )}
 
       {ranAs && (
         <RunDrawer open={drawerOpen} onClose={closeDrawer} title="Same inbox, two agents"
-          subtitle={`${ranAs.scenario && !ranAs.custom ? ranAs.scenario.title : "Your own inbox"} · ${ranAs.emails.length} email${ranAs.emails.length === 1 ? "" : "s"} · the tools are fake: nothing is really sent or paid`}>
+          subtitle={`${ranAs.scenario && !ranAs.custom ? ranAs.scenario.title : "Your own inbox"} · ${ranAs.emails.length} email${ranAs.emails.length === 1 ? "" : "s"} · the tools are fake: nothing is really sent or paid · on the shared server the protected run takes a few minutes`}>
           <RunResults jobs={jobs} seconds={seconds} scenario={ranAs.scenario} custom={ranAs.custom} emails={ranAs.emails} />
         </RunDrawer>
       )}

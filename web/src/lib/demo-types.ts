@@ -63,11 +63,21 @@ export interface Effect {
   args: Record<string, string>;
 }
 
+// One firewall stage, reported by /check/stream the moment it finished: its trace entry, plus the
+// classifiers' scores on their stage.
+export interface StageEvent {
+  step: string;
+  ms: number;
+  scores?: Record<string, { whole: number; max_window: number }>;
+  [extra: string]: unknown;
+}
+
 export interface Job {
   status: "running" | "done" | "error";
   steps: Step[];
   result: { answer: string; effects: Effect[] } | null;
   error: string | null;
+  live?: { email_id: string; stages: StageEvent[] } | null; // the email the firewall is checking right now
 }
 
 export interface Attack {

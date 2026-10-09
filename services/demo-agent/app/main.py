@@ -64,8 +64,17 @@ def start_run(request: RunRequest) -> dict:
     small server, longer than a proxy waits for one response, so the UI polls GET /runs/{id} instead."""
     settings = _settings(request)
     job_id = secrets.token_hex(8)
-    job = {"status": "running", "steps": [], "result": None, "error": None}
+    job = {"status": "running", "steps": [], "result": None, "error": None, "live": None}
     settings.on_step = job["steps"].append
+
+    def on_check(email_id: str, stage: dict) -> None:
+        # The firewall stages finished so far for the email being checked. Replaced whole, never edited in
+        # place: GET /runs/{id} may be serialising the job on another thread at this moment.
+        live = job["live"]
+        done = live["stages"] if live and live["email_id"] == email_id else []
+        job["live"] = {"email_id": email_id, "stages": [*done, stage]}
+
+    settings.on_check = on_check
     JOBS[job_id] = job
     while len(JOBS) > MAX_JOBS:
         JOBS.popitem(last=False)
@@ -73,6 +82,7 @@ def start_run(request: RunRequest) -> dict:
     def work() -> None:
         try:
             job["result"] = agent.run(settings)
+            job["live"] = None  # no email is being checked any more
             job["status"] = "done"
         except Exception as e:  # reported to the UI, never swallowed
             job["error"], job["status"] = f"{type(e).__name__}: {e}", "error"

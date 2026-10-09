@@ -60,6 +60,19 @@ def _post(path: str, body: dict, timeout: int) -> dict:
         return json.load(resp)
 
 
+def _stream(path: str, body: dict, timeout: int, on_event: Callable[[dict], None]) -> dict:
+    """POST, then read one JSON event per line as the firewall finishes each stage; the last line is the answer."""
+    req = urllib.request.Request(f"{FIREWALL_URL}{path}", data=json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        for line in resp:
+            event = json.loads(line)
+            if "result" in event:
+                return event["result"]
+            on_event(event)
+    raise ConnectionError("the firewall ended the check without an answer")
+
+
 def email_text(email: dict) -> str:
     return f"From: {email['from']}\nSubject: {email['subject']}\n\n{email['body']}"
 
@@ -73,10 +86,12 @@ class Settings:
     firewall: bool
     guard: bool
     canary: str = field(default_factory=lambda: f"REF-{secrets.token_hex(4)}")
-    check: Callable[[dict], dict] = lambda body: _post("/check", body, 900)
+    # The firewall's check, reporting each finished stage to the callback as it happens
+    check: Callable[[dict, Callable[[dict], None]], dict] = lambda body, on_stage: _stream("/check/stream", body, 900, on_stage)
     guard_call: Callable[[dict], dict] = lambda body: _post("/guard", body, 30)
     seen: list[dict] | None = None  # the inbox as the agent sees it, checked once per run
     on_step: Callable[[dict], None] = lambda step: None  # live progress for the demo UI
+    on_check: Callable[[str, dict], None] = lambda email_id, stage: None  # each firewall stage, as it finishes
 
 
 class _State(TypedDict, total=False):
@@ -95,7 +110,8 @@ def _inbox(s: Settings) -> tuple[list[dict], list[dict]]:
         text = email_text(email)
         if s.firewall:
             try:
-                r = s.check({"content": text, "source": "email", "user_task": s.user_request})
+                r = s.check({"content": text, "source": "email", "user_task": s.user_request},
+                            lambda stage, email_id=str(i): s.on_check(email_id, stage))
             except Exception as e:  # fail closed: an unchecked email is never shown
                 r = {"verdict": "quarantine", "warnings": [f"firewall unreachable: {type(e).__name__}"], "attacks": []}
             steps.append({"step": "firewall", "email_id": str(i), "verdict": r["verdict"], "lane": r.get("lane"),

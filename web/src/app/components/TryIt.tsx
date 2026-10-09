@@ -26,7 +26,7 @@ export default function TryIt() {
     const hero = `.${s.heroFold}`, bar = `.${s.inputBar}`, panel = `.${s.panel}`;
     // Focus follows the motion, so keyboard users never land on something that just hid
     // (absolute positions, not "-=": with reduced motion every duration is 0 and a negative offset skips the focus call).
-    // The panel's transform is cleared after the slide: a transform on it would trap the run drawer inside it.
+    // The panel slides with padding, never a transform: a transform would pin the fixed run bar and drawer to it.
     const focus = (selector: string) => () => root.current?.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true });
     if (heroOpen) {
       gsap.timeline()
@@ -37,7 +37,7 @@ export default function TryIt() {
       gsap.timeline()
         .to(hero, { height: 0, autoAlpha: 0, duration: duration(0.55), ease: "power3.inOut" })
         .fromTo(bar, { autoAlpha: 0, y: -8 }, { autoAlpha: 1, y: 0, duration: duration(0.35), ease: "power2.out" }, duration(0.35))
-        .fromTo(panel, { autoAlpha: 0, y: 56 }, { autoAlpha: 1, y: 0, duration: duration(0.7), ease: "expo.out", clearProps: "transform" }, "<")
+        .fromTo(panel, { autoAlpha: 0, paddingTop: 56 }, { autoAlpha: 1, paddingTop: 0, duration: duration(0.7), ease: "expo.out", clearProps: "paddingTop" }, "<")
         .call(focus(bar));
     }
   }, { dependencies: [key, heroOpen], scope: root });
@@ -62,7 +62,7 @@ export default function TryIt() {
       )}
 
       <div className={s.panel}>
-        <div hidden={key !== EMAIL}><AgentDemo /></div>
+        <div hidden={key !== EMAIL}><AgentDemo active={key === EMAIL} /></div>
         {type && <ContentCheck key={type.key} type={type} first={1} />}
       </div>
     </div>

@@ -100,6 +100,16 @@ def test_check_endpoint(client):
     assert response.json()["verdict"] == "sanitise"
 
 
+def test_check_stream_endpoint_reports_stages_then_the_answer(client):
+    import json
+
+    response = client.post("/check/stream", json={"content": DIRECT_ATTACK_EMAIL, "source": "email"})
+    assert response.status_code == 200
+    *stages, last = [json.loads(line) for line in response.text.splitlines()]
+    assert [s["step"] for s in stages][:2] == ["prepare", "rules"]
+    assert last["result"]["verdict"] == "sanitise"
+
+
 def test_check_endpoint_rejects_bad_input(client):
     assert client.post("/check", json={"content": "hi", "source": "fax"}).status_code == 422
     assert client.post("/check", json={"content": "x" * (MAX_CHECK_CHARS + 1)}).status_code == 422

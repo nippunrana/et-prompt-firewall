@@ -1,0 +1,153 @@
+/* The live checklist in each lane of the run drawer. Ink tones only: a raised signal is not a verdict,
+   so verdict colours stay out of it. GSAP pops a mark when it ticks; the spinner is a CSS pseudo-element,
+   so it never fights GSAP over the mark's transform. */
+
+.pipe {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  column-gap: var(--space-3);
+  padding-bottom: var(--space-4);
+}
+
+/* The line that joins one step to the next */
+.item:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  top: 24px;
+  bottom: 4px;
+  left: 9.5px;
+  border-left: 1px solid var(--line-strong);
+}
+
+.item[data-state="off"] {
+  color: var(--ink-500);
+}
+
+.mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.mark[data-state="done"],
+.mark[data-state="flag"] {
+  border-color: var(--ink-900);
+  background: var(--ink-900);
+}
+
+.mark[data-state="flag"] {
+  box-shadow: 0 0 0 3px var(--sunken);
+}
+
+.mark[data-state="skip"] {
+  border-style: dashed;
+  border-color: var(--ink-400);
+  color: var(--ink-500);
+}
+
+.mark[data-state="off"] {
+  border-style: dashed;
+  border-color: var(--ink-400);
+  background: var(--sunken);
+}
+
+.mark[data-state="running"] {
+  border-color: var(--line);
+}
+
+.mark[data-state="running"]::before {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  border: 1.5px solid transparent;
+  border-top-color: var(--ink-900);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.checkpoint {
+  display: block;
+  color: var(--ink-500);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  min-height: 22px;
+}
+
+.name {
+  font-weight: 600;
+}
+
+.value {
+  color: var(--ink-500);
+  font-size: var(--text-sm);
+}
+
+.item[data-state="pending"] > div > .text .name {
+  color: var(--ink-400);
+  font-weight: 500;
+}
+
+/* The firewall's stages for the email being checked, or each action the guard checked */
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--canvas);
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  column-gap: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.row .text {
+  min-height: 20px;
+}
+
+.row .name {
+  font-weight: 550;
+}
+
+.row[data-state="pending"] .name {
+  color: var(--ink-400);
+  font-weight: 450;
+}

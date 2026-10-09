@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -6,10 +7,11 @@ from dataclasses import asdict
 from typing import Literal
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app import audit, classifiers
-from app.check import run_check
+from app.check import run_check, stream_check
 from app.guard import ACTION_KIND, check_action, record
 from app.judge import judge_from_env
 from app.lid import get_lid_gate
@@ -71,6 +73,27 @@ async def _run_check(content: str, source: str | None, user_task: str | None, fm
 async def check(request: CheckRequest) -> dict:
     return await _run_check(request.content, request.source, request.user_task,
                             "html" if request.format == "html" else None)
+
+
+@app.post("/check/stream")
+async def check_stream(request: CheckRequest) -> StreamingResponse:
+    """The same check as /check, reported live as NDJSON: one line as each stage finishes, then
+    {"result": ...}, the answer /check gives. A stream that ends without that line means the check failed."""
+    loaded = getattr(app.state, "classifiers", None)
+    if loaded is None:
+        raise HTTPException(status_code=503, detail="The classifiers are not loaded.")
+
+    async def lines():
+        async with CHECK_SEMAPHORE:  # held for the whole stream: one check at a time, as for /check
+            stages = stream_check(request.content, request.source, loaded, user_task=request.user_task,
+                                  judge=getattr(app.state, "judge", None), sandbox=getattr(app.state, "sandbox", None),
+                                  fmt="html" if request.format == "html" else None)
+            while (event := await asyncio.to_thread(next, stages, None)) is not None:
+                if "result" in event:
+                    audit.record_check(request.content, request.source, event["result"])
+                yield json.dumps(event) + "\n"
+
+    return StreamingResponse(lines(), media_type="application/x-ndjson")
 
 
 class GuardRequest(BaseModel):

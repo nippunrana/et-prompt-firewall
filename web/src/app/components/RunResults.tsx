@@ -4,19 +4,20 @@ import React, { useRef } from "react";
 import { pretty, VERDICT_LABEL, type Effect, type Email, type Job, type Scenario, type Step } from "@/lib/demo-types";
 import dashboard from "@/data/dashboard.json";
 import { duration, gsap, useGSAP } from "@/lib/motion";
+import { READ_ONLY } from "@/lib/pipeline";
 import CostTable, { runUsage } from "./CostTable";
 import LayerTrack from "./LayerTrack";
 import Markdown from "./Markdown";
+import Pipeline from "./Pipeline";
 import s from "./demo.module.css";
 import r from "./run.module.css";
 
 export const MODES = [
-  { key: "unprotected", label: "Without the firewall", hint: "The agent reads the inbox as it is.", firewall: false, guard: false },
-  { key: "protected", label: "With the firewall", hint: "Every email is checked, then every action.", firewall: true, guard: true },
+  { key: "unprotected", label: "Without prompt firewall", hint: "The agent reads the inbox as it is.", firewall: false, guard: false },
+  { key: "protected", label: "With prompt firewall", hint: "Every email is checked, then every action.", firewall: true, guard: true },
 ] as const;
 export type ModeKey = (typeof MODES)[number]["key"];
 
-const READ_ONLY = new Set(["read_inbox", "list_invoices", "search_contacts"]);
 const TONE = { good: r.outcomeGood, bad: r.outcomeBad, warn: r.outcomeWarn, neutral: r.outcomeNeutral };
 export type Tone = keyof typeof TONE;
 
@@ -58,15 +59,6 @@ export function outcome(job: Job, scenario: Scenario | null, custom: boolean, pr
   return effects.length > 0
     ? { tone: "good", title: "Task done", detail: list(effects) }
     : { tone: "bad", title: "Task not completed" };
-}
-
-function progressText(job: Job, protectedRun: boolean, emailCount: number) {
-  const checked = job.steps.filter((st) => st.step === "firewall").length;
-  // The firewall checks the inbox once the agent asks to read it, and reports each email as it goes
-  const reading = job.steps.some((st) => st.tool_calls?.some((c) => c.name === "read_inbox"));
-  if (protectedRun && reading && checked < emailCount) return { text: `Firewall checking email ${checked + 1} of ${emailCount}`, share: checked / emailCount };
-  if (job.steps.length === 0) return { text: "Starting the agent", share: null };
-  return { text: "The agent is working", share: null };
 }
 
 const verdictColour = (v?: string) => (v === "allow" ? "var(--allow)" : v === "sanitise" ? "var(--sanitise)" : "var(--block)");
@@ -216,7 +208,6 @@ export default function RunResults({ jobs, seconds, scenario, custom, emails }: 
         if (!job) return null;
         const protectedRun = m.key === "protected";
         const o = job.status === "done" ? outcome(job, scenario, custom, protectedRun) : null;
-        const p = job.status === "running" ? progressText(job, protectedRun, emails.length) : null;
         const items = group(job.steps);
         const readInbox = items.some((it) => it.kind === "inbox" && it.read);
         return (
@@ -236,15 +227,7 @@ export default function RunResults({ jobs, seconds, scenario, custom, emails }: 
               </div>
             )}
             {job.status === "error" && <div className={s.error}>The run failed: {job.error}</div>}
-            {p && (
-              <div>
-                <p className="small" style={{ marginBottom: "var(--space-2)" }}>{p.text}…</p>
-                <div className={s.progress}>
-                  <div className={`${s.progressBar} ${p.share === null ? s.progressIndeterminate : ""}`}
-                    style={p.share === null ? undefined : { width: `${Math.max(4, p.share * 100)}%` }} />
-                </div>
-              </div>
-            )}
+            <Pipeline job={job} emails={emails} protectedRun={protectedRun} />
 
             {job.steps.length > 0 && (
               <ol className={r.timeline}>
