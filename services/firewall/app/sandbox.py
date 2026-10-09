@@ -103,8 +103,11 @@ class QwenSandbox:
         self.api_key = api_key
 
     def _chat(self, messages: list[dict]) -> dict:
+        # Never route to Google: its Qwen endpoint often writes tool calls as plain text, which this
+        # sandbox would read as "no action taken" (demo-agent/app/llm.py has the same rule).
         body = json.dumps({"model": MODEL, "messages": messages, "tools": TOOLS,
-                           "reasoning": {"enabled": True}, "max_tokens": 6000}).encode()
+                           "reasoning": {"enabled": True}, "max_tokens": 6000,
+                           "provider": {"ignore": ["Google"]}}).encode()
         req = urllib.request.Request("https://openrouter.ai/api/v1/chat/completions", data=body, headers={
             "Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:

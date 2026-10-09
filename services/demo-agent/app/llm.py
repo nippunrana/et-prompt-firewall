@@ -42,8 +42,11 @@ class OpenRouterChat:
 
     def __call__(self, messages: list[dict], tools: list[dict]) -> dict:
         """One model turn: {"content", "reasoning", "tool_calls", "usage"}. One retry on a rate limit or timeout."""
+        # Never let OpenRouter route to Google: its Qwen endpoint often writes tool calls as plain text
+        # (seen 2026-10-09: 6 of 8 calls), so the agent never reads the inbox. Alibaba's returned 8 of 8.
         body = json.dumps({"model": MODEL, "messages": messages, "tools": tools,
-                           "reasoning": {"enabled": True}, "max_tokens": 6000}).encode()
+                           "reasoning": {"enabled": True}, "max_tokens": 6000,
+                           "provider": {"ignore": ["Google"]}}).encode()
         try:
             return self._post(body)
         except urllib.error.HTTPError as e:
