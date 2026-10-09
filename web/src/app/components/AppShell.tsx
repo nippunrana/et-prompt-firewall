@@ -20,7 +20,9 @@ export default function AppShell({ views, status, repo }: { views: View[]; statu
     <>
       <header className={s.bar}>
         <div className={`container ${s.inner}`}>
-          <span className={s.brand}><Logo size={22} /> ET Prompt Firewall</span>
+          <span className={s.brand} onClick={() => { setActive(0); window.scrollTo({ top: 0 }); }} style={{ cursor: "pointer" }} title="ET Prompt Firewall">
+            <Logo height={32} />
+          </span>
           <nav className={s.nav} role="tablist" aria-label="Views">
             {views.map((v, i) => (
               <button key={v.label} role="tab" aria-selected={i === active} className={s.navItem}

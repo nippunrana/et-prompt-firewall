@@ -1,11 +1,11 @@
-/* Sticky top bar: brand, view switcher, service status. */
 .bar {
   position: sticky;
   top: 0;
   z-index: 10;
-  border-bottom: 1px solid var(--line);
-  background: rgb(248 248 246 / 0.85);
-  backdrop-filter: saturate(1.4) blur(12px);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.85);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: saturate(1.8) blur(16px);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
 }
 
 .inner {
@@ -19,9 +19,10 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  font-weight: 700;
+  letter-spacing: -0.015em;
   white-space: nowrap;
+  color: var(--ink-900);
 }
 
 .nav {
@@ -32,7 +33,7 @@
 
 .navItem {
   min-height: 36px;
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-4);
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -42,17 +43,19 @@
   font-weight: 550;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 200ms var(--ease-out), color 200ms var(--ease-out);
+  transition: all 180ms var(--ease-out);
 }
 
 .navItem:hover {
   color: var(--ink-900);
+  background: rgba(241, 245, 249, 0.8);
 }
 
 .navItem[aria-selected="true"] {
-  background: var(--surface);
-  color: var(--ink-900);
-  box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--line);
+  background: #ffffff;
+  color: #1d4ed8;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(37, 99, 235, 0.2);
 }
 
 .end {
@@ -66,24 +69,33 @@
 .status {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  color: var(--ink-500);
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #047857;
+  font-size: var(--text-xs);
+  font-weight: 600;
   white-space: nowrap;
 }
 
 .dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
 }
 
 .github {
   color: var(--ink-500);
   text-decoration: none;
+  font-weight: 550;
+  transition: color 150ms ease;
 }
 
 .github:hover {
-  color: var(--ink-900);
+  color: #1d4ed8;
 }
 
 .view {
@@ -91,13 +103,16 @@
 }
 
 .viewHead {
-  padding: var(--space-12) 0 var(--space-8);
+  padding: var(--space-10) 0 var(--space-6);
 }
 
 .viewTitle {
   font-size: var(--text-xl);
-  font-weight: 650;
-  letter-spacing: -0.02em;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  background: linear-gradient(135deg, #090d16 35%, #1e40af 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .viewIntro {
@@ -107,8 +122,10 @@
 }
 
 .footer {
-  padding: var(--space-6) 0;
-  border-top: 1px solid var(--line);
+  padding: var(--space-8) 0;
+  border-top: 1px solid rgba(226, 232, 240, 0.8);
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(8px);
   color: var(--ink-500);
   font-size: var(--text-xs);
 }
