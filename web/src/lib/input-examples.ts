@@ -1,8 +1,9 @@
-// The input sources the problem statement lists, each with its own form and front end in the firewall.
+// The input sources the problem statement lists, besides email (the Try it inbox), each with its own form and
+// front end in the firewall.
 // After the front end, every type goes through the same detectors. Example files are built by
 // scripts/build_demo_files.py into web/public/examples/.
 
-export type Form = "email" | "text" | "file";
+export type Form = "text" | "file";
 
 export interface InputType {
   key: string;
@@ -20,8 +21,6 @@ const PLAIN = "Read as plain text: Unicode normalised, invisible characters remo
   "A dedicated front end for this type is on the roadmap.";
 
 export const INPUT_TYPES: InputType[] = [
-  { key: "email", label: "Email", noun: "email", form: "email", source: "email", format: "text",
-    frontEnd: "The header block (From, To, Subject …) is scored as one unit; the body sentence by sentence." },
   { key: "chat", label: "User message", noun: "message", form: "text", source: "user", format: "text",
     frontEnd: "The user's own words: asking for tasks is normal here, so only attempts to override, extract or " +
       "jailbreak count, and the sandbox step is skipped.",

@@ -18,7 +18,7 @@ const TONE_DOT: Record<Tone, string> = { good: "var(--allow)", bad: "var(--block
 const fingerprint = (request: string, emails: { from: string; subject: string; body: string }[]) =>
   JSON.stringify([request, emails.map((e) => [e.from, e.subject, e.body])]);
 
-function StepHeader({ n, title, hint }: { n: number; title: string; hint?: string }) {
+export function StepHeader({ n, title, hint }: { n: number; title: string; hint?: string }) {
   return (
     <>
       <span className={s.stepNum}>{n}</span>
@@ -42,7 +42,8 @@ function Measured({ scenario }: { scenario: Scenario }) {
   );
 }
 
-export default function AgentDemo() {
+// `first` is the number of its first step: the input-type choice above it is step 1.
+export default function AgentDemo({ first = 1 }: { first?: number }) {
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -139,7 +140,7 @@ export default function AgentDemo() {
   return (
     <div>
       <section className={s.step}>
-        <StepHeader n={1} title="Pick a starting point" hint="Each scenario is a realistic inbox with one attack hidden in it. Or start from a blank inbox." />
+        <StepHeader n={first} title="Pick a starting point" hint="Each scenario is a realistic inbox with one attack hidden in it. Or start from a blank inbox." />
         <div className={s.stepBody}>
           <div className={s.chips}>
             {scenarios.map((sc) => (
@@ -162,7 +163,7 @@ export default function AgentDemo() {
       </section>
 
       <section className={s.step}>
-        <StepHeader n={2} title="Edit the inbox" hint="Change anything: the request, the sender, the subject or the body. Add your own email, or one of the example attacks." />
+        <StepHeader n={first + 1} title="Edit the inbox" hint="Change anything: the request, the sender, the subject or the body. Add your own email, or one of the example attacks." />
         <div className={s.stepBody}>
           <label>
             <span className="label">You ask the agent</span>
@@ -173,7 +174,7 @@ export default function AgentDemo() {
       </section>
 
       <section className={s.step}>
-        <StepHeader n={3} title="Run both agents" hint="The same inbox goes to two copies of the agent at once. Its tools are fake: nothing is ever really sent or paid." />
+        <StepHeader n={first + 2} title="Run both agents" hint="The same inbox goes to two copies of the agent at once. Its tools are fake: nothing is ever really sent or paid." />
         <div className={s.stepBody}>
           <div className={s.runBar}>
             <button className="btn btn--primary" onClick={start} disabled={running || !userRequest.trim() || emptyEmail}>

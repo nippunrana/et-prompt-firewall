@@ -10,12 +10,13 @@ Built for the ET AI Hackathon: Agentic Edition (Problem 2: Prompt Injection Fire
 
 > The live version runs on a small shared VPS, in Docker with the firewall capped at **1.5 CPUs and 3 GB of RAM**, so it is slow there: a content check can take tens of seconds, and a protected agent run several minutes. For full speed, run it on your own machine (below).
 
-The UI has four views:
+The UI has three views:
 
-- **Try it:** pick a ready-made scenario (invoices sent to an attacker, a stolen one-time code, an attack in romanized Hindi, a legitimate request that must still go through, and more) or start from a blank inbox. Every email's sender, subject and body can be edited, and you can add your own email or an example of each attack type. **Check this email** shows what the firewall removes from one email, why, and what the agent would receive. **Run both agents** sends the same inbox to an unprotected email assistant and to one protected by the firewall, side by side.
+- **Try it:** first pick what the agent reads: email, user message, web page/HTML, PDF, Word, image, Markdown, API response, source code or OCR text.
+  - **Email** opens the agent demo: pick a ready-made scenario (invoices sent to an attacker, a stolen one-time code, an attack in romanized Hindi, a legitimate request that must still go through, and more) or start from a blank inbox. Every email's sender, subject and body can be edited, and you can add your own email or an example of each attack type. **Check this email** shows what the firewall removes from one email, why, and what the agent would receive. **Run both agents** sends the same inbox to an unprotected email assistant and to one protected by the firewall, side by side.
+  - **Every other type** is checked on its own: paste it or upload the file (example files included) and see what the firewall removes, including text hidden from a person (HTML comments and hidden elements, white or tiny PDF text, hidden Word text).
 - **Results:** the measured results (below).
 - **Audit log:** every decision both checkpoints made.
-- **Any input:** pick the input type (email, user message, web page/HTML, PDF, Word, image, Markdown, API response, source code, OCR text), give it the content or a file, and see what the firewall removes, including text hidden from a person (HTML comments and hidden elements, white or tiny PDF text, hidden Word text). Example files are included.
 
 ## How it works
 

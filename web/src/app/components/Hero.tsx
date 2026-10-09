@@ -7,11 +7,12 @@ export default function Hero() {
       <p className={s.eyebrow}>Prompt injection firewall for AI agents</p>
       <h1 className={s.headline}>Stop hidden instructions before your AI agent acts on them.</h1>
       <p className={s.lede}>
-        The firewall checks every email the agent reads and every action it tries to take. Hide an attack in the inbox
-        below, then run the same agent with and without the firewall.
+        The firewall checks everything the agent reads (emails, web pages, PDFs, Word files, images, messages) and every
+        action it tries to take. Pick what the agent reads below: hide an attack in an inbox and run the same agent with and
+        without the firewall, or check a web page or a file on its own.
       </p>
       <ol className={s.flow} aria-label="Where the firewall sits">
-        <li className={s.flowNode}>Email</li>
+        <li className={s.flowNode}>Email, web, files</li>
         <li className={s.flowGate}>
           <strong>1 · Content check</strong>
           <span>Removes hidden instructions and names the attack</span>

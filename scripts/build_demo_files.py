@@ -1,4 +1,4 @@
-"""Builds the example files for the demo's "Any input" tab into web/public/examples/.
+"""Builds the example files for the demo's Try it input types into web/public/examples/.
 
 Each hides an injection the way real ones are hidden (a display:none element, Word hidden text,
 white text in a PDF CV), next to ordinary hidden content that must pass.
