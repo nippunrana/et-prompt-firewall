@@ -1,22 +1,44 @@
 /* The Try it hero, and the bar it folds into once an input is picked. */
 
-/* GSAP folds this to height 0 once an input is picked. The side padding, cancelled by the negative
-   margin, keeps focus rings from being clipped by the overflow. */
+/* GSAP folds this to height 0 once an input is picked. The box spans the whole window (the margin pulls it out
+   to the edges, the padding puts the content back in the page column), so the hero's full-width band sits inside
+   it and the overflow clip never cuts the band to the page column. The padding also keeps focus rings clear of it.
+   Never clip one axis only (`overflow-x: visible; overflow-y: clip`): on the Mac a browser clipped both while GSAP faded it. */
 .heroFold {
   overflow: hidden;
-  margin: 0 calc(-1 * var(--space-2));
-  padding: 0 var(--space-2);
+  margin: 0 calc(50% - 50vw);
+  padding: 0 calc(50vw - 50%);
 }
 
 .hero {
   position: relative;
-  padding: var(--space-8) 0 var(--space-6);
+  padding: 0 0 var(--space-6);
 }
 
+/* The hero row sits on a full-width band with a hard bottom edge, so it reads as its own section. The band is
+   painted behind the row and stretched to the window edges (globals.css clips the scrollbar's overshoot). */
 .heroGrid {
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: 1fr;
-  gap: var(--space-6);
+  gap: var(--space-10);
+  padding: var(--space-16) 0;
+}
+
+.heroGrid::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(50% - 50vw);
+  z-index: -1;
+  border-bottom: 1px solid #d3dce8;
+  background-color: #e8eef6;
+  background-image:
+    radial-gradient(900px 520px at 18% 0%, rgba(37, 99, 235, 0.1) 0%, transparent 60%),
+    radial-gradient(800px 520px at 85% 100%, rgba(16, 185, 129, 0.08) 0%, transparent 60%),
+    radial-gradient(rgba(100, 116, 139, 0.16) 1px, transparent 1px),
+    linear-gradient(180deg, #eaf0f7 0%, #e3eaf3 100%);
+  background-size: 100% 100%, 100% 100%, 22px 22px, 100% 100%;
 }
 
 .heroNarrative {
@@ -94,6 +116,26 @@
   text-transform: uppercase;
 }
 
+/* The band's button: the email demo, the same choice as the card below it */
+.ctaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+  margin-top: var(--space-6);
+}
+
+.ctaLink {
+  color: var(--ink-700);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ctaLink:hover {
+  color: var(--accent);
+}
+
 /* Measured results, straight from dashboard.json */
 .proof {
   display: flex;
@@ -101,8 +143,6 @@
   align-items: baseline;
   gap: var(--space-1) var(--space-5);
   margin: var(--space-5) 0 0;
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--line);
   color: var(--ink-500);
   font-size: var(--text-sm);
 }
@@ -240,7 +280,7 @@
 }
 
 .heroActions {
-  margin-top: var(--space-8);
+  margin-top: var(--space-10);
 }
 
 .ctaLauncher {
@@ -250,6 +290,7 @@
 }
 
 .isolatedShelf {
+  scroll-margin-top: calc(61px + var(--space-6));
   padding: var(--space-4) var(--space-5);
   border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: var(--radius-lg);

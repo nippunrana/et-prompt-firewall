@@ -72,6 +72,9 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
+  /* The hero's full-width band is 100vw wide, which overshoots by the scrollbar's width. `clip`, unlike
+     `hidden`, makes no scroll container, so sticky bars keep working. */
+  overflow-x: clip;
   color: var(--ink-900);
   font-family: var(--font-sans);
   font-size: var(--text-base);
@@ -202,6 +205,7 @@ textarea.mono,
 
 .btn--primary:hover:not(:disabled) {
   background: linear-gradient(135deg, #2563eb 0%, #1e293b 100%);
+  color: #fff;
   box-shadow: 0 4px 14px rgba(29, 78, 216, 0.35);
   transform: translateY(-1px);
 }

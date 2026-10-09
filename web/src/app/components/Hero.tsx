@@ -9,8 +9,9 @@ import s from "./hero.module.css";
 
 export const EMAIL = "email";
 
-// The pain in plain words with a quiet diagram beside it, then one choice: what the AI reads. The looping simulation
-// of the checks sits below the choice, so it never competes with the headline.
+// A full-width band: the pain in plain words, a quiet diagram beside it and the email demo as its button. Below the
+// band, the full choice of what the AI reads, then the looping simulation of the checks, so it never competes with
+// the headline.
 export default function Hero({ selected, onPick }: { selected: string | null; onPick: (key: string) => void }) {
   const h = dashboard.heldout;
   return (
@@ -31,6 +32,12 @@ export default function Hero({ selected, onPick }: { selected: string | null; on
             email, a web page or a file can make an agent send your data or pay a stranger. The firewall reads everything first
             and removes those lines before the agent acts.
           </p>
+          <div className={s.ctaRow}>
+            <button type="button" className="btn btn--primary" onClick={() => onPick(EMAIL)}>
+              Watch the attack demo →
+            </button>
+            <a className={s.ctaLink} href="#try-inputs">Or check one input on its own ↓</a>
+          </div>
           <p className={s.proof}>
             <span className={s.proofLabel}>Held-out tests</span>
             <span><strong>{h.public_attacks.caught} of {h.public_attacks.n}</strong> public attacks caught</span>
@@ -63,7 +70,7 @@ export default function Hero({ selected, onPick }: { selected: string | null; on
             </span>
           </button>
 
-          <div className={s.isolatedShelf}>
+          <div id="try-inputs" className={s.isolatedShelf}>
             <div className={s.isolatedHeader}>
               <span className={s.isolatedDot} />
               <span className={s.otherLabel}>Or test an isolated input source</span>
