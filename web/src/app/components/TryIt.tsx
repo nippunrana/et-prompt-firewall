@@ -1,37 +1,70 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { INPUT_TYPES } from "@/lib/input-examples";
-import AgentDemo, { StepHeader } from "./AgentDemo";
+import { duration, gsap, useGSAP } from "@/lib/motion";
+import AgentDemo from "./AgentDemo";
 import ContentCheck from "./ContentCheck";
-import s from "./demo.module.css";
+import Hero, { EMAIL } from "./Hero";
+import s from "./hero.module.css";
 
-const EMAIL = "email";
-
-// Step 1 of Try it: what the agent reads, from the problem statement's input sources. Email opens the inbox demo
-// (the agent with and without the firewall); every other type is checked on its own. The inbox stays mounted while
-// another type is shown, so a running agent job keeps polling.
+// Try it, one thing at a time: the hero asks what the AI reads; picking it folds the hero into a slim bar and slides
+// the form in. Clicking the bar opens the hero again to switch. The inbox stays mounted while another type is shown,
+// so a running agent job keeps polling.
 export default function TryIt() {
-  const [key, setKey] = useState(EMAIL);
+  const root = useRef<HTMLDivElement>(null);
+  const [key, setKey] = useState<string | null>(null);
+  const [heroOpen, setHeroOpen] = useState(true);
   const type = INPUT_TYPES.find((t) => t.key === key);
 
-  return (
-    <div>
-      <section className={s.step}>
-        <StepHeader n={1} title="What does the agent read?"
-          hint="Each input type has its own front end in the firewall; after it, every type goes through the same checks." />
-        <div className={s.stepBody}>
-          <div className={s.chips} role="group" aria-label="Input type">
-            <button className="chip" aria-pressed={key === EMAIL} onClick={() => setKey(EMAIL)}>Email</button>
-            {INPUT_TYPES.map((t) => (
-              <button key={t.key} className="chip" aria-pressed={key === t.key} onClick={() => setKey(t.key)}>{t.label}</button>
-            ))}
-          </div>
-        </div>
-      </section>
+  const toTop = () => window.scrollTo({ top: 0, behavior: duration(1) ? "smooth" : "instant" });
+  function pick(next: string) { setKey(next); setHeroOpen(false); toTop(); }
+  function reopen() { setHeroOpen(true); toTop(); }
 
-      <div hidden={key !== EMAIL}><AgentDemo first={2} /></div>
-      {type && <ContentCheck key={type.key} type={type} first={2} />}
+  useGSAP(() => {
+    if (!key) return; // first load: the hero is open and nothing is picked yet
+    const hero = `.${s.heroFold}`, bar = `.${s.inputBar}`, panel = `.${s.panel}`;
+    // Focus follows the motion, so keyboard users never land on something that just hid
+    // (absolute positions, not "-=": with reduced motion every duration is 0 and a negative offset skips the focus call).
+    // The panel's transform is cleared after the slide: a transform on it would trap the run drawer inside it.
+    const focus = (selector: string) => () => root.current?.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true });
+    if (heroOpen) {
+      gsap.timeline()
+        .to(bar, { autoAlpha: 0, y: -8, duration: duration(0.2), ease: "power2.in" })
+        .to(hero, { height: "auto", autoAlpha: 1, duration: duration(0.6), ease: "power3.out" }, 0)
+        .call(focus(`.${s.heroFold} [aria-pressed="true"]`));
+    } else {
+      gsap.timeline()
+        .to(hero, { height: 0, autoAlpha: 0, duration: duration(0.55), ease: "power3.inOut" })
+        .fromTo(bar, { autoAlpha: 0, y: -8 }, { autoAlpha: 1, y: 0, duration: duration(0.35), ease: "power2.out" }, duration(0.35))
+        .fromTo(panel, { autoAlpha: 0, y: 56 }, { autoAlpha: 1, y: 0, duration: duration(0.7), ease: "expo.out", clearProps: "transform" }, "<")
+        .call(focus(bar));
+    }
+  }, { dependencies: [key, heroOpen], scope: root });
+
+  const instruction = key === EMAIL
+    ? "Pick a scenario, look at the inbox, then run both agents."
+    : type && `${type.form === "file" ? "Upload your" : "Paste your"} ${type.noun} or use the example. The firewall shows what it removed and why.`;
+
+  return (
+    <div ref={root}>
+      <div id="try-hero" className={s.heroFold}>
+        <Hero selected={key} onPick={pick} />
+      </div>
+
+      {key && (
+        <button className={s.inputBar} aria-expanded={heroOpen} aria-controls="try-hero" onClick={reopen}>
+          <span className={s.inputBarLabel}>Your agent reads</span>
+          <strong>{key === EMAIL ? "An email inbox" : type?.label}</strong>
+          <span className={s.inputBarHint}>{instruction}</span>
+          <span className={s.inputBarChange}>Change ↑</span>
+        </button>
+      )}
+
+      <div className={s.panel}>
+        <div hidden={key !== EMAIL}><AgentDemo /></div>
+        {type && <ContentCheck key={type.key} type={type} first={1} />}
+      </div>
     </div>
   );
 }

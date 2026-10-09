@@ -2,7 +2,6 @@ import { serviceStatus } from "@/lib/services";
 import AppShell from "./components/AppShell";
 import AuditLog from "./components/AuditLog";
 import Dashboard from "./components/Dashboard";
-import Hero from "./components/Hero";
 import TryIt from "./components/TryIt";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +16,7 @@ export default async function Home() {
       repo={REPO}
       status={[["Web", "ok"], ["Firewall", services.firewall], ["Demo agent", services.demoAgent]]}
       views={[
-        { label: "Try it", content: <><Hero /><TryIt /></> },
+        { label: "Try it", content: <TryIt /> },
         {
           label: "Results",
           title: "Measured results",

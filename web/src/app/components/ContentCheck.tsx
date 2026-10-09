@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { BASE_PATH } from "@/lib/base-path";
 import type { CheckResult } from "@/lib/demo-types";
 import type { InputType } from "@/lib/input-examples";
+import { duration, gsap, useGSAP } from "@/lib/motion";
 import { StepHeader } from "./AgentDemo";
 import DocumentExtractor from "./DocumentExtractor";
 import EmailCheck, { type CheckState } from "./EmailCheck";
@@ -12,10 +13,19 @@ import s from "./demo.module.css";
 const IDLE: CheckState = { loading: false, error: null, result: null, text: "", ms: 0 };
 
 // One input checked on its own, for every type except email (the inbox). `first` is the number of its first step.
-// The parent gives it a `key` per type, so switching type starts fresh.
+// The parent gives it a `key` per type, so switching type starts fresh. The result step appears with the first check.
 export default function ContentCheck({ type, first }: { type: InputType; first: number }) {
+  const root = useRef<HTMLDivElement>(null);
   const [text, setText] = useState("");
   const [state, setState] = useState<CheckState>(IDLE);
+  const checked = state.loading || state.error !== null || state.result !== null;
+
+  useGSAP(() => {
+    const step = root.current?.querySelector<HTMLElement>("[data-result]");
+    if (!step) return;
+    gsap.fromTo(step, { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: duration(0.5), ease: "power3.out" });
+    step.scrollIntoView({ behavior: duration(1) ? "smooth" : "instant", block: "start" });
+  }, { dependencies: [checked], scope: root });
 
   async function run(request: () => Promise<Response>, checked?: string) {
     setState({ ...IDLE, loading: true });
@@ -49,7 +59,7 @@ export default function ContentCheck({ type, first }: { type: InputType; first: 
   }
 
   return (
-    <div>
+    <div ref={root}>
       <section className={s.step}>
         <StepHeader n={first} title={type.form === "file" ? `Upload the ${type.noun}` : `Give it the ${type.noun}`}
           hint={`What the firewall does first: ${type.frontEnd}`} />
@@ -63,6 +73,10 @@ export default function ContentCheck({ type, first }: { type: InputType; first: 
                   Check the example {type.noun}
                 </button>
               )}
+              <details style={{ marginTop: "var(--space-6)", flexBasis: "100%" }}>
+                <summary>Only extract the text from a file, without checking it</summary>
+                <DocumentExtractor />
+              </details>
             </div>
           ) : (
             <>
@@ -83,21 +97,13 @@ export default function ContentCheck({ type, first }: { type: InputType; first: 
         </div>
       </section>
 
-      <section className={s.step}>
+      {checked && <section className={s.step} data-result>
         <StepHeader n={first + 1} title="What the firewall did"
           hint="The same checks as for every email: rules, two classifiers, the language gate, then the LLM judge and sandbox on anything flagged." />
         <div className={s.stepBody}>
-          {state.loading || state.error || state.result
-            ? <EmailCheck state={state} noun={type.noun} />
-            : <p className="small muted">Nothing checked yet.</p>}
-          {type.form === "file" && (
-            <details style={{ marginTop: "var(--space-6)" }}>
-              <summary>Only extract the text from a file, without checking it</summary>
-              <DocumentExtractor />
-            </details>
-          )}
+          <EmailCheck state={state} noun={type.noun} />
         </div>
-      </section>
+      </section>}
     </div>
   );
 }

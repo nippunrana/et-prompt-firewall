@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { BASE_PATH } from "@/lib/base-path";
+import { duration, gsap, useGSAP } from "@/lib/motion";
 import { pretty, type Email, type InboxEmail, type Job, type Scenario } from "@/lib/demo-types";
 import dashboard from "@/data/dashboard.json";
 import InboxEditor, { withKey } from "./InboxEditor";
@@ -42,8 +43,30 @@ function Measured({ scenario }: { scenario: Scenario }) {
   );
 }
 
-// `first` is the number of its first step: the input-type choice above it is step 1.
+// Where the firewall's two checkpoints sit, shown right before the run that tests them
+function Checkpoints() {
+  return (
+    <ol className={`${s.flow} ${s.flowCompact}`} aria-label="Where the firewall sits">
+      <li className={s.flowNode}>Inbox</li>
+      <li className={s.flowGate}>
+        <strong>1 · Content check</strong>
+        <span>Removes hidden orders from each email and names the attack</span>
+      </li>
+      <li className={s.flowNode}>AI agent</li>
+      <li className={s.flowGate}>
+        <strong>2 · Action guard</strong>
+        <span>Blocks sends, forwards and payments you did not ask for</span>
+      </li>
+      <li className={s.flowNode}>Tools</li>
+    </ol>
+  );
+}
+
+// The three steps appear one at a time; a scenario is already picked, so "Next" twice reaches the run.
+// `first` is the number of its first step.
 export default function AgentDemo({ first = 1 }: { first?: number }) {
+  const root = useRef<HTMLDivElement>(null);
+  const [stage, setStage] = useState(1);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -56,6 +79,16 @@ export default function AgentDemo({ first = 1 }: { first?: number }) {
   const timers = useRef<ReturnType<typeof setInterval>[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+
+  // A step that just appeared slides in, scrolls into view and takes focus (its "Next" button is gone)
+  useGSAP(() => {
+    const step = root.current?.querySelector<HTMLElement>(`[data-stage="${stage}"]`);
+    if (stage === 1 || !step) return;
+    const field = step.querySelector<HTMLElement>("input, button:not(:disabled)");
+    gsap.fromTo(step, { autoAlpha: 0, y: 24 },
+      { autoAlpha: 1, y: 0, duration: duration(0.5), ease: "power3.out", onComplete: () => field?.focus({ preventScroll: true }) });
+    step.scrollIntoView({ behavior: duration(1) ? "smooth" : "instant", block: "start" });
+  }, { dependencies: [stage], scope: root });
 
   useEffect(() => {
     fetch(`${BASE_PATH}/api/scenarios`)
@@ -138,8 +171,8 @@ export default function AgentDemo({ first = 1 }: { first?: number }) {
   const emptyEmail = emails.some((e) => !e.body.trim());
 
   return (
-    <div>
-      <section className={s.step}>
+    <div ref={root}>
+      <section className={s.step} data-stage={1}>
         <StepHeader n={first} title="Pick a starting point" hint="Each scenario is a realistic inbox with one attack hidden in it. Or start from a blank inbox." />
         <div className={s.stepBody}>
           <div className={s.chips}>
@@ -159,10 +192,11 @@ export default function AgentDemo({ first = 1 }: { first?: number }) {
               {selectedId === BLANK_ID ? "Your own inbox" : "You changed this scenario"}: the results will report what each agent actually did.
             </p>
           )}
+          {stage === 1 && <button className={`btn btn--primary ${s.next}`} onClick={() => setStage(2)}>Next: see the inbox</button>}
         </div>
       </section>
 
-      <section className={s.step}>
+      {stage >= 2 && <section className={s.step} data-stage={2}>
         <StepHeader n={first + 1} title="Edit the inbox" hint="Change anything: the request, the sender, the subject or the body. Add your own email, or one of the example attacks." />
         <div className={s.stepBody}>
           <label>
@@ -170,12 +204,15 @@ export default function AgentDemo({ first = 1 }: { first?: number }) {
             <input className="field" value={userRequest} disabled={running} maxLength={2000} onChange={(e) => setUserRequest(e.target.value)} />
           </label>
           <InboxEditor emails={emails} onChange={setEmails} userRequest={userRequest} disabled={running} />
+          {stage === 2 && <button className={`btn btn--primary ${s.next}`} onClick={() => setStage(3)}>Next: run it</button>}
         </div>
-      </section>
+      </section>}
 
-      <section className={s.step}>
-        <StepHeader n={first + 2} title="Run both agents" hint="The same inbox goes to two copies of the agent at once. Its tools are fake: nothing is ever really sent or paid." />
+      {stage >= 3 && <section className={s.step} data-stage={3}>
+        <StepHeader n={first + 2} title="Run both agents"
+          hint="The same inbox goes to two copies of the agent at once: one reads it as it is, the other sits behind the firewall's two checkpoints. Its tools are fake: nothing is ever really sent or paid." />
         <div className={s.stepBody}>
+          <Checkpoints />
           <div className={s.runBar}>
             <button className="btn btn--primary" onClick={start} disabled={running || !userRequest.trim() || emptyEmail}>
               {running ? "Running…" : "Run both agents"}
@@ -203,7 +240,7 @@ export default function AgentDemo({ first = 1 }: { first?: number }) {
             </div>
           )}
         </div>
-      </section>
+      </section>}
 
       {ranAs && (
         <RunDrawer open={drawerOpen} onClose={closeDrawer} title="Same inbox, two agents"
