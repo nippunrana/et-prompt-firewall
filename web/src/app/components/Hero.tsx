@@ -2,7 +2,6 @@
 
 import React from "react";
 import { INPUT_TYPES } from "@/lib/input-examples";
-import d from "./demo.module.css";
 import HeroSimulation from "./HeroSimulation";
 import s from "./hero.module.css";
 
@@ -29,26 +28,6 @@ export default function Hero({ selected, onPick }: { selected: string | null; on
             email, a web page or a file can make an agent send your data or pay a stranger. The firewall reads everything first
             and removes those lines before the agent acts.
           </p>
-
-          <div className={s.heroCta}>
-            <p className={s.choiceLabel}>Pick what your agent reads</p>
-            <button className={s.emailChoice} aria-pressed={selected === EMAIL} onClick={() => onPick(EMAIL)}>
-              <div className={s.emailChoiceIconBadge} aria-hidden="true">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                  <polyline points="22,6 12,13 2,6" />
-                </svg>
-              </div>
-              <span className={s.emailChoiceText}>
-                <span className={s.emailChoiceKicker}>Email inbox · full agent demo</span>
-                <strong className={s.emailChoiceTitle}>Watch an AI agent get attacked, with and without the firewall</strong>
-                <span className={s.emailChoiceHint}>An inbox with one attack hidden in it, read by two copies of the same agent.</span>
-              </span>
-              <span className={s.emailChoiceGo} aria-hidden="true">
-                <span className={s.emailChoiceGoLabel}>Launch demo</span> →
-              </span>
-            </button>
-          </div>
         </div>
 
         <div className={s.heroPipeline}>
@@ -57,13 +36,55 @@ export default function Hero({ selected, onPick }: { selected: string | null; on
       </div>
 
       <div className={s.heroActions}>
-        <p className={s.otherLabel}>Or check one thing on its own</p>
-        <div className={d.chips} role="group" aria-label="Other input types">
-          {INPUT_TYPES.map((t) => (
-            <button key={t.key} className="chip" aria-pressed={selected === t.key} onClick={() => onPick(t.key)}>
-              {t.label}
-            </button>
-          ))}
+        <div className={s.ctaLauncher}>
+          <p className={s.choiceLabel}>Pick what your agent reads</p>
+          <button className={s.emailChoice} aria-pressed={selected === EMAIL} onClick={() => onPick(EMAIL)}>
+            <div className={s.emailChoiceIconBadge} aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                <polyline points="22,6 12,13 2,6" />
+              </svg>
+            </div>
+            <span className={s.emailChoiceText}>
+              <span className={s.emailChoiceKicker}>Email inbox · full agent demo</span>
+              <strong className={s.emailChoiceTitle}>Watch an AI agent get attacked, with and without the firewall</strong>
+              <span className={s.emailChoiceHint}>An inbox with one attack hidden in it, read by two copies of the same agent.</span>
+            </span>
+            <span className={s.emailChoiceGo} aria-hidden="true">
+              <span className={s.emailChoiceGoLabel}>Launch demo</span> →
+            </span>
+          </button>
+
+          <div className={s.isolatedShelf}>
+            <div className={s.isolatedHeader}>
+              <span className={s.isolatedDot} />
+              <span className={s.otherLabel}>Or test an isolated input source</span>
+              <span className={s.isolatedSub}>Run raw text or files directly through the 9-layer firewall pipeline</span>
+            </div>
+            <div className={s.isolatedGroups}>
+              <div className={s.isolatedGroup}>
+                <span className={s.groupLabel}>Text & Code</span>
+                <div className={s.groupChips} role="group" aria-label="Text and code inputs">
+                  {INPUT_TYPES.filter((t) => t.form === "text").map((t) => (
+                    <button key={t.key} className="chip" aria-pressed={selected === t.key} onClick={() => onPick(t.key)}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className={s.groupDivider} aria-hidden="true" />
+              <div className={s.isolatedGroup}>
+                <span className={s.groupLabel}>Files & OCR</span>
+                <div className={s.groupChips} role="group" aria-label="Document and file inputs">
+                  {INPUT_TYPES.filter((t) => t.form === "file").map((t) => (
+                    <button key={t.key} className="chip" aria-pressed={selected === t.key} onClick={() => onPick(t.key)}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>

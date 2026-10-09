@@ -116,7 +116,7 @@ const SCENARIOS: Scenario[] = [
 const ORDER = ["request", "prepare", "rules", "classifiers", "lid", "triage", "llm", "decide", "recheck", "work", "guard", "reply"];
 const END = ORDER.length;
 const BEAT = 650; // ms per tick
-const HOLD = 3200; // ms the finished run stays up before the next email
+const HOLD_SECONDS = 5;
 const VERDICT = { allow: "Allowed", sanitise: "Cleaned", block: "Blocked" };
 const TICKED = new Set<RowState>(["done", "flag", "skip", "off"]);
 
@@ -149,19 +149,44 @@ function Email({ sc, decided }: { sc: Scenario; decided: boolean }) {
         {decided && <span className={s.verdict} data-verdict={sc.verdict}>{VERDICT[sc.verdict]}</span>}
       </div>
       <p className={s.subject}>{sc.subject}</p>
-      {sc.lines.map((l) => (
-        <p key={l.text} className={s.line} data-injected={l.injected || undefined} data-cut={(l.injected && decided && sc.verdict === "sanitise") || undefined}>
-          {l.text}
-        </p>
-      ))}
+      {sc.lines.map((l) => {
+        const isCut = Boolean(l.injected && decided && sc.verdict === "sanitise");
+        const isBlocked = Boolean(l.injected && decided && sc.verdict === "block");
+        return (
+          <p
+            key={l.text}
+            className={s.line}
+            data-injected={l.injected || undefined}
+            data-cut={isCut || undefined}
+            data-blocked-threat={isBlocked || undefined}
+          >
+            {l.injected && (
+              <span className={s.threatBadge}>
+                {isCut ? "✂ Stripped by firewall" : isBlocked ? "⛔ Blocked attack" : "⚠ Hidden injection"}
+              </span>
+            )}
+            <span className={s.lineContent}>{l.text}</span>
+          </p>
+        );
+      })}
     </>
   );
 }
+
+const TRACKER_VARIANTS = [
+  "9 defense layers queued",
+  ...STAGES.map(([, name]) => `Now: ${name}`),
+  "Now: LLM judge + sandbox",
+  "9 defense layers evaluated · allowed",
+  "9 defense layers evaluated · cleaned",
+  "9 defense layers evaluated · blocked",
+].map((text) => <span key={text} className={s.trackerText}>{text}</span>);
 
 export default function HeroSimulation() {
   const root = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
   const [n, setN] = useState(0); // rows ticked so far
+  const [countdown, setCountdown] = useState<number | null>(null);
   const [paused, setPaused] = useState(false);
   const [visible, setVisible] = useState(true);
   const sc = SCENARIOS[index];
@@ -180,13 +205,33 @@ export default function HeroSimulation() {
 
   useEffect(() => {
     if (paused || !visible) return;
+
+    if (n < END) {
+      const t = setTimeout(() => {
+        setN(n + 1);
+      }, BEAT);
+      return () => clearTimeout(t);
+    }
+
+    if (countdown === null) {
+      setCountdown(HOLD_SECONDS);
+      return;
+    }
+
+    if (countdown > 1) {
+      const t = setTimeout(() => {
+        setCountdown(countdown - 1);
+      }, 1000);
+      return () => clearTimeout(t);
+    }
+
     const t = setTimeout(() => {
-      if (n < END) return setN(n + 1);
+      setCountdown(null);
       setIndex((index + 1) % SCENARIOS.length);
       setN(0);
-    }, n < END ? BEAT : HOLD);
+    }, 1000);
     return () => clearTimeout(t);
-  }, [n, index, paused, visible]);
+  }, [n, index, countdown, paused, visible]);
 
   // Pop each mark as it ticks, like the drawer does
   useGSAP(() => {
@@ -220,7 +265,22 @@ export default function HeroSimulation() {
     { key: "reply", name: "Agent replies", values: all((x) => x.reply[1]), ...at("reply", sc.reply) },
   ];
 
-  function show(i: number) { setIndex(i); setN(paused ? END : 0); }
+  let trackerText = "9 defense layers queued";
+  if (n > tick("request") && n <= tick("recheck")) {
+    trackerText = `Now: ${current ?? "evaluating layers"}`;
+  } else if (n > tick("recheck")) {
+    trackerText = sc.verdict === "allow"
+      ? "9 defense layers evaluated · allowed"
+      : sc.verdict === "sanitise"
+      ? "9 defense layers evaluated · cleaned"
+      : "9 defense layers evaluated · blocked";
+  }
+
+  function show(i: number) {
+    setCountdown(null);
+    setIndex(i);
+    setN(paused ? END : 0);
+  }
 
   return (
     <div ref={root} className={s.card} role="figure" aria-label="Simulation: how the firewall checks an email">
@@ -240,7 +300,14 @@ export default function HeroSimulation() {
             {x.label}
           </button>
         ))}
-        <span className={s.progress} aria-hidden="true"><span style={{ width: `${(n / END) * 100}%`, transition: n ? undefined : "none" }} /></span>
+        <span className={s.progress} aria-hidden="true">
+          <span
+            style={{
+              width: countdown !== null ? `${((HOLD_SECONDS - countdown + 1) / HOLD_SECONDS) * 100}%` : `${(n / END) * 100}%`,
+              transition: countdown !== null ? "width 1s linear" : (n ? undefined : "none"),
+            }}
+          />
+        </span>
       </div>
 
       <div className={s.email} data-blocked={decided && sc.verdict === "block"}>
@@ -255,12 +322,34 @@ export default function HeroSimulation() {
               {it.checkpoint && <span className={p.checkpoint}>Checkpoint {it.checkpoint}</span>}
               <SteadyText row={it} values={it.values} />
               {it.rows && (
-                <ol className={`${p.rows} ${s.rows}`}>
-                  {STAGES.map(([key, name]) => {
-                    const r = { key, name, ...at(key, sc.stages[key]) };
-                    return <li key={key} className={p.row} data-state={r.state}><Mark state={r.state} /><SteadyText row={r} values={all((x) => x.stages[key][1])} /></li>;
-                  })}
-                </ol>
+                <div className={s.checkpointTracker}>
+                  <div
+                    className={s.segmentedTrack}
+                    role="progressbar"
+                    aria-label="9 defense layers progress"
+                    aria-valuenow={Math.min(9, Math.max(0, n - tick("request")))}
+                    aria-valuemin={0}
+                    aria-valuemax={9}
+                  >
+                    {STAGES.map(([key, name]) => {
+                      const stageState = at(key, sc.stages[key]).state;
+                      return (
+                        <span
+                          key={key}
+                          className={s.segment}
+                          data-stage={key}
+                          data-state={stageState}
+                          title={`${name}: ${sc.stages[key][1]}`}
+                        />
+                      );
+                    })}
+                  </div>
+                  <div className={s.trackerSummary}>
+                    <Steady variants={TRACKER_VARIANTS}>
+                      <span className={s.trackerText}>{trackerText}</span>
+                    </Steady>
+                  </div>
+                </div>
               )}
             </div>
           </li>
@@ -268,9 +357,31 @@ export default function HeroSimulation() {
       </ol>
 
       <div className={s.foot}>
-        <Steady variants={all((x) => x.outcome).concat(all((x) => `Checking: ${x.subject}…`)).map((v) => <p key={v} className={s.outcome}>{v}</p>)}>
-          <p className={s.outcome}>{n >= END ? sc.outcome : `Checking: ${sc.subject}…`}</p>
-        </Steady>
+        <div className={s.footRow}>
+          <Steady variants={all((x) => x.outcome).concat(all((x) => `Checking: ${x.subject}…`)).map((v) => <p key={v} className={s.outcome}>{v}</p>)}>
+            <p className={s.outcome}>{n >= END ? sc.outcome : `Checking: ${sc.subject}…`}</p>
+          </Steady>
+          <div className={s.timerSlot} aria-hidden={countdown === null}>
+            <span className={s.timerPill} style={{ opacity: countdown !== null ? 1 : 0 }}>
+              <span className={s.timerRing}>
+                <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                  <circle cx="6" cy="6" r="4.5" className={s.ringBg} />
+                  <circle
+                    cx="6"
+                    cy="6"
+                    r="4.5"
+                    className={s.ringProgress}
+                    style={{
+                      strokeDasharray: 28.27,
+                      strokeDashoffset: countdown !== null ? (28.27 * (HOLD_SECONDS - countdown)) / HOLD_SECONDS : 28.27,
+                    }}
+                  />
+                </svg>
+              </span>
+              <span className={s.timerNum}>{countdown !== null ? `${countdown}s` : "5s"}</span>
+            </span>
+          </div>
+        </div>
         <p className={s.stats}>
           Held-out tests: <strong>{h.public_attacks.caught} of {h.public_attacks.n}</strong> public attacks caught ·{" "}
           <strong>{h.real_benign.flagged} of {h.real_benign.n}</strong> real emails wrongly flagged

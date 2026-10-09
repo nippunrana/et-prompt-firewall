@@ -4,7 +4,7 @@
 .card {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: auto;
   border: 1px solid rgba(37, 99, 235, 0.2);
   border-radius: var(--radius-lg);
   background: var(--surface);
@@ -161,23 +161,70 @@
   line-height: 1.45;
 }
 
-/* The attacker's line: shown faintly, as the visitor would not normally see it */
+/* The attacker's line: highlighted with threat badge and strikethrough when cut */
 .line[data-injected] {
-  margin: 2px 0;
-  padding: 1px 4px;
-  border: 1px dashed var(--line-strong);
-  border-radius: 4px;
-  color: var(--ink-500);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  margin: 4px 0;
+  padding: 4px 6px;
+  border: 1px dashed rgba(245, 158, 11, 0.45);
+  border-radius: var(--radius-sm);
+  background: rgba(254, 243, 199, 0.35);
+  color: var(--ink-700);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  transition: background 300ms ease, color 300ms ease;
+  transition: all 250ms ease;
 }
 
 .line[data-cut] {
-  border-color: transparent;
-  background: var(--removed);
-  color: var(--block);
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(236, 253, 245, 0.45);
+  color: var(--ink-500);
+}
+
+.line[data-cut] .lineContent {
   text-decoration: line-through;
+  opacity: 0.65;
+}
+
+.line[data-blocked-threat] {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(254, 242, 242, 0.55);
+}
+
+.lineContent {
+  display: block;
+  word-break: break-word;
+}
+
+.threatBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: rgba(245, 158, 11, 0.15);
+  color: #b45309;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.line[data-cut] .threatBadge {
+  background: rgba(16, 185, 129, 0.15);
+  color: #047857;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.line[data-blocked-threat] .threatBadge {
+  background: rgba(239, 68, 68, 0.15);
+  color: #b91c1c;
+  border-color: rgba(239, 68, 68, 0.35);
 }
 
 /* Steady: every variant of a slot sits in one grid cell, invisible, so the slot is as tall as the tallest */
@@ -207,18 +254,71 @@
 
 /* The checklist: the drawer's, a little tighter */
 .pipe {
-  flex: 1;
-  padding: var(--space-4) var(--space-5) 0;
+  padding: var(--space-4) var(--space-5) var(--space-2);
 }
 
 .pipe > li {
   padding-bottom: var(--space-3);
 }
 
-.rows {
-  gap: 4px;
-  margin-top: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+/* Compact 9-layer tracker */
+.checkpointTracker {
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: rgba(248, 250, 252, 0.85);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.segmentedTrack {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 3px;
+  align-items: center;
+  height: 5px;
+}
+
+.segment {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #cbd5e1;
+  transition: all 200ms ease;
+}
+
+.segment[data-state="running"] {
+  background: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+  transform: scaleY(1.4);
+}
+
+.segment[data-state="done"] {
+  background: #10b981;
+}
+
+.segment[data-state="flag"] {
+  background: #f59e0b;
+}
+
+.segment[data-state="skip"] {
+  background: #e2e8f0;
+  opacity: 0.5;
+}
+
+.segment[data-state="off"] {
+  background: #94a3b8;
+  opacity: 0.4;
+}
+
+.trackerSummary {
+  margin-top: 4px;
+}
+
+.trackerText {
+  color: var(--ink-500);
+  font-size: 11px;
+  font-weight: 550;
+  letter-spacing: -0.01em;
 }
 
 .foot {
@@ -227,10 +327,74 @@
   background: linear-gradient(to right, #f8faff, #f4fbf7);
 }
 
+.footRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: 2px;
+}
+
+.timerSlot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 44px;
+  height: 22px;
+}
+
+.timerPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  transition: opacity 150ms ease;
+}
+
+.timerRing {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 11px;
+  height: 11px;
+}
+
+.timerRing svg {
+  transform: rotate(-90deg);
+}
+
+.ringBg {
+  fill: none;
+  stroke: rgba(37, 99, 235, 0.18);
+  stroke-width: 2.2;
+}
+
+.ringProgress {
+  fill: none;
+  stroke: #2563eb;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 950ms linear;
+}
+
+.timerNum {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
 .outcome {
-  margin: 0 0 2px;
+  margin: 0;
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: 650;
 }
 
 .stats {
@@ -241,11 +405,4 @@
 
 .stats strong {
   color: var(--ink-900);
-}
-
-/* One column: keep the card short so the hero's call to action stays close; the five steps tell the story */
-@media (max-width: 1023px) {
-  .rows {
-    display: none;
-  }
 }
