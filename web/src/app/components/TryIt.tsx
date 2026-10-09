@@ -28,13 +28,17 @@ export default function TryIt() {
     // (absolute positions, not "-=": with reduced motion every duration is 0 and a negative offset skips the focus call).
     // The panel slides with padding, never a transform: a transform would pin the fixed run bar and drawer to it.
     const focus = (selector: string) => () => root.current?.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true });
+    // Reopening the hero hides the form too (display, not unmount, so a running agent job keeps polling).
     if (heroOpen) {
       gsap.timeline()
         .to(bar, { autoAlpha: 0, y: -8, duration: duration(0.2), ease: "power2.in" })
+        .to(panel, { autoAlpha: 0, duration: duration(0.2), ease: "power2.in" }, 0)
+        .set(panel, { display: "none" }, duration(0.2))
         .to(hero, { height: "auto", autoAlpha: 1, duration: duration(0.6), ease: "power3.out" }, 0)
         .call(focus(`.${s.heroFold} [aria-pressed="true"]`));
     } else {
       gsap.timeline()
+        .set(panel, { clearProps: "display" })
         .to(hero, { height: 0, autoAlpha: 0, duration: duration(0.55), ease: "power3.inOut" })
         .fromTo(bar, { autoAlpha: 0, y: -8 }, { autoAlpha: 1, y: 0, duration: duration(0.35), ease: "power2.out" }, duration(0.35))
         .fromTo(panel, { autoAlpha: 0, paddingTop: 56 }, { autoAlpha: 1, paddingTop: 0, duration: duration(0.7), ease: "expo.out", clearProps: "paddingTop" }, "<")
