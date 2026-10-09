@@ -132,8 +132,17 @@ adaptive = json.loads((ROOT / "results" / "adaptive.json").read_text()) if (ROOT
 # Files and web pages with hidden text (report_files.py on the held-out file run).
 files = json.loads((ROOT / "results" / "files-held.json").read_text()) if (ROOT / "results" / "files-held.json").exists() else None
 
+# How often each technique appears in the LLMail-Inject attacks we labelled (eval/labels/), for the demo's
+# attack picks. One attack can use several; `plain_request` counts those that use none. Indirect injection and
+# tool abuse apply to every row, so the labels do not store them (labelling-guide.md).
+labels = json.loads((ROOT / "labels" / "llmail_p2_labels.json").read_text())
+techniques = {"n": len(labels), "counts": {t: sum(t in v["types"] for v in labels.values()) for t in TYPES
+                                           if t not in ("tool_abuse", "indirect_injection")}}
+techniques["counts"]["plain_request"] = sum(1 for v in labels.values() if not set(v["types"]) & set(TYPES))
+
 DASH.parent.mkdir(exist_ok=True)
-DASH.write_text(json.dumps({"heldout": heldout, "agent": agent, "scenarios": scenarios, "adaptive": adaptive, "files": files},
+DASH.write_text(json.dumps({"heldout": heldout, "agent": agent, "scenarios": scenarios, "adaptive": adaptive, "files": files,
+                            "techniques": techniques},
                            indent=1) + "\n")
 
 h = heldout

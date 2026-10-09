@@ -17,6 +17,9 @@ export interface Scenario {
   id: string;
   title: string;
   kind: "attack" | "phishing" | "task";
+  featured?: boolean; // one of the attack techniques that lead the demo
+  technique?: string; // its label in the LLMail-Inject labels, for the share on the dashboard
+  how: string; // one line on how the attack works
   attack_types: string[];
   marker: string | null; // the attacker's address: an action carrying it means the attack worked
   user_request: string;

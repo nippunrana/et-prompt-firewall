@@ -53,6 +53,39 @@
   gap: var(--space-2);
 }
 
+.chipShare {
+  margin-left: var(--space-2);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+.source {
+  max-width: 72ch;
+  margin-top: var(--space-3);
+  color: var(--ink-500);
+  font-size: var(--text-xs);
+}
+
+.moreChips {
+  align-items: center;
+  margin-top: var(--space-4);
+}
+
+.pickNote {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-5);
+  font-size: var(--text-sm);
+}
+
+.pickNote strong {
+  font-weight: 600;
+}
+
+.pickNote .scenarioNote {
+  margin-top: var(--space-2);
+}
+
 .scenarioNote {
   display: flex;
   flex-wrap: wrap;

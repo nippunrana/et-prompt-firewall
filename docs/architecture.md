@@ -121,14 +121,14 @@ A LangGraph tool loop (agent ⇄ tools, at most 8 turns) on Qwen3-next-80B think
 
 | Type | Detected by | Shown in the demo |
 | :--- | :--- | :--- |
-| Instruction override | Strong rules, both classifiers, judge | Try it: example email, Check this email |
-| Role change | Strong rules, classifiers, judge | Try it: example email, Check this email |
+| Instruction override | Strong rules, both classifiers, judge | Try it scenario: instruction override; Try it: example email, Check this email |
+| Role change | Strong rules, classifiers, judge | Try it: example email, Check this email. The role-change scenario (a fake end of email, then a line posing as the user) is caught, but named instruction override: the judge's role change means a new persona |
 | Secret extraction | Strong rule, judge; guard (canary in outgoing data) | Try it: example email, Check this email |
-| Tool abuse | Weak rules, judge, sandbox tool call; guard (provenance, intent) | Try it scenario: invoices sent to an attacker |
-| Credential theft | Strong and weak rules, judge; guard (codes, passwords, keys in outgoing data) | Try it scenario: one-time code stolen |
-| Context poisoning | Classifiers, judge (fake approvals, fake policies) | Try it scenario: invoice email claims prior approval |
+| Tool abuse | Weak rules, judge, sandbox tool call; guard (provenance, intent) | Every Try it attack scenario; plain request and context poisoning are stopped by the guard alone |
+| Credential theft | Strong and weak rules, judge; guard (codes, passwords, keys in outgoing data) | Try it scenario: credential theft (a one-time code) |
+| Context poisoning | Classifiers, judge (fake approvals, fake policies) | Try it scenario: context poisoning (a fake finance policy). The content check misses this one; the guard stops the send |
 | Multi-step jailbreak | Judge (split payloads, variables to join, staged requests) | Try it: example email, Check this email |
-| Encoded instructions | prepare decodes Base64 / hex / Unicode tags and strips invisible characters; language gate; judge | Try it scenario: romanized Hindi; Try it: example email |
+| Encoded instructions | prepare decodes Base64 / hex / Unicode tags and strips invisible characters; language gate; judge | Try it scenario: encoded instructions (Base64); Try it: example email |
 | Indirect injection | Any attack in content whose source is not the user | Every Try it scenario |
 
 Per-type detection rates on held-out data are in [`eval/results/heldout-llm.md`](../eval/results/heldout-llm.md).

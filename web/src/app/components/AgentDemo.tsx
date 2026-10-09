@@ -30,10 +30,10 @@ export function StepHeader({ n, title, hint }: { n: number; title: string; hint?
   );
 }
 
+type Measurement = (typeof dashboard.scenarios)[number];
+
 // How often the scenario worked over several measured runs, so one live run is never read as typical
-function Measured({ scenario }: { scenario: Scenario }) {
-  const m = dashboard.scenarios.find((x) => x.id === scenario.id);
-  if (!m) return null;
+function Measured({ scenario, m }: { scenario: Scenario; m: Measurement }) {
   if (scenario.kind === "task") return <span>Measured over {m.runs} runs: task done {m.protected_done} of {m.runs} times with the firewall on.</span>;
   return (
     <span>
@@ -41,6 +41,19 @@ function Measured({ scenario }: { scenario: Scenario }) {
     </span>
   );
 }
+
+// Which checkpoint stopped the attack in the measured runs; never a claim the runs did not show
+function caught(scenario: Scenario, m: Measurement): [string, string] {
+  if (scenario.kind === "task") return ["What should happen", "Nothing to stop: the firewall has to let it through."];
+  if (m.types_named.length) return ["Where it\u2019s caught", "Checkpoint 1, the content check, flags the email before the AI reads it."];
+  if (m.guard_types.length) return ["Where it\u2019s caught", "The content check lets it through; checkpoint 2, the tool guard, blocks the send."];
+  return ["Where it\u2019s caught", "Neither checkpoint stops it."];
+}
+
+// Share of the labelled LLMail-Inject attacks that use the technique (computed by eval/report_heldout.py)
+const { techniques } = dashboard;
+const share = (sc: Scenario) =>
+  sc.technique ? Math.round((100 * (techniques.counts as Record<string, number>)[sc.technique]) / techniques.n) : null;
 
 // The steps appear one at a time; a scenario is already picked, so one "Next" shows the inbox and the run bar.
 // `first` is the number of its first step; `active` is false while another input type is shown.
@@ -100,6 +113,7 @@ export default function AgentDemo({ first = 1, active = true }: { first?: number
   const running = Object.values(jobs).some((j) => j?.status === "running");
   const selected = scenarios.find((x) => x.id === selectedId) ?? null;
   const custom = selectedId === BLANK_ID || fingerprint(userRequest, emails) !== baseline;
+  const measured = dashboard.scenarios.find((x) => x.id === selectedId);
 
   function pick(sc: Scenario | null) {
     const request = sc?.user_request ?? DEFAULT_REQUEST;
@@ -168,18 +182,39 @@ export default function AgentDemo({ first = 1, active = true }: { first?: number
   return (
     <div ref={root}>
       <section className={s.step} data-stage={1}>
-        <StepHeader n={first} title="Pick a starting point" hint="Each scenario is a realistic inbox with one attack hidden in it. Or start from a blank inbox." />
+        <StepHeader n={first} title="Pick an attack"
+          hint="The techniques attackers use most against AI email assistants, most common first. Each one opens a realistic inbox with that attack hidden in it." />
         <div className={s.stepBody}>
           <div className={s.chips}>
-            {scenarios.map((sc) => (
+            {scenarios.filter((sc) => sc.featured).map((sc) => (
+              <button key={sc.id} className="chip" aria-pressed={sc.id === selectedId} disabled={running} onClick={() => pick(sc)}>
+                {sc.title}
+                {share(sc) !== null && <span className={s.chipShare}>{share(sc)}%</span>}
+              </button>
+            ))}
+          </div>
+          <p className={s.source}>
+            % = share of the {techniques.n} attacks we labelled from Microsoft&apos;s public LLMail-Inject challenge (2025), all of which
+            beat an AI email assistant. One attack can use several techniques, so the shares add up to more than 100%.
+            Prompt injection is #1 on the OWASP Top 10 for LLM applications.
+          </p>
+          <div className={`${s.chips} ${s.moreChips}`}>
+            <span className={s.addLabel}>Also try:</span>
+            {scenarios.filter((sc) => !sc.featured).map((sc) => (
               <button key={sc.id} className="chip" aria-pressed={sc.id === selectedId} disabled={running} onClick={() => pick(sc)}>{sc.title}</button>
             ))}
             <button className="chip" aria-pressed={selectedId === BLANK_ID} disabled={running} onClick={() => pick(null)}>Blank inbox</button>
           </div>
           {selected && !custom && (
-            <div className={s.scenarioNote}>
-              <Measured scenario={selected} />
-              {selected.attack_types.map((t) => <span key={t} className="tag">{pretty(t)}</span>)}
+            <div className={s.pickNote}>
+              <p><strong>How it works:</strong> {selected.how}</p>
+              {measured && <p><strong>{caught(selected, measured)[0]}:</strong> {caught(selected, measured)[1]}</p>}
+              {measured && (
+                <div className={s.scenarioNote}>
+                  <Measured scenario={selected} m={measured} />
+                  {selected.attack_types.map((t) => <span key={t} className="tag">{pretty(t)}</span>)}
+                </div>
+              )}
             </div>
           )}
           {custom && (
