@@ -26,7 +26,7 @@ const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ?
 const target = (args?: Record<string, string>) => args?.to || args?.recipient || "";
 
 // The firewall's stages, in the order its graph runs them (services/firewall/app/check.py)
-const STAGES: [string, string][] = [
+export const STAGES: [string, string][] = [
   ["prepare", "Clean up the text"],
   ["rules", "Pattern rules"],
   ["classifiers", "PIGuard + Prompt Guard 2"],

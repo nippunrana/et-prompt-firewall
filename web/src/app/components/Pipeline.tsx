@@ -9,7 +9,7 @@ import p from "./pipeline.module.css";
 const TICKED = new Set<RowState>(["done", "flag", "skip", "off"]);
 const LABEL: Record<RowState, string> = { done: "done", flag: "done, raised a signal", running: "running", pending: "waiting", skip: "not needed", off: "not there" };
 
-function Mark({ state }: { state: RowState }) {
+export function Mark({ state }: { state: RowState }) {
   return (
     <span data-mark data-state={state} className={p.mark} aria-label={LABEL[state]}>
       {state === "done" && <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>}
@@ -19,7 +19,7 @@ function Mark({ state }: { state: RowState }) {
   );
 }
 
-function Text({ row }: { row: Row }) {
+export function Text({ row }: { row: Row }) {
   return (
     <span className={p.text}>
       <span className={p.name}>{row.name}</span>

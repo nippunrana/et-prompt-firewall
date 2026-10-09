@@ -1,0 +1,251 @@
+/* The hero's looping simulation card. The checklist reuses pipeline.module.css, so it stays in ink tones; verdict
+   colours appear only on the verdict tag and the cut line. */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 8px 30px -8px rgba(37, 99, 235, 0.14), 0 2px 6px rgba(13, 15, 20, 0.03);
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5) var(--space-2);
+  background: linear-gradient(to right, #f8faff, #f4fbf7);
+}
+
+.title {
+  margin: 0;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.sub {
+  margin: 2px 0 0;
+  color: var(--ink-500);
+  font-size: var(--text-xs);
+}
+
+.pause {
+  flex: none;
+  padding: 4px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-700);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pause:hover {
+  border-color: rgba(37, 99, 235, 0.4);
+  color: var(--accent);
+}
+
+/* Which example email is running, and how far it has got */
+.tabs {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: 0 var(--space-5) var(--space-3);
+  border-bottom: 1px solid rgba(37, 99, 235, 0.12);
+  background: linear-gradient(to right, #f8faff, #f4fbf7);
+}
+
+.tab {
+  padding: 3px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-500);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--ink-900);
+}
+
+.tab[aria-current="true"] {
+  border-color: rgba(37, 99, 235, 0.25);
+  background: var(--accent-soft);
+  color: #1d4ed8;
+}
+
+.progress {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+}
+
+.progress > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(to right, #2563eb, #059669);
+  transition: width 600ms linear;
+}
+
+/* The example email */
+.email {
+  margin: var(--space-4) var(--space-5) 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--canvas);
+  font-size: var(--text-sm);
+  transition: opacity 300ms ease;
+}
+
+.email[data-blocked="true"] {
+  opacity: 0.6;
+}
+
+.emailHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--ink-500);
+  font-size: var(--text-xs);
+}
+
+.emailKey {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.verdict {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.verdict[data-verdict="allow"] {
+  background: var(--allow-soft);
+  color: var(--allow);
+}
+
+.verdict[data-verdict="sanitise"] {
+  background: var(--sanitise-soft);
+  color: var(--sanitise);
+}
+
+.verdict[data-verdict="block"] {
+  background: var(--block-soft);
+  color: var(--block);
+}
+
+.subject {
+  margin: 2px 0 var(--space-1);
+  font-weight: 650;
+}
+
+.line {
+  margin: 0;
+  color: var(--ink-700);
+  line-height: 1.45;
+}
+
+/* The attacker's line: shown faintly, as the visitor would not normally see it */
+.line[data-injected] {
+  margin: 2px 0;
+  padding: 1px 4px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 4px;
+  color: var(--ink-500);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  transition: background 300ms ease, color 300ms ease;
+}
+
+.line[data-cut] {
+  border-color: transparent;
+  background: var(--removed);
+  color: var(--block);
+  text-decoration: line-through;
+}
+
+/* Steady: every variant of a slot sits in one grid cell, invisible, so the slot is as tall as the tallest */
+.steady {
+  display: grid;
+}
+
+.steady > * {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+
+.ghost {
+  visibility: hidden;
+}
+
+/* Variants are measured at the boldest weight they can show, so they never underestimate a line's width */
+.steady > .ghost.ghost .name {
+  font-weight: 600;
+}
+
+/* The drawer greys a waiting step's name through a direct-child selector that the steady wrapper breaks */
+.pipe > li[data-state="pending"] > div > .steady > :not(.ghost) .name {
+  color: var(--ink-400);
+  font-weight: 500;
+}
+
+/* The checklist: the drawer's, a little tighter */
+.pipe {
+  flex: 1;
+  padding: var(--space-4) var(--space-5) 0;
+}
+
+.pipe > li {
+  padding-bottom: var(--space-3);
+}
+
+.rows {
+  gap: 4px;
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+.foot {
+  padding: var(--space-3) var(--space-5) var(--space-4);
+  border-top: 1px solid rgba(37, 99, 235, 0.12);
+  background: linear-gradient(to right, #f8faff, #f4fbf7);
+}
+
+.outcome {
+  margin: 0 0 2px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.stats {
+  margin: 0;
+  color: var(--ink-500);
+  font-size: var(--text-xs);
+}
+
+.stats strong {
+  color: var(--ink-900);
+}
+
+/* One column: keep the card short so the hero's call to action stays close; the five steps tell the story */
+@media (max-width: 1023px) {
+  .rows {
+    display: none;
+  }
+}
