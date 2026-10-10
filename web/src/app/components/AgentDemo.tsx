@@ -183,7 +183,7 @@ export default function AgentDemo({ first = 1, active = true }: { first?: number
                 <p className={s.lastRun}>
                   {MODES.map((m) => {
                     const job = jobs[m.key];
-                    const o = job?.status === "done" ? outcome(job, ranAs.scenario, ranAs.custom, m.key === "protected") : null;
+                    const o = job?.status === "done" ? outcome(job, ranAs.scenario, ranAs.custom, m.key === "protected", m.key === "protected" ? undefined : jobs.protected) : null;
                     return (
                       <span key={m.key} className={s.lastRunItem}>
                         <span className={s.lastRunDot} style={{ background: o ? TONE_DOT[o.tone] : job?.status === "error" ? "var(--block)" : "var(--ink-400)" }} />

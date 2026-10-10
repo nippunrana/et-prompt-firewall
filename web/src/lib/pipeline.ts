@@ -12,6 +12,7 @@ export interface Row {
   name: string;
   value?: string;
   state: RowState;
+  alert?: "blocked" | "unsafe"; // an action the guard blocked, or an unsafe one that ran unchecked: shown in red
 }
 
 export interface PipeItem extends Row {
@@ -23,7 +24,7 @@ export interface PipeItem extends Row {
 export const READ_ONLY = new Set(["read_inbox", "read_document", "list_invoices", "search_contacts"]);
 
 const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ? word : many}`;
-const target = (args?: Record<string, string>) => args?.to || args?.recipient || "";
+export const target = (args?: Record<string, string>) => args?.to || args?.recipient || "";
 
 // The firewall's stages, in the order its graph runs them (services/firewall/app/check.py)
 export const STAGES: [string, string][] = [
@@ -118,13 +119,14 @@ function firewallItem(job: Job, emails: Email[], asked: boolean, read: boolean, 
   return { ...base, value: inbox ? `email ${current} of ${n}: ${subject}` : `checking the ${noun}`, state: "running", rows: stageRows(live), rowsKey: current };
 }
 
-function guardItem(job: Job, protectedRun: boolean): PipeItem {
+function guardItem(job: Job, protectedRun: boolean, unsafe: (action: Step) => boolean): PipeItem {
   const actions = job.steps.filter((s): s is Step & { name: string } => s.step === "tool" && !READ_ONLY.has(s.name ?? ""));
   const base = { key: "guard", name: protectedRun ? "Action guard checks each action" : "No action guard", checkpoint: 2 as const };
   const rows = actions.map((a, i): Row => {
     const blocked = a.guard?.decision === "block";
     return { key: `a${i}`, name: `${pretty(a.name)}${target(a.args) ? ` → ${target(a.args)}` : ""}`,
-      value: !protectedRun ? "ran unchecked" : blocked ? "blocked" : "allowed", state: blocked || !protectedRun ? "flag" : "done" };
+      value: !protectedRun ? "ran unchecked" : blocked ? "blocked" : "allowed", state: blocked || !protectedRun ? "flag" : "done",
+      alert: blocked ? "blocked" : !protectedRun && unsafe(a) ? "unsafe" : undefined };
   });
   if (!protectedRun) return { ...base, value: actions.length ? "every action runs as the agent asks" : "every action would run unchecked", state: "off", rows };
   const blocked = rows.filter((r) => r.state === "flag").length;
@@ -135,8 +137,10 @@ function guardItem(job: Job, protectedRun: boolean): PipeItem {
 
 // The run in five steps, the two checkpoints between them. `reads` is what the agents read (the inbox, a shared
 // document, or the request itself), `noun` its name. The inbox is read when the agent asks for it; a document
-// (read up front, like an attachment) and a request are checked before the agent's first turn.
-export function pipeline(job: Job, emails: Email[], protectedRun: boolean, reads: Reads = "inbox", noun = "email"): PipeItem[] {
+// (read up front, like an attachment) and a request are checked before the agent's first turn. `unsafe` says which
+// actions that ran unchecked are known to be unsafe.
+export function pipeline(job: Job, emails: Email[], protectedRun: boolean, reads: Reads = "inbox", noun = "email",
+  unsafe: (action: Step) => boolean = () => false): PipeItem[] {
   const models = job.steps.filter((s) => s.step === "model");
   const tool = reads === "inbox" ? "read_inbox" : "read_document";
   const asked = reads !== "inbox" || models.some((m) => m.tool_calls?.some((c) => c.name === tool));
@@ -163,6 +167,6 @@ export function pipeline(job: Job, emails: Email[], protectedRun: boolean, reads
     : job.status === "done" ? { key: "reply", name: "Agent replies", value: "it finished without writing a reply", state: "skip" }
     : { key: "reply", name: "Agent replies", value: job.status === "error" ? "the run failed" : undefined, state: job.status === "error" ? "off" : "pending" };
 
-  return reads === "inbox" ? [request, content, work, guardItem(job, protectedRun), reply]
-    : [content, request, work, guardItem(job, protectedRun), reply];
+  const guard = guardItem(job, protectedRun, unsafe);
+  return reads === "inbox" ? [request, content, work, guard, reply] : [content, request, work, guard, reply];
 }

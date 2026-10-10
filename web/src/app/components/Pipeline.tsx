@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useMemo, useRef } from "react";
-import type { Email, Job, Reads } from "@/lib/demo-types";
+import type { Email, Job, Reads, Step } from "@/lib/demo-types";
 import { duration, gsap, useGSAP } from "@/lib/motion";
 import { pipeline, type Row, type RowState } from "@/lib/pipeline";
+import StatusIcon from "./StatusIcon";
 import p from "./pipeline.module.css";
 
 const TICKED = new Set<RowState>(["done", "flag", "skip", "off"]);
@@ -29,8 +30,10 @@ export function Text({ row }: { row: Row }) {
 }
 
 // The run as a live checklist: each row ticks when its step really finishes (see lib/pipeline.ts)
-export default function Pipeline({ job, emails, protectedRun, reads, noun }: { job: Job; emails: Email[]; protectedRun: boolean; reads?: Reads; noun?: string }) {
-  const items = useMemo(() => pipeline(job, emails, protectedRun, reads, noun), [job, emails, protectedRun, reads, noun]);
+export default function Pipeline({ job, emails, protectedRun, reads, noun, unsafe }: {
+  job: Job; emails: Email[]; protectedRun: boolean; reads?: Reads; noun?: string; unsafe?: (action: Step) => boolean;
+}) {
+  const items = useMemo(() => pipeline(job, emails, protectedRun, reads, noun, unsafe), [job, emails, protectedRun, reads, noun, unsafe]);
   const root = useRef<HTMLOListElement>(null);
 
   // After every poll: pop the marks that just reached a final state, a beat apart, all within one poll
@@ -57,7 +60,11 @@ export default function Pipeline({ job, emails, protectedRun, reads, noun }: { j
             <Text row={it} />
             {it.rows && it.rows.length > 0 && (
               <ol key={it.rowsKey} className={p.rows}>
-                {it.rows.map((r) => <li key={r.key} className={p.row} data-state={r.state}><Mark state={r.state} /><Text row={r} /></li>)}
+                {it.rows.map((r) => (
+                  <li key={r.key} className={p.row} data-state={r.state} data-alert={r.alert}>
+                    {r.alert ? <StatusIcon kind={r.alert} /> : <Mark state={r.state} />}<Text row={r} />
+                  </li>
+                ))}
               </ol>
             )}
           </div>

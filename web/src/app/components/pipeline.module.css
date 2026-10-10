@@ -151,3 +151,18 @@
   color: var(--ink-400);
   font-weight: 450;
 }
+
+/* An action the guard blocked, or an unsafe one that ran unchecked: the one red thing in the checklist */
+.row[data-alert] {
+  margin: 0 calc(-1 * var(--space-2));
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--block-soft);
+}
+
+.row[data-alert] .value {
+  color: var(--block);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}

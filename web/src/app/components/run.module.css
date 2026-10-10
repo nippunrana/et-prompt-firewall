@@ -200,3 +200,35 @@
 .answer code {
   font-size: var(--text-xs);
 }
+
+.outcome .outcomeTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* A blocked action, or an unsafe one that ran unchecked: the one red thing in a lane's timeline */
+.alertBox {
+  padding: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--block) 35%, transparent);
+  border-radius: var(--radius);
+  background: var(--block-soft);
+}
+
+.alertHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  color: var(--block);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.struck {
+  color: var(--ink-500);
+  text-decoration: line-through;
+  text-decoration-color: var(--block);
+  text-decoration-thickness: 1.5px;
+}
