@@ -1,5 +1,5 @@
 /* The layer track: one dot per firewall layer, in the order they run. Ink tones only:
-   green, amber and red belong to the verdict (allow, sanitise, block) and to nothing else. */
+   green, blue and red belong to the verdict (allow, sanitise, block) and to nothing else. */
 .wrap {
   margin-top: var(--space-2);
 }
