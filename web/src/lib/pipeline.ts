@@ -1,7 +1,7 @@
 // The run as a checklist, from what has really happened: the job's steps and the firewall's stage events
 // (/check/stream, relayed by the demo agent). A row is ticked only once its step or event has arrived;
 // "running" means the step before it finished, so the graph has moved on to it.
-import { pretty, VERDICT_LABEL, type Email, type Job, type StageEvent, type Step } from "./demo-types";
+import { pretty, VERDICT_LABEL, type Email, type Job, type Reads, type StageEvent, type Step } from "./demo-types";
 
 // done: finished · flag: finished and raised a signal · running · pending · skip: not needed, by design
 // off: not there (no firewall, no API key, or it failed)
@@ -20,7 +20,7 @@ export interface PipeItem extends Row {
   rowsKey?: string; // changes when the rows start over (the next email), so their ticks replay from the top
 }
 
-export const READ_ONLY = new Set(["read_inbox", "list_invoices", "search_contacts"]);
+export const READ_ONLY = new Set(["read_inbox", "read_document", "list_invoices", "search_contacts"]);
 
 const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ? word : many}`;
 const target = (args?: Record<string, string>) => args?.to || args?.recipient || "";
@@ -99,21 +99,23 @@ export function stageRows(events: StageEvent[]): Row[] {
   });
 }
 
-function firewallItem(job: Job, emails: Email[], asked: boolean, read: boolean): PipeItem {
+function firewallItem(job: Job, emails: Email[], asked: boolean, read: boolean, reads: Reads, noun: string): PipeItem {
   const checks = job.steps.filter((s) => s.step === "firewall");
   const n = emails.length;
-  const base = { key: "content", name: "Prompt firewall checks each email", checkpoint: 1 as const };
+  const inbox = reads === "inbox";
+  const base = { key: "content", name: inbox ? "Prompt firewall checks each email" : `Prompt firewall checks the ${noun}`, checkpoint: 1 as const };
   if (read || checks.length === n) {
     const counts: Record<string, number> = {};
     checks.forEach((c) => { counts[c.verdict ?? ""] = (counts[c.verdict ?? ""] ?? 0) + 1; });
     const tally = Object.entries(counts).map(([v, k]) => `${k} ${(VERDICT_LABEL[v] ?? v).toLowerCase()}`).join(", ");
-    return { ...base, value: `${plural(checks.length, "email")} checked: ${tally}`, state: counts.allow === checks.length ? "done" : "flag" };
+    const value = inbox ? `${plural(checks.length, "email")} checked: ${tally}` : (VERDICT_LABEL[checks[0]?.verdict ?? ""] ?? "").toLowerCase();
+    return { ...base, value, state: counts.allow === checks.length ? "done" : "flag" };
   }
-  if (!asked) return { ...base, value: job.status === "running" ? undefined : "the agent never read the inbox", state: job.status === "running" ? "pending" : "skip" };
+  if (!asked) return { ...base, value: job.status === "running" ? undefined : `the agent never read the ${inbox ? "inbox" : noun}`, state: job.status === "running" ? "pending" : "skip" };
   const current = String(checks.length + 1);
   const live = job.live?.email_id === current ? job.live.stages : [];
   const subject = emails[checks.length]?.subject || "(no subject)";
-  return { ...base, value: `email ${current} of ${n}: ${subject}`, state: "running", rows: stageRows(live), rowsKey: current };
+  return { ...base, value: inbox ? `email ${current} of ${n}: ${subject}` : `checking the ${noun}`, state: "running", rows: stageRows(live), rowsKey: current };
 }
 
 function guardItem(job: Job, protectedRun: boolean): PipeItem {
@@ -131,22 +133,29 @@ function guardItem(job: Job, protectedRun: boolean): PipeItem {
   return { ...base, value: `${plural(actions.length, "action")} checked, ${blocked} blocked`, state: blocked ? "flag" : "done", rows };
 }
 
-// The run in five steps, the two checkpoints between them
-export function pipeline(job: Job, emails: Email[], protectedRun: boolean): PipeItem[] {
+// The run in five steps, the two checkpoints between them. `reads` is what the agents read (the inbox, a shared
+// document, or the request itself), `noun` its name. The inbox is read when the agent asks for it; a document
+// (read up front, like an attachment) and a request are checked before the agent's first turn.
+export function pipeline(job: Job, emails: Email[], protectedRun: boolean, reads: Reads = "inbox", noun = "email"): PipeItem[] {
   const models = job.steps.filter((s) => s.step === "model");
-  const asked = models.some((m) => m.tool_calls?.some((c) => c.name === "read_inbox"));
-  const read = job.steps.some((s) => s.step === "tool" && s.name === "read_inbox");
+  const tool = reads === "inbox" ? "read_inbox" : "read_document";
+  const asked = reads !== "inbox" || models.some((m) => m.tool_calls?.some((c) => c.name === tool));
+  const read = reads === "request" ? !protectedRun || job.steps.some((s) => s.step === "firewall")
+    : job.steps.some((s) => s.step === "tool" && s.name === tool);
   const running = job.status === "running";
   const first = models[0];
 
   const request: PipeItem = first
     ? { key: "request", name: "Agent reads your request", value: first.tool_calls?.length ? `decides to call ${first.tool_calls.map((c) => c.name).join(", ")}` : "answers without tools", state: "done" }
-    : { key: "request", name: "Agent reads your request", state: running ? "running" : "off" };
+    : reads === "request" && job.status === "done"
+      ? { key: "request", name: "Agent reads your request", value: "never reached the agent", state: "skip" }
+      : { key: "request", name: "Agent reads your request", state: running ? (reads === "inbox" || read ? "running" : "pending") : "off" };
 
-  const content: PipeItem = protectedRun ? firewallItem(job, emails, asked, read)
-    : { key: "content", name: "No prompt firewall", value: "the agent reads every email as it is", state: "off", checkpoint: 1 };
+  const unchecked = reads === "inbox" ? "every email" : reads === "request" ? "your message" : `the ${noun}`;
+  const content: PipeItem = protectedRun ? firewallItem(job, emails, asked, read, reads, noun)
+    : { key: "content", name: "No prompt firewall", value: `the agent reads ${unchecked} as it is`, state: "off", checkpoint: 1 };
 
-  const acting = !first ? "pending" : running ? (read || !asked ? "running" : "pending") : "done";
+  const acting = !first ? (job.status === "done" ? "skip" : "pending") : running ? (read || !asked ? "running" : "pending") : "done";
   const work: PipeItem = { key: "work", name: "Agent works on the task", state: job.status === "error" ? "off" : acting,
     value: acting === "done" ? plural(models.length, "decision") : undefined };
 
@@ -154,5 +163,6 @@ export function pipeline(job: Job, emails: Email[], protectedRun: boolean): Pipe
     : job.status === "done" ? { key: "reply", name: "Agent replies", value: "it finished without writing a reply", state: "skip" }
     : { key: "reply", name: "Agent replies", value: job.status === "error" ? "the run failed" : undefined, state: job.status === "error" ? "off" : "pending" };
 
-  return [request, content, work, guardItem(job, protectedRun), reply];
+  return reads === "inbox" ? [request, content, work, guardItem(job, protectedRun), reply]
+    : [content, request, work, guardItem(job, protectedRun), reply];
 }

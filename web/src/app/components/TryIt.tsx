@@ -56,7 +56,7 @@ export default function TryIt() {
 
   const instruction = key === EMAIL
     ? "Pick an attack, edit the inbox, then run both agents."
-    : type && `${type.form === "file" ? "Upload your" : "Paste your"} ${type.noun} or use the example. The firewall shows what it removed and why.`;
+    : type && `${type.form === "file" ? "Upload your" : "Paste your"} ${type.noun} or use the example, then run both agents: one with the firewall, one without.`;
 
   return (
     <div ref={root}>

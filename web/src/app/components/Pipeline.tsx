@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useRef } from "react";
-import type { Email, Job } from "@/lib/demo-types";
+import type { Email, Job, Reads } from "@/lib/demo-types";
 import { duration, gsap, useGSAP } from "@/lib/motion";
 import { pipeline, type Row, type RowState } from "@/lib/pipeline";
 import p from "./pipeline.module.css";
@@ -29,8 +29,8 @@ export function Text({ row }: { row: Row }) {
 }
 
 // The run as a live checklist: each row ticks when its step really finishes (see lib/pipeline.ts)
-export default function Pipeline({ job, emails, protectedRun }: { job: Job; emails: Email[]; protectedRun: boolean }) {
-  const items = useMemo(() => pipeline(job, emails, protectedRun), [job, emails, protectedRun]);
+export default function Pipeline({ job, emails, protectedRun, reads, noun }: { job: Job; emails: Email[]; protectedRun: boolean; reads?: Reads; noun?: string }) {
+  const items = useMemo(() => pipeline(job, emails, protectedRun, reads, noun), [job, emails, protectedRun, reads, noun]);
   const root = useRef<HTMLOListElement>(null);
 
   // After every poll: pop the marks that just reached a final state, a beat apart, all within one poll

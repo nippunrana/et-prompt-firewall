@@ -1,9 +1,11 @@
-"""Demo agent service: an email assistant that can run with or without the firewall's two checkpoints."""
+"""Demo agent service: an email assistant that can run with or without the firewall's two checkpoints.
+It can also read one shared document, or take a pasted message as its request, for the other input types."""
 
 import asyncio
 import secrets
 import threading
 from collections import OrderedDict
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -24,6 +26,20 @@ class Email(BaseModel):
     body: str = Field(max_length=20_000)
 
 
+class Hidden(BaseModel):
+    kind: str = Field(max_length=50)
+    start: int = Field(ge=0)
+    end: int = Field(ge=0)
+
+
+class Document(BaseModel):
+    """One document the user shares instead of an inbox: a web page, extracted file text, Markdown …"""
+    text: str = Field(min_length=1, max_length=20_000)  # the firewall checks at most 20,000 characters
+    source: Literal["document", "web"] = "document"
+    format: Literal["text", "html"] = "text"
+    hidden: list[Hidden] | None = Field(default=None, max_length=1_000)  # from /extract-text, for files
+
+
 class RunRequest(BaseModel):
     user_request: str = Field(min_length=1, max_length=2_000)
     # The inbox; defaults to the ordinary demo emails. Add a poisoned email to show an attack.
@@ -31,16 +47,20 @@ class RunRequest(BaseModel):
     contacts: list[str] | None = Field(default=None, max_length=100)
     firewall: bool = True  # checkpoint 1: emails go through /check before the agent reads them
     guard: bool = True  # checkpoint 2: tool calls go through /guard before they run
+    document: Document | None = None  # replaces the inbox: the agent reads it with read_document
+    check_request: bool = False  # the request is a pasted message: the firewall checks it as the user's words
 
 
 def _settings(request: RunRequest) -> agent.Settings:
     if CHAT is None:
         raise HTTPException(status_code=503, detail="OPENROUTER_API_KEY is not set: the agent has no model.")
     emails = [{"from": e.sender, "subject": e.subject, "body": e.body} for e in request.emails] \
-        if request.emails is not None else BENIGN_INBOX
+        if request.emails is not None else [] if request.document or request.check_request else BENIGN_INBOX
     return agent.Settings(chat=CHAT, user_request=request.user_request, emails=emails,
                           contacts=request.contacts if request.contacts is not None else CONTACTS,
-                          firewall=request.firewall, guard=request.guard)
+                          firewall=request.firewall, guard=request.guard,
+                          document=request.document.model_dump() if request.document else None,
+                          check_request=request.check_request)
 
 
 @app.get("/health")

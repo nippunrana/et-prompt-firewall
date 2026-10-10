@@ -1,13 +1,14 @@
 import React from "react";
-import type { Step, Usage } from "@/lib/demo-types";
+import type { Reads, Step, Usage } from "@/lib/demo-types";
 import c from "./cost.module.css";
 
-// What each model does, in plain words
-const ROLE: Record<Usage["role"], { name: string; task: string }> = {
-  agent: { name: "Email agent", task: "Reads the inbox, decides what to do, writes the reply" },
-  judge: { name: "Firewall judge", task: "Reads a flagged email and names the attack" },
-  sandbox: { name: "Firewall sandbox", task: "A gullible copy of the agent: if it acts on the email, the email holds an instruction" },
-};
+// What each model does, in plain words, for what the agents read: the inbox, or a document or message (`noun`)
+const roles = (reads: Reads, noun: string): Record<Usage["role"], { name: string; task: string }> => ({
+  agent: reads === "inbox" ? { name: "Email agent", task: "Reads the inbox, decides what to do, writes the reply" }
+    : { name: "AI agent", task: `Reads the ${noun}, decides what to do, writes the reply` },
+  judge: { name: "Firewall judge", task: `Reads a flagged ${noun} and names the attack` },
+  sandbox: { name: "Firewall sandbox", task: `A gullible copy of the agent: if it acts on the ${noun}, the ${noun} holds an instruction` },
+});
 
 const MODEL_NAME: Record<string, string> = {
   "qwen/qwen3-next-80b-a3b-thinking": "Qwen3-Next-80B Thinking",
@@ -47,7 +48,8 @@ function merge(entries: Usage[]): Usage[] {
   return [...rows.values()];
 }
 
-export default function CostTable({ usage, detectors, running }: { usage: Usage[]; detectors: boolean; running?: boolean }) {
+export default function CostTable({ usage, detectors, running, reads = "inbox", noun = "email" }: { usage: Usage[]; detectors: boolean; running?: boolean; reads?: Reads; noun?: string }) {
+  const ROLE = roles(reads, noun);
   const rows = merge(usage);
   const known = rows.filter((r) => r.cost_usd !== null);
   const total = known.reduce((sum, r) => sum + (r.cost_usd ?? 0), 0);
@@ -80,7 +82,7 @@ export default function CostTable({ usage, detectors, running }: { usage: Usage[
           <li className={c.row}>
             <div className={c.who}>
               <strong>Firewall detectors</strong>
-              <span className="muted">Rules, PIGuard, Prompt Guard 2 and GlotLID check every email first</span>
+              <span className="muted">Rules, PIGuard, Prompt Guard 2 and GlotLID check {reads === "inbox" ? "every email" : `the ${noun}`} first</span>
             </div>
             <div className={c.model}>Local models<span className="muted"> · on our own server</span></div>
             <div className={`${c.tokens} muted`}>No per-call charge</div>

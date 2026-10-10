@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { BASE_PATH } from "@/lib/base-path";
 import { duration, gsap, useGSAP } from "@/lib/motion";
-import { pretty, type Email, type InboxEmail, type Job, type Scenario } from "@/lib/demo-types";
+import { pretty, type Email, type InboxEmail, type Scenario } from "@/lib/demo-types";
 import dashboard from "@/data/dashboard.json";
 import InboxEditor, { withKey } from "./InboxEditor";
 import RunDrawer from "./RunDrawer";
-import RunResults, { MODES, outcome, type ModeKey, type Tone } from "./RunResults";
+import RunResults, { MODES, outcome, type Tone } from "./RunResults";
+import { useAgentRuns } from "./useAgentRuns";
 import s from "./demo.module.css";
 
 const BLANK_ID = "blank";
@@ -65,12 +66,8 @@ export default function AgentDemo({ first = 1, active = true }: { first?: number
   const [userRequest, setUserRequest] = useState("");
   const [emails, setEmails] = useState<InboxEmail[]>([]);
   const [baseline, setBaseline] = useState("");
-  const [jobs, setJobs] = useState<Partial<Record<ModeKey, Job>>>({});
-  const [seconds, setSeconds] = useState<Partial<Record<ModeKey, number>>>({});
   const [ranAs, setRanAs] = useState<{ scenario: Scenario | null; custom: boolean; emails: Email[] } | null>(null);
-  const timers = useRef<ReturnType<typeof setInterval>[]>([]);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+  const { jobs, seconds, running, drawerOpen, setDrawerOpen, closeDrawer, start: startRuns, reset } = useAgentRuns();
 
   // The run bar, fixed to the bottom of the window. It sits outside the step sections, so a transform on
   // one of them can never pin the fixed bar to the section instead of the window.
@@ -95,10 +92,8 @@ export default function AgentDemo({ first = 1, active = true }: { first?: number
         pick(data.scenarios[0]);
       })
       .catch((e) => setLoadError(e instanceof Error ? e.message : "Could not load the scenarios."));
-    return () => timers.current.forEach(clearInterval);
   }, []);
 
-  const running = Object.values(jobs).some((j) => j?.status === "running");
   const selected = scenarios.find((x) => x.id === selectedId) ?? null;
   const custom = selectedId === BLANK_ID || fingerprint(userRequest, emails) !== baseline;
   const measured = dashboard.scenarios.find((x) => x.id === selectedId);
@@ -110,56 +105,12 @@ export default function AgentDemo({ first = 1, active = true }: { first?: number
     setUserRequest(request);
     setEmails(inbox);
     setBaseline(fingerprint(request, inbox));
-    setJobs({});
-    setSeconds({});
+    reset();
   }
 
-  async function start() {
-    timers.current.forEach(clearInterval);
-    timers.current = [];
+  function start() {
     setRanAs({ scenario: selected, custom, emails: emails.map(({ key, added, ...e }) => e) });
-    setJobs(Object.fromEntries(MODES.map((m) => [m.key, { status: "running", steps: [], result: null, error: null }])));
-    setSeconds({});
-    setDrawerOpen(true);
-
-    const began = Date.now();
-    const open = new Set<ModeKey>(MODES.map((m) => m.key));
-    const tick = () => {
-      const now = Math.round((Date.now() - began) / 1000);
-      setSeconds((prev) => ({ ...prev, ...Object.fromEntries([...open].map((k) => [k, now])) }));
-    };
-    const clock = setInterval(tick, 1000);
-    timers.current.push(clock);
-    const finish = (key: ModeKey) => {
-      tick();
-      open.delete(key);
-      if (open.size === 0) clearInterval(clock);
-    };
-    const inbox = emails.map((e) => ({ from: e.from, subject: e.subject, body: e.body }));
-
-    await Promise.all(MODES.map(async (m) => {
-      const fail = (error: string) => { setJobs((j) => ({ ...j, [m.key]: { status: "error", steps: [], result: null, error } })); finish(m.key); };
-      try {
-        const response = await fetch(`${BASE_PATH}/api/runs`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user_request: userRequest, emails: inbox, firewall: m.firewall, guard: m.guard }),
-        });
-        const data = await response.json();
-        if (!response.ok) return fail(data.error || "Could not start the run");
-        const poll = setInterval(async () => {
-          try {
-            const job: Job & { error?: string } = await (await fetch(`${BASE_PATH}/api/runs/${data.id}`)).json();
-            if (!job.status) { clearInterval(poll); return fail(job.error || "Run lost"); }
-            setJobs((j) => ({ ...j, [m.key]: job }));
-            if (job.status !== "running") { clearInterval(poll); finish(m.key); }
-          } catch { /* a missed poll is retried on the next tick */ }
-        }, 1500);
-        timers.current.push(poll);
-      } catch (e) {
-        fail(e instanceof Error ? e.message : "Network error");
-      }
-    }));
+    startRuns({ user_request: userRequest, emails: emails.map((e) => ({ from: e.from, subject: e.subject, body: e.body })) });
   }
 
   if (loadError) return <div className={s.error}>The demo agent is unavailable: {loadError}</div>;

@@ -40,7 +40,7 @@ flowchart LR
 | Service | What runs in it | Notes |
 | :--- | :--- | :--- |
 | `firewall` | The product: the content check, the tool-call guard, the audit log, document extraction. Local models baked into the image: PIGuard, Llama Prompt Guard 2 86M, GlotLID v3, RapidOCR. | Standalone API: any agent can call it. One check at a time (CPU-bound). |
-| `demo-agent` | An email assistant with a fake mailbox and fake tools (nothing is ever sent or paid), runnable with or without the firewall. | Exists to show the firewall protecting something. |
+| `demo-agent` | An email assistant with a fake mailbox and fake tools (nothing is ever sent or paid), runnable with or without the firewall. It can instead read one shared document (web page, file text, Markdown …) or take a pasted message as its request. | Exists to show the firewall protecting something. |
 | `web` | The demo UI: agent side by side, content checker, results dashboard, audit log. | The only service with a port. |
 
 The LLM keys are optional. Without them, `/check` runs its local detectors only and says so in every answer, and the agent demo is off.
@@ -104,7 +104,7 @@ A blocked agent is told why and carries on with the user's real request. Both ch
 
 ## 5. The demo agent
 
-A LangGraph tool loop (agent ⇄ tools, at most 8 turns) on Qwen3-next-80B instruct, with tools to read the inbox, list invoices, look up contacts, send, forward and pay. The model was chosen *because* it is easy to fool, so the unprotected run shows the attack working; newer models refused most injections in our tests and would make the demo show nothing. The UI runs the same inbox twice at once, unprotected and protected, and streams each step.
+A LangGraph tool loop (agent ⇄ tools, at most 8 turns) on Qwen3-next-80B instruct, with tools to read the inbox, list invoices, look up contacts, send, forward and pay. The model was chosen *because* it is easy to fool, so the unprotected run shows the attack working; newer models refused most injections in our tests and would make the demo show nothing. The UI runs the same inbox twice at once, unprotected and protected, and streams each step. Every other input type gets the same pair of runs: a web page, file or pasted text is handed to the agent up front, like an attachment (checked by `/check` first on the protected side, with its source, format and hidden-text ranges), and a pasted user message is checked as the user's own words before the model reads it. Only the email scenarios are measured; the other runs report what each agent did.
 
 ## 6. Model usage
 

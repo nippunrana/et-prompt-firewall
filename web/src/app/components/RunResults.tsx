@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef } from "react";
-import { pretty, VERDICT_LABEL, type Effect, type Email, type Job, type Scenario, type Step } from "@/lib/demo-types";
+import { pretty, VERDICT_LABEL, type Effect, type Email, type Job, type Reads, type Scenario, type Step } from "@/lib/demo-types";
 import dashboard from "@/data/dashboard.json";
 import { duration, gsap, useGSAP } from "@/lib/motion";
 import { READ_ONLY } from "@/lib/pipeline";
@@ -13,10 +13,14 @@ import s from "./demo.module.css";
 import r from "./run.module.css";
 
 export const MODES = [
-  { key: "unprotected", label: "Without prompt firewall", hint: "The agent reads the inbox as it is.", firewall: false, guard: false },
-  { key: "protected", label: "With prompt firewall", hint: "Every email is checked, then every action.", firewall: true, guard: true },
+  { key: "unprotected", label: "Without prompt firewall", firewall: false, guard: false },
+  { key: "protected", label: "With prompt firewall", firewall: true, guard: true },
 ] as const;
 export type ModeKey = (typeof MODES)[number]["key"];
+
+const hint = (key: ModeKey, reads: Reads, noun: string) => reads === "inbox"
+  ? key === "protected" ? "Every email is checked, then every action." : "The agent reads the inbox as it is."
+  : key === "protected" ? `The ${noun} is checked, then every action.` : `The agent reads the ${noun} as it is.`;
 
 const TONE = { good: r.outcomeGood, bad: r.outcomeBad, warn: r.outcomeWarn, neutral: r.outcomeNeutral };
 export type Tone = keyof typeof TONE;
@@ -34,8 +38,15 @@ export function outcome(job: Job, scenario: Scenario | null, custom: boolean, pr
   const effects = job.result?.effects ?? [];
   const blocked = blockedBy(job.steps);
   const marker = scenario?.marker?.toLowerCase();
+  const canary = job.result?.canary;
 
   if (custom || !scenario) {
+    if (!job.steps.some((st) => st.step === "model") && job.steps.some((st) => st.verdict === "quarantine")) {
+      return { tone: "good", title: "Blocked before the agent saw it", detail: "The firewall stopped the message, so the agent never ran." };
+    }
+    if (canary && (job.result?.answer ?? "").includes(canary)) {
+      return { tone: "bad", title: "Leaked its confidential reference", detail: `The reply contains ${canary}, which the agent's instructions say never to share.` };
+    }
     if (effects.length > 0) return { tone: "warn", title: `The agent took ${effects.length} action${effects.length > 1 ? "s" : ""}`, detail: `${list(effects)}. Did you ask for ${effects.length > 1 ? "these" : "this"}?` };
     if (blocked.length > 0) return { tone: "good", title: `The guard blocked ${blocked.length} action${blocked.length > 1 ? "s" : ""}`, detail: "No outgoing action ran." };
     return { tone: "neutral", title: "No outgoing action ran", detail: "The agent only read and answered." };
@@ -72,7 +83,7 @@ function group(steps: Step[]): Item[] {
   const items: Item[] = [];
   let inbox: InboxItem | null = null;
   for (const st of steps) {
-    const firstRead = st.step === "tool" && st.name === "read_inbox" && !inbox?.read;
+    const firstRead = st.step === "tool" && (st.name === "read_inbox" || st.name === "read_document") && !inbox?.read;
     if (st.step === "firewall" || firstRead) {
       if (!inbox) items.push((inbox = { kind: "inbox", checks: [], read: false }));
       if (firstRead) inbox.read = true;
@@ -84,16 +95,21 @@ function group(steps: Step[]): Item[] {
   return items;
 }
 
-function InboxEvent({ item, emails, protectedRun, custom }: { item: InboxItem; emails: Email[]; protectedRun: boolean; custom: boolean }) {
+function InboxEvent({ item, emails, protectedRun, custom, reads, noun }: { item: InboxItem; emails: Email[]; protectedRun: boolean; custom: boolean; reads: Reads; noun: string }) {
   const n = emails.length;
   const counts: Record<string, number> = {};
   item.checks.forEach((c) => { counts[c.verdict ?? ""] = (counts[c.verdict ?? ""] ?? 0) + 1; });
   const tally = Object.entries(counts).map(([v, k]) => `${k} ${(VERDICT_LABEL[v] ?? v).toLowerCase()}`).join(", ");
-  const head = !protectedRun
-    ? `Agent reads the inbox: ${n} email${n === 1 ? "" : "s"}, none checked`
-    : item.read
-      ? `Agent reads the inbox: ${n} email${n === 1 ? "" : "s"}, ${tally}`
-      : `Firewall checking the inbox: ${item.checks.length} of ${n} checked`;
+  const verdict = (VERDICT_LABEL[item.checks[0]?.verdict ?? ""] ?? "").toLowerCase();
+  const head = reads === "request"
+    ? `Firewall checks your message: ${verdict}`
+    : reads === "document"
+      ? !protectedRun ? `Agent reads the ${noun}, unchecked` : item.read ? `Agent reads the ${noun}: ${verdict}` : `Firewall checking the ${noun}`
+      : !protectedRun
+        ? `Agent reads the inbox: ${n} email${n === 1 ? "" : "s"}, none checked`
+        : item.read
+          ? `Agent reads the inbox: ${n} email${n === 1 ? "" : "s"}, ${tally}`
+          : `Firewall checking the inbox: ${item.checks.length} of ${n} checked`;
   const flagged = item.checks.find((c) => c.verdict !== "allow");
   const dot = protectedRun ? verdictColour(flagged?.verdict ?? "allow") : "var(--ink-400)";
 
@@ -162,13 +178,15 @@ interface Props {
   seconds: Partial<Record<ModeKey, number>>;
   scenario: Scenario | null;
   custom: boolean;
-  emails: Email[]; // the inbox as it was when the run started
+  emails: Email[]; // the inbox as it was when the run started; for a document or a message, one row naming it
+  reads?: Reads;
+  noun?: string; // what the agents read, for a document or a message: "web page", "PDF", "message" …
 }
 
 // A short flash of the verdict colour when an inbox row gets its result
 const FLASH: Record<string, string> = { allow: "#c9ecd6", sanitise: "#fbe3b5", quarantine: "#f8c9c5" };
 
-export default function RunResults({ jobs, seconds, scenario, custom, emails }: Props) {
+export default function RunResults({ jobs, seconds, scenario, custom, emails, reads = "inbox", noun = "email" }: Props) {
   const root = useRef<HTMLDivElement>(null);
 
   // Runs after every poll: animates only what is new since the last render, marking it as shown.
@@ -215,7 +233,7 @@ export default function RunResults({ jobs, seconds, scenario, custom, emails }: 
             <header className={r.laneHead}>
               <div>
                 <h3 className={r.laneTitle}>{m.label}</h3>
-                <p className="small muted">{m.hint}</p>
+                <p className="small muted">{hint(m.key, reads, noun)}</p>
               </div>
               <span className={r.laneTime}>{clock(seconds[m.key] ?? 0)}</span>
             </header>
@@ -227,12 +245,12 @@ export default function RunResults({ jobs, seconds, scenario, custom, emails }: 
               </div>
             )}
             {job.status === "error" && <div className={s.error}>The run failed: {job.error}</div>}
-            <Pipeline job={job} emails={emails} protectedRun={protectedRun} />
+            <Pipeline job={job} emails={emails} protectedRun={protectedRun} reads={reads} noun={noun} />
 
             {job.steps.length > 0 && (
               <ol className={r.timeline}>
                 {items.map((it, i) => it.kind === "inbox"
-                  ? <InboxEvent key={i} item={it} emails={emails} protectedRun={protectedRun} custom={custom} />
+                  ? <InboxEvent key={i} item={it} emails={emails} protectedRun={protectedRun} custom={custom} reads={reads} noun={noun} />
                   : <Event key={i} step={it.step} protectedRun={protectedRun} />)}
               </ol>
             )}
@@ -240,13 +258,13 @@ export default function RunResults({ jobs, seconds, scenario, custom, emails }: 
             {job.result?.answer && (
               <div>
                 <span className="label">The agent&apos;s reply</span>
-                {readInbox && <p className="small muted" style={{ marginBottom: "var(--space-2)" }}>One answer, written after reading all {emails.length} emails.</p>}
+                {readInbox && reads === "inbox" && <p className="small muted" style={{ marginBottom: "var(--space-2)" }}>One answer, written after reading all {emails.length} emails.</p>}
                 <div className={r.answer}><Markdown text={job.result.answer} /></div>
               </div>
             )}
 
             {job.steps.length > 0 && (
-              <CostTable usage={runUsage(job.steps)} detectors={protectedRun} running={job.status === "running"} />
+              <CostTable usage={runUsage(job.steps)} detectors={protectedRun} running={job.status === "running"} reads={reads} noun={noun} />
             )}
           </section>
         );

@@ -36,7 +36,7 @@ export default function Hero({ selected, onPick }: { selected: string | null; on
             <button type="button" className="btn btn--primary" onClick={() => onPick(EMAIL)}>
               Watch the attack demo →
             </button>
-            <a className={s.ctaLink} href="#try-inputs">Or check one input on its own ↓</a>
+            <a className={s.ctaLink} href="#try-inputs">Or try another input source ↓</a>
           </div>
           <p className={s.proof}>
             <span className={s.proofLabel}>Held-out tests</span>
@@ -74,7 +74,7 @@ export default function Hero({ selected, onPick }: { selected: string | null; on
             <div className={s.isolatedHeader}>
               <span className={s.isolatedDot} />
               <span className={s.otherLabel}>Or test an isolated input source</span>
-              <span className={s.isolatedSub}>Run raw text or files directly through the 9-layer firewall pipeline</span>
+              <span className={s.isolatedSub}>Two copies of the same agent read it, with and without the firewall, or check it on its own</span>
             </div>
             <div className={s.isolatedGroups}>
               <div className={s.isolatedGroup}>

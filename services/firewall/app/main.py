@@ -46,6 +46,13 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="et-prompt-firewall: firewall", lifespan=lifespan)
 
 
+class HiddenRange(BaseModel):
+    """Text a person cannot see in the document, as /extract-text reports it (white or tiny text, comments …)."""
+    kind: str = Field(max_length=50)
+    start: int = Field(ge=0)
+    end: int = Field(ge=0)
+
+
 class CheckRequest(BaseModel):
     content: str = Field(min_length=1, max_length=MAX_CHECK_CHARS)
     # The medium the content arrived through. Missing means outside content, never the user.
@@ -54,6 +61,11 @@ class CheckRequest(BaseModel):
     user_task: str | None = Field(default=None, max_length=2_000)
     # Stated by the caller, never guessed: an email with a stray <br> must not be read as a web page.
     format: Literal["text", "html"] = "text"
+    # For text extracted from a file: its hidden ranges, so a caller checks it exactly as /check-file does.
+    hidden: list[HiddenRange] | None = Field(default=None, max_length=1_000)
+
+    def hidden_ranges(self) -> list[tuple[str, int, int]] | None:
+        return None if self.hidden is None else [(h.kind, h.start, h.end) for h in self.hidden]
 
 
 async def _run_check(content: str, source: str | None, user_task: str | None, fmt: str | None = None,
@@ -72,7 +84,7 @@ async def _run_check(content: str, source: str | None, user_task: str | None, fm
 @app.post("/check")
 async def check(request: CheckRequest) -> dict:
     return await _run_check(request.content, request.source, request.user_task,
-                            "html" if request.format == "html" else None)
+                            "html" if request.format == "html" else None, request.hidden_ranges())
 
 
 @app.post("/check/stream")
@@ -87,7 +99,7 @@ async def check_stream(request: CheckRequest) -> StreamingResponse:
         async with CHECK_SEMAPHORE:  # held for the whole stream: one check at a time, as for /check
             stages = stream_check(request.content, request.source, loaded, user_task=request.user_task,
                                   judge=getattr(app.state, "judge", None), sandbox=getattr(app.state, "sandbox", None),
-                                  fmt="html" if request.format == "html" else None)
+                                  fmt="html" if request.format == "html" else None, hidden=request.hidden_ranges())
             while (event := await asyncio.to_thread(next, stages, None)) is not None:
                 if "result" in event:
                     audit.record_check(request.content, request.source, event["result"])

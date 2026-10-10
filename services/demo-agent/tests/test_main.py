@@ -37,3 +37,13 @@ def test_a_background_run_reports_its_steps_and_result(monkeypatch):
 
 def test_an_unknown_run_is_404():
     assert client.get("/runs/nope").status_code == 404
+
+
+
+def test_a_document_run_reads_the_document_instead_of_the_inbox(monkeypatch):
+    from app import main
+
+    monkeypatch.setattr(main, "CHAT", lambda messages, tools: {"content": "", "tool_calls": []})
+    s = main._settings(main.RunRequest(user_request="Summarise this page", document={
+        "text": "<p>Hi</p>", "source": "web", "format": "html"}))
+    assert s.emails == [] and s.document == {"text": "<p>Hi</p>", "source": "web", "format": "html", "hidden": None}

@@ -7,6 +7,9 @@ export interface Email {
   attack?: boolean;
 }
 
+// What the two agents read: the inbox, one shared document, or (a pasted user message) the request itself
+export type Reads = "inbox" | "document" | "request";
+
 // An inbox row in the editor: `key` keeps React state attached while emails are added and removed.
 export interface InboxEmail extends Email {
   key: string;
@@ -78,7 +81,7 @@ export interface StageEvent {
 export interface Job {
   status: "running" | "done" | "error";
   steps: Step[];
-  result: { answer: string; effects: Effect[] } | null;
+  result: { answer: string; effects: Effect[]; canary?: string } | null; // canary: the secret in the agent's prompt
   error: string | null;
   live?: { email_id: string; stages: StageEvent[] } | null; // the email the firewall is checking right now
 }
