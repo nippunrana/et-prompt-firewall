@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 
 from app import usage
 
-MODEL = os.environ.get("SANDBOX_MODEL", "qwen/qwen3-next-80b-a3b-thinking")
+MODEL = os.environ.get("SANDBOX_MODEL", "qwen/qwen3-next-80b-a3b-instruct")
 TIMEOUT = 60  # seconds per model call
 MAX_TURNS = 3  # a hijacked model often lists the invoices first and sends them on the next turn
 
@@ -103,11 +103,10 @@ class QwenSandbox:
         self.api_key = api_key
 
     def _chat(self, messages: list[dict]) -> dict:
-        # Never route to Google: its Qwen endpoint often writes tool calls as plain text, which this
-        # sandbox would read as "no action taken" (demo-agent/app/llm.py has the same rule).
-        body = json.dumps({"model": MODEL, "messages": messages, "tools": TOOLS,
-                           "reasoning": {"enabled": True}, "max_tokens": 6000,
-                           "provider": {"ignore": ["Google"]}}).encode()
+        # Prefer DeepInfra, where the model was measured; never forbid a host outright, or losing the only
+        # allowed one fails every call (demo-agent/app/llm.py has the same rule).
+        body = json.dumps({"model": MODEL, "messages": messages, "tools": TOOLS, "max_tokens": 6000,
+                           "provider": {"order": ["DeepInfra"], "allow_fallbacks": True}}).encode()
         req = urllib.request.Request("https://openrouter.ai/api/v1/chat/completions", data=body, headers={
             "Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:

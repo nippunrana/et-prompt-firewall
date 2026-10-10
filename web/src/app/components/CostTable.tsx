@@ -11,6 +11,7 @@ const ROLE: Record<Usage["role"], { name: string; task: string }> = {
 
 const MODEL_NAME: Record<string, string> = {
   "qwen/qwen3-next-80b-a3b-thinking": "Qwen3-Next-80B Thinking",
+  "qwen/qwen3-next-80b-a3b-instruct": "Qwen3-Next-80B Instruct",
   "gemma-4-31b-it": "Gemma 4 31B",
 };
 

@@ -1,4 +1,4 @@
-"""The agent's model: Qwen3-next-80B thinking on OpenRouter.
+"""The agent's model: Qwen3-next-80B instruct on OpenRouter.
 
 Chosen because it is easy to fool: the unprotected run must show the attack working, and in our
 tests this model followed injected email instructions where newer Gemini models refused.
@@ -12,7 +12,7 @@ import time
 import urllib.error
 import urllib.request
 
-MODEL = os.environ.get("AGENT_MODEL", "qwen/qwen3-next-80b-a3b-thinking")
+MODEL = os.environ.get("AGENT_MODEL", "qwen/qwen3-next-80b-a3b-instruct")
 TIMEOUT = 90  # seconds per call
 
 
@@ -42,11 +42,10 @@ class OpenRouterChat:
 
     def __call__(self, messages: list[dict], tools: list[dict]) -> dict:
         """One model turn: {"content", "reasoning", "tool_calls", "usage"}. One retry on a rate limit or timeout."""
-        # Never let OpenRouter route to Google: its Qwen endpoint often writes tool calls as plain text
-        # (seen 2026-10-09: 6 of 8 calls), so the agent never reads the inbox. Alibaba's returned 8 of 8.
-        body = json.dumps({"model": MODEL, "messages": messages, "tools": tools,
-                           "reasoning": {"enabled": True}, "max_tokens": 6000,
-                           "provider": {"ignore": ["Google"]}}).encode()
+        # Prefer DeepInfra, where the model was measured (2026-10-10); results changed with the host. Never
+        # forbid a host outright: when the only allowed one dropped the model, every run failed with a 404.
+        body = json.dumps({"model": MODEL, "messages": messages, "tools": tools, "max_tokens": 6000,
+                           "provider": {"order": ["DeepInfra"], "allow_fallbacks": True}}).encode()
         try:
             return self._post(body)
         except urllib.error.HTTPError as e:

@@ -104,7 +104,7 @@ A blocked agent is told why and carries on with the user's real request. Both ch
 
 ## 5. The demo agent
 
-A LangGraph tool loop (agent ⇄ tools, at most 8 turns) on Qwen3-next-80B thinking, with tools to read the inbox, list invoices, look up contacts, send, forward and pay. The model was chosen *because* it is easy to fool, so the unprotected run shows the attack working; newer models refused most injections in our tests and would make the demo show nothing. The UI runs the same inbox twice at once, unprotected and protected, and streams each step.
+A LangGraph tool loop (agent ⇄ tools, at most 8 turns) on Qwen3-next-80B instruct, with tools to read the inbox, list invoices, look up contacts, send, forward and pay. The model was chosen *because* it is easy to fool, so the unprotected run shows the attack working; newer models refused most injections in our tests and would make the demo show nothing. The UI runs the same inbox twice at once, unprotected and protected, and streams each step.
 
 ## 6. Model usage
 
@@ -114,7 +114,7 @@ A LangGraph tool loop (agent ⇄ tools, at most 8 turns) on Qwen3-next-80B think
 | Llama Prompt Guard 2 86M | Injection classifier | Local, CPU | Near-zero false alarms; misses plain-request injections. Complements PIGuard: both together = strong signal. |
 | GlotLID v3 (quantised) | Language gate | Local, CPU | Routes non-English and romanized Indic lines (which both classifiers score as clean) to the judge. |
 | Gemma 4 31B | Judge | Gemini API | Settles weak signals, names attack types, quotes the exact attack text. Distinct from the agent's model family. |
-| Qwen3-next-80B thinking | Sandbox decoy, and the demo agent | OpenRouter | Gullible on purpose: if content can hijack it into a tool call, that is direct evidence of an attack. |
+| Qwen3-next-80B instruct | Sandbox decoy, and the demo agent | OpenRouter | Gullible on purpose: if content can hijack it into a tool call, that is direct evidence of an attack. The most gullible of 15 models we tested that still makes clean tool calls (`docs/studies/sandbox-model-study.html`). |
 | RapidOCR (PP-OCRv4) + RapidTable | Text from images and scanned PDFs | Local, ONNX | Feeds document text to the check. |
 
 ## 7. Attack type coverage

@@ -55,7 +55,7 @@ def flagged(r):
 lines = ["# Phase 3: LLM layers off vs on", "",
          f"{len(items)} items: half of every held-out category (never used for tuning) plus 10 attacks aimed at the judge. "
          "Off = rules, classifiers and language gate only; on = plus the judge (Gemma 4 31B) and sandbox "
-         "(Qwen3-next-80B thinking) on content the classifiers did not pass.", ""]
+         "(Qwen3-next-80B instruct) on content the classifiers did not pass.", ""]
 errors = {n: sum(1 for r in runs[n].values() if r.get("error")) for n in runs}
 lines.append(f"Errors: off {errors['off']}, on {errors['on']}.")
 
