@@ -42,7 +42,7 @@ const SCENARIOS: Scenario[] = [
     stages: {
       prepare: ["done", "3 sentences, hidden characters unpacked"],
       rules: ["flag", "2 matches"],
-      classifiers: ["done", "PIGuard 0.98 · PromptGuard2 0.93"],
+      classifiers: ["done", "WolfDefender 0.98 · PromptGuard2 0.93"],
       lid: ["done", "English only"],
       triage: ["flag", "clear attack"],
       judge: ["flag", "attack"],
@@ -68,7 +68,7 @@ const SCENARIOS: Scenario[] = [
     stages: {
       prepare: ["done", "2 sentences, hidden characters unpacked"],
       rules: ["done", "no match"],
-      classifiers: ["done", "PIGuard 0.01 · PromptGuard2 0.02"],
+      classifiers: ["done", "WolfDefender 0.01 · PromptGuard2 0.02"],
       lid: ["done", "English only"],
       triage: ["done", "nothing suspicious"],
       judge: ["skip", "not needed"],
@@ -95,7 +95,7 @@ const SCENARIOS: Scenario[] = [
     stages: {
       prepare: ["done", "3 sentences, hidden characters unpacked"],
       rules: ["flag", "1 match"],
-      classifiers: ["done", "PIGuard 0.94 · PromptGuard2 0.71"],
+      classifiers: ["done", "WolfDefender 0.94 · PromptGuard2 0.71"],
       lid: ["done", "English only"],
       triage: ["flag", "unsure: ask the AI layers"],
       judge: ["flag", "taken over by the email"],

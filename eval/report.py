@@ -108,7 +108,7 @@ def main(label: str) -> None:
     # Each detector alone, at several thresholds: attacks caught vs benign items falsely flagged.
     attacks = [r for s in ATTACK_SETS for r in by_set.get(s, [])]
     benign = [r for s in BENIGN_SETS for r in by_set.get(s, [])]
-    for clf in ("PIGuard", "PromptGuard2"):
+    for clf in ("WolfDefender", "PromptGuard2"):
         score = lambda r: r["scores"].get(clf, {}).get("max_window", 0.0)
         out["sweep"][clf] = {str(th): {"recall": rate(attacks, lambda r: score(r) >= th)["rate"],
                                        "fpr": rate(benign, lambda r: score(r) >= th)["rate"]} for th in SWEEP}

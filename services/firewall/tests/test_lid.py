@@ -5,7 +5,7 @@ from app.lid import LIDGate, get_lid_gate
 from app.prepare import prepare
 from tests.fakes import BENIGN_EMAIL, KeywordClassifier
 
-FAKES = [KeywordClassifier("PIGuard", ["ignore your previous instructions"]),
+FAKES = [KeywordClassifier("WolfDefender", ["ignore your previous instructions"]),
          KeywordClassifier("PromptGuard2", ["ignore your previous instructions"])]
 
 

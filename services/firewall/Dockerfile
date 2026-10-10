@@ -30,7 +30,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Keep this above `COPY app`: a code change would otherwise rebuild this layer and the VPS would pull it again.
 RUN python -c "from rapidocr_onnxruntime import RapidOCR; from rapid_table import RapidTable; RapidOCR(); RapidTable()"
 
-# The classifier weights (PIGuard, Prompt Guard 2) are baked in, like the OCR models, and also above
+# The classifier weights (Wolf Defender Small, Prompt Guard 2) are baked in, like the OCR models, and also above
 # `COPY app`. Prompt Guard 2 is gated: the Hugging Face token arrives as a build secret, so it is
 # never stored in any image layer. Without it the build fails rather than ship an image with no models.
 ENV HF_HOME=/opt/models

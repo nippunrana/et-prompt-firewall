@@ -39,7 +39,7 @@ flowchart LR
 
 | Service | What runs in it | Notes |
 | :--- | :--- | :--- |
-| `firewall` | The product: the content check, the tool-call guard, the audit log, document extraction. Local models baked into the image: PIGuard, Llama Prompt Guard 2 86M, GlotLID v3, RapidOCR. | Standalone API: any agent can call it. One check at a time (CPU-bound). |
+| `firewall` | The product: the content check, the tool-call guard, the audit log, document extraction. Local models baked into the image: Wolf Defender Small, Llama Prompt Guard 2 86M, GlotLID v3, RapidOCR. | Standalone API: any agent can call it. One check at a time (CPU-bound). |
 | `demo-agent` | An email assistant with a fake mailbox and fake tools (nothing is ever sent or paid), runnable with or without the firewall. It can instead read one shared document (web page, file text, Markdown …) or take a pasted message as its request. | Exists to show the firewall protecting something. |
 | `web` | The demo UI: agent side by side, content checker, results dashboard, audit log. | The only service with a port. |
 
@@ -53,7 +53,7 @@ A LangGraph graph, one node per stage. **Every edge is decided by code, never by
 flowchart TB
     P["<b>prepare</b><br/>per input type: HTML and files split into visible text + hidden layers;<br/>normalise Unicode (NFKC, look-alike letters, invisible characters),<br/>decode Base64 / hex / Unicode tags, split into sentences and an email header block"]
     R["<b>rules</b><br/>known attack phrasing; strong rules = evidence, weak rules = hints"]
-    C["<b>classifiers</b><br/>PIGuard + Prompt Guard 2 score the whole text and every 3-sentence window,<br/>then drill down to the culprit sentence"]
+    C["<b>classifiers</b><br/>Wolf Defender + Prompt Guard 2 score the whole text and every 3-sentence window,<br/>then drill down to the culprit sentence"]
     L["<b>language gate</b><br/>GlotLID flags non-English and romanized Hindi/Urdu lines<br/>(English classifiers miss them)"]
     T{"<b>triage</b><br/>lane"}
     J["<b>judge</b> (Gemma 4 31B)<br/>verdict, attack types, exact quotes"]
@@ -110,9 +110,9 @@ A LangGraph tool loop (agent ⇄ tools, at most 8 turns) on Qwen3-next-80B instr
 
 | Model | Role | Runs | Why this one |
 | :--- | :--- | :--- | :--- |
-| PIGuard (DeBERTa, ACL 2025) | Injection classifier | Local, CPU | Highest recall on planted instructions in our comparison; over-flags instruction-heavy text, so a PIGuard-only flag goes to the judge rather than straight to a cut. Loaded without remote code. |
-| Llama Prompt Guard 2 86M | Injection classifier | Local, CPU | Near-zero false alarms; misses plain-request injections. Complements PIGuard: both together = strong signal. |
-| GlotLID v3 (quantised) | Language gate | Local, CPU | Routes non-English and romanized Indic lines (which both classifiers score as clean) to the judge. |
+| Wolf Defender Small (mmBERT, Patronus Protect) | Injection classifier | Local, CPU | Replaced PIGuard on 2026-10-11 after a comparison inside this pipeline on data neither model was trained on: more attacks caught, fewer cuts on benign text that the judge cannot clear, fewer benign items sent to the judge, and faster. Still flags instruction-heavy benign text, so a Wolf-only flag goes to the judge rather than straight to a cut. Loaded without remote code. |
+| Llama Prompt Guard 2 86M | Injection classifier | Local, CPU | Near-zero false alarms; misses plain-request injections. Complements Wolf Defender: both together = strong signal. |
+| GlotLID v3 (quantised) | Language gate | Local, CPU | Routes non-English and romanized Indic lines, which the classifiers are not validated on, to the judge. |
 | Gemma 4 31B | Judge | Gemini API | Settles weak signals, names attack types, quotes the exact attack text. Distinct from the agent's model family. |
 | Qwen3-next-80B instruct | Sandbox decoy, and the demo agent | OpenRouter | Gullible on purpose: if content can hijack it into a tool call, that is direct evidence of an attack. The most gullible of 15 models we tested that still makes clean tool calls (`docs/studies/sandbox-model-study.html`). |
 | RapidOCR (PP-OCRv4) + RapidTable | Text from images and scanned PDFs | Local, ONNX | Feeds document text to the check. |
@@ -160,7 +160,7 @@ The system never pauses for approval: the firewall decides, the agent acts or is
 ## 10. Evaluation
 
 - **Never tuned and reported on the same data.** Thresholds were chosen on a development split; reported numbers come from a held-out split.
-- **Public data first:** LLMail-Inject phase 2 (real attacks by 49 teams that hijacked an email assistant), agentic boundary pairs (attack and benign twins), LLMail's benign emails and Enron real work email for false alarms. PIGuard's training data was screened so no set it trained on is used.
+- **Public data first:** LLMail-Inject phase 2 (real attacks by 49 teams that hijacked an email assistant), agentic boundary pairs (attack and benign twins), LLMail's benign emails and Enron real work email for false alarms. Each classifier's training data was screened. Wolf Defender lists LLMail-Inject among its training sources; it replaced PIGuard on a comparison that used only sets neither model trained on (boundary pairs, real Enron email, CrackedPDFs).
 - **Our own sets are reported apart:** attacks aimed at our judge, and a small typed set for credential theft, multi-step jailbreaks, secret extraction and encoded instructions, which public data barely covers.
 - **End to end:** the agent with and without each checkpoint, the demo scenarios repeated, and adaptive attacks that rewrite themselves against the firewall's feedback.
 

@@ -138,7 +138,7 @@ def test_each_step_carries_the_tokens_and_cost_of_its_model_call():
 
 
 def test_each_firewall_step_carries_what_every_layer_found():
-    layers = {"scores": {"PIGuard": {"whole": 0.9, "max_window": 0.97}}, "attacks": [], "cleared": [], "hints": [],
+    layers = {"scores": {"WolfDefender": {"whole": 0.9, "max_window": 0.97}}, "attacks": [], "cleared": [], "hints": [],
               "non_english_spans": [], "judge": {"ok": True, "is_attack": False}, "sandbox": None,
               "trace": [{"step": "rules", "ms": 1}]}
 

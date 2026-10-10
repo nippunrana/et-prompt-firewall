@@ -82,7 +82,7 @@ export default function CostTable({ usage, detectors, running, reads = "inbox", 
           <li className={c.row}>
             <div className={c.who}>
               <strong>Firewall detectors</strong>
-              <span className="muted">Rules, PIGuard, Prompt Guard 2 and GlotLID check {reads === "inbox" ? "every email" : `the ${noun}`} first</span>
+              <span className="muted">Rules, Wolf Defender, Prompt Guard 2 and GlotLID check {reads === "inbox" ? "every email" : `the ${noun}`} first</span>
             </div>
             <div className={c.model}>Local models<span className="muted"> · on our own server</span></div>
             <div className={`${c.tokens} muted`}>No per-call charge</div>

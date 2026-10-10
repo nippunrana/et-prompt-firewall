@@ -31,7 +31,7 @@ export const target = (args?: Record<string, string>) => args?.to || args?.recip
 export const STAGES: [string, string][] = [
   ["prepare", "Clean up the text"],
   ["rules", "Pattern rules"],
-  ["classifiers", "PIGuard + Prompt Guard 2"],
+  ["classifiers", "Wolf Defender + Prompt Guard 2"],
   ["lid", "Language check"],
   ["triage", "Triage"],
   ["judge", "LLM judge"],

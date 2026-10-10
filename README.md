@@ -26,7 +26,7 @@ The logo always brings you back to the start of Try it, without stopping an agen
 
 Two checkpoints ([full architecture](docs/architecture.md)):
 
-1. **Content check (`POST /check`)**: rules, two local injection classifiers (PIGuard, Llama Prompt Guard 2) and a language gate score every sentence window. Anything they flag goes to an LLM judge (Gemma 4 31B), which names the attack and quotes it, and to a sandbox (a deliberately gullible model with fake tools: if the content makes it try to act, that is an attack). Code, never a model, makes the decision; the judge can never clear a strong signal. The attack is cut, the cleaned text is re-checked, and content that cannot be cleaned is withheld. `POST /check/stream` runs the same check and reports each stage as it finishes (one JSON line per stage, then the answer); the demo agent uses it to show progress live.
+1. **Content check (`POST /check`)**: rules, two local injection classifiers (Wolf Defender Small, Llama Prompt Guard 2) and a language gate score every sentence window. Anything they flag goes to an LLM judge (Gemma 4 31B), which names the attack and quotes it, and to a sandbox (a deliberately gullible model with fake tools: if the content makes it try to act, that is an attack). Code, never a model, makes the decision; the judge can never clear a strong signal. The attack is cut, the cleaned text is re-checked, and content that cannot be cleaned is withheld. `POST /check/stream` runs the same check and reports each stage as it finishes (one JSON line per stage, then the answer); the demo agent uses it to show progress live.
 2. **Tool-call guard (`POST /guard`)**: plain code that never reads the content. It blocks an action when a secret is leaving, when a recipient or account did not come from the user, or when the user never asked for that kind of action.
 
 It names nine attack types: instruction override, role change, secret extraction, tool abuse, credential theft, context poisoning, multi-step jailbreak, encoded instructions and indirect injection.
@@ -113,7 +113,7 @@ No prompt-injection defence is unbreakable; adaptive attacks beat every publishe
 ## Credits
 
 - **Built with Llama.** The firewall uses [Llama Prompt Guard 2 86M](https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M) by Meta, under the Llama 4 Community License.
-- [PIGuard](https://huggingface.co/leolee99/PIGuard) (MIT), from *PIGuard: Prompt Injection Guardrail via Mitigating Overdefense for Free* (Li et al., ACL 2025).
+- [Wolf Defender Small](https://huggingface.co/patronus-studio/wolf-defender-prompt-injection-small) (Apache-2.0) by Patronus Protect, fine-tuned from [mmBERT-small](https://huggingface.co/jhu-clsp/mmBERT-small) (MIT).
 - [GlotLID](https://huggingface.co/cis-lmu/glotlid) (Apache-2.0) for language identification.
 - [Gemma 4](https://ai.google.dev/gemma) (Google) as the judge, via the Gemini API; [Qwen3-Next-80B](https://huggingface.co/Qwen) (Alibaba) as the sandbox and demo agent, via OpenRouter.
 - OCR by [RapidOCR](https://github.com/RapidAI/RapidOCR) and [RapidTable](https://github.com/RapidAI/RapidTable).

@@ -19,7 +19,7 @@ export interface Station {
 const OUTGOING = new Set(["send_email", "forward_email", "make_payment", "http_request", "run_shell_command", "delete_file"]);
 const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ? word : many}`;
 const CLASSIFIERS = [
-  { key: "PIGuard", name: "PIGuard", about: "PIGuard, a classifier trained to spot prompt injections" },
+  { key: "WolfDefender", name: "Wolf Defender", about: "Wolf Defender Small, a classifier trained to spot prompt injections" },
   { key: "PromptGuard2", name: "Prompt Guard 2", about: "Llama Prompt Guard 2 86M, Meta's prompt-injection classifier" },
 ];
 
@@ -51,13 +51,13 @@ export function stations(l: Layers, lane: string | undefined): Station[] {
     // Not flagging a part is not the same as scoring low: the whole text can cross the threshold while no window does
     const verdict = !raised.has(c.key) ? "It flagged no part of the email." : clearedOnly(c.key) ? "Flagged, but the judge read it and cleared it." : "Flagged.";
     return { key: c.key, name: c.name, value: Math.max(sc.whole, sc.max_window).toFixed(2), state: raised.has(c.key) ? "flag" : "clear",
-      ms: c.key === "PIGuard" ? ms("classifiers") : 0, detail: `${c.about}, ${scored}. ${verdict} Both classifiers took ${ms("classifiers")} ms together.` };
+      ms: c.key === "WolfDefender" ? ms("classifiers") : 0, detail: `${c.about}, ${scored}. ${verdict} Both classifiers took ${ms("classifiers")} ms together.` };
   });
 
   const langs = [...new Set(l.non_english_spans.map((s) => s.language))];
   const language: Station = langs.length
     ? { key: "lid", name: "Language", value: plural(l.non_english_spans.length, "line"), state: "hint", ms: ms("lid"),
-        detail: `GlotLID found ${plural(l.non_english_spans.length, "non-English line")} (${langs.join(", ")}). The classifiers are trained on English, so the gate sends the email to the judge. It never cuts.` }
+        detail: `GlotLID found ${plural(l.non_english_spans.length, "non-English line")} (${langs.join(", ")}). The classifiers are validated mainly on English, so the gate sends the email to the judge. It never cuts.` }
     : { key: "lid", name: "Language", value: "English", state: "clear", ms: ms("lid"),
         detail: "GlotLID found only English, so no instruction is hiding in a language the classifiers cannot read." };
 

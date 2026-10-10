@@ -8,12 +8,14 @@ re-downloads that layer.
 import os
 
 MODELS = {
-    "PIGuard": {
-        "repo": "leolee99/PIGuard",
-        "revision": "dd78b24e330193a22d2293ac66922dd4f982f563",
-        # spm.model in this repo is a Git LFS pointer, not a model: only tokenizer.json is real.
+    "WolfDefender": {
+        "repo": "patronus-studio/wolf-defender-prompt-injection-small",
+        "revision": "bcab2eff97bcabd7227849639e2d0d7a61b46c92",
+        # The Transformers checkpoint only: the repo also ships ONNX variants and a cascade we do not use.
+        # The image redistributes these weights, so the licence travels with them.
         "files": ["config.json", "model.safetensors", "tokenizer.json", "tokenizer_config.json",
-                  "special_tokens_map.json", "added_tokens.json", "README.md"],
+                  "special_tokens_map.json", "LICENSE", "README.md"],
+        "max_tokens": 2048, "stride": 64,  # its model card: 2,048-token windows sharing 64 tokens
     },
     "PromptGuard2": {
         "repo": "meta-llama/Llama-Prompt-Guard-2-86M",
@@ -21,6 +23,7 @@ MODELS = {
         # The image redistributes these weights, so the licence and use policy travel with them.
         "files": ["config.json", "model.safetensors", "tokenizer.json", "tokenizer_config.json",
                   "special_tokens_map.json", "LICENSE", "USE_POLICY.md", "README.md"],
+        "max_tokens": 512, "stride": 128,
     },
 }
 
