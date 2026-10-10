@@ -104,11 +104,13 @@ const verdictColour = (v?: string) => (v === "allow" ? "var(--allow)" : v === "s
 type InboxItem = { kind: "inbox"; checks: Step[]; read: boolean };
 type Item = InboxItem | { kind: "step"; step: Step };
 
-function group(steps: Step[]): Item[] {
+function group(steps: Step[], reads: Reads): Item[] {
   const items: Item[] = [];
   let inbox: InboxItem | null = null;
+  // A pasted message is checked, never read with a tool: its run's read_inbox is an ordinary step
+  const readTool = reads === "inbox" ? "read_inbox" : reads === "document" ? "read_document" : null;
   for (const st of steps) {
-    const firstRead = st.step === "tool" && (st.name === "read_inbox" || st.name === "read_document") && !inbox?.read;
+    const firstRead = st.step === "tool" && st.name === readTool && !inbox?.read;
     if (st.step === "firewall" || firstRead) {
       if (!inbox) items.push((inbox = { kind: "inbox", checks: [], read: false }));
       if (firstRead) inbox.read = true;
@@ -278,7 +280,7 @@ export default function RunResults({ jobs, seconds, scenario, custom, emails, re
         if (!job) return null;
         const protectedRun = m.key === "protected";
         const o = job.status === "done" ? outcome(job, scenario, custom, protectedRun, protectedRun ? undefined : jobs.protected) : null;
-        const items = group(job.steps);
+        const items = group(job.steps, reads);
         const readInbox = items.some((it) => it.kind === "inbox" && it.read);
         return (
           <section key={m.key} data-lane className={`card ${r.lane}`} aria-live="polite">

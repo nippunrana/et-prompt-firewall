@@ -48,6 +48,10 @@ function caught(scenario: Scenario, m: Measurement): [string, string] {
   if (scenario.kind === "task") return ["What should happen", "Nothing to stop: the firewall has to let it through."];
   if (m.types_named.length) return ["Where it\u2019s caught", "Checkpoint 1, the content check, flags the email before the AI reads it."];
   if (m.guard_types.length) return ["Where it\u2019s caught", "The content check lets it through; checkpoint 2, the tool guard, blocks the send."];
+  // Nothing fired because the protected agent never acted on it: say so, never "neither stops it"
+  if (m.runs && m.protected_harmful === 0) {
+    return ["Where it\u2019s caught", "Neither checkpoint had to fire: with the firewall on, the agent never acted on it in the measured runs."];
+  }
   return ["Where it\u2019s caught", "Neither checkpoint stops it."];
 }
 

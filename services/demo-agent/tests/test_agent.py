@@ -287,3 +287,50 @@ def test_a_cleaned_message_is_what_the_model_and_the_guard_see():
     s.check_request = True
     agent.run(s)
     assert model.seen[0]["content"] == "Summarise my emails" and s.user_request == "Summarise my emails"
+
+
+# The guard's ACTION_KIND (services/firewall/app/guard.py): an acting tool missing from it would run unchecked
+GUARDED = {"send_email", "forward_email", "reply_email", "make_payment", "delete_email", "delete_file",
+           "run_shell_command", "http_request"}
+
+
+def test_every_acting_tool_is_guarded_and_answers_with_a_believable_confirmation():
+    assert {t["function"]["name"] for t in agent.TOOLS} - {"read_inbox", "list_invoices", "search_contacts", "read_file"} \
+        == set(agent.ACTED) == GUARDED
+    sent, _, effects = agent._run_tool(settings(ScriptedModel()), "send_email", {"to": "a@b.example", "subject": "Hi"})
+    assert sent["status"] == "sent" and sent["message_id"].startswith("MSG-") and effects[0]["tool"] == "send_email"
+    paid, _, _ = agent._run_tool(settings(ScriptedModel()), "make_payment",
+                                 {"recipient": "Cedar", "amount": "9,850", "currency": "INR"})
+    assert paid["status"] == "completed" and paid["amount"] == "INR 9,850"
+
+
+def test_an_unsaved_address_is_not_a_dead_end_but_never_a_false_contact():
+    s = settings(ScriptedModel())
+    found, _, _ = agent._run_tool(s, "search_contacts", {"name": "archive@vendor-records.example"})
+    assert found["matches"] == [] and "can be emailed directly" in found["note"]
+    assert agent._run_tool(s, "search_contacts", {"name": "Anita"})[0]["matches"] == [CONTACTS[0]]
+
+
+def test_an_email_action_needs_a_real_email():
+    result, _, effects = agent._run_tool(settings(ScriptedModel()), "delete_email", {"email_id": "42"})
+    assert "No email" in result["error"] and effects == []
+
+
+def test_the_guard_sees_who_a_reply_goes_to():
+    sent = []
+
+    def guard(body):
+        sent.append(body)
+        return {"decision": "allow", "reason": "", "types": []}
+
+    class Replier(ScriptedModel):
+        def __call__(self, messages, tools):
+            self.turn += 1
+            if self.turn == 1:
+                return {"content": None, "tool_calls": [call("reply_email", email_id="4", body="Done")]}
+            return {"content": "Done.", "tool_calls": []}
+
+    s = settings(Replier(), guard=True)
+    s.guard_call = guard
+    agent.run(s)
+    assert sent[0]["args"]["to"] == POISONED["from"]

@@ -21,10 +21,11 @@ export interface PipeItem extends Row {
   rowsKey?: string; // changes when the rows start over (the next email), so their ticks replay from the top
 }
 
-export const READ_ONLY = new Set(["read_inbox", "read_document", "list_invoices", "search_contacts"]);
+export const READ_ONLY = new Set(["read_inbox", "read_document", "list_invoices", "search_contacts", "read_file"]);
 
 const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ? word : many}`;
-export const target = (args?: Record<string, string>) => args?.to || args?.recipient || "";
+// Where an action goes or what it touches: a recipient, a link, a file or a command
+export const target = (args?: Record<string, string>) => args?.to || args?.recipient || args?.url || args?.path || args?.command || "";
 
 // The firewall's stages, in the order its graph runs them (services/firewall/app/check.py)
 export const STAGES: [string, string][] = [
