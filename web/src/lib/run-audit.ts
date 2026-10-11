@@ -97,7 +97,6 @@ function problems(run: RunRecord, lane: Lane): string[] {
   const broken = layers.filter((x) => x.l!.trace.some((t) => t.step === "classifiers" && t.failed)).length;
   if (broken) out.push(`the classifiers failed on ${plural(broken, "check")}, so the pattern rules decided`);
   for (const [key, name] of [["judge", "the AI judge"], ["sandbox", "the sandbox"]] as const) {
-    if (key === "sandbox" && run.reads === "request") continue; // never used on the user's own message, by design
     const failed = layers.filter((x) => x.l![key] && !x.l![key]!.ok);
     if (failed.length) out.push(`${name} failed on ${plural(failed.length, "check")} (${failed[0].l![key]!.error ?? "no reason given"})`);
     const missing = layers.filter((x) => !x.l![key] && x.lane !== "clean").length;
@@ -120,7 +119,6 @@ function aiChecks(run: RunRecord, job: Job): string | null {
   const parts: string[] = [];
   if (judged) parts.push(`the AI judge read ${unit(judged)}`);
   if (boxed) parts.push(`the sandbox tested ${unit(boxed)}`);
-  if (run.reads === "request" && judged) parts.push("the sandbox is not used on your own message");
   if (clean) parts.push(`not needed on ${run.reads === "inbox" ? `${plural(clean, "clean email")}` : `the clean ${run.reads === "request" ? "message" : run.noun}`}`);
   return parts.length ? parts.join("; ") : null;
 }

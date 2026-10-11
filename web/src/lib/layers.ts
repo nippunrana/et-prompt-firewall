@@ -23,8 +23,8 @@ const CLASSIFIERS = [
   { key: "PromptGuard2", name: "Prompt Guard 2", about: "Llama Prompt Guard 2 86M, Meta's prompt-injection classifier" },
 ];
 
-// `noun` names what was checked; `ownMessage`: the user's own message, which the firewall never gives the sandbox
-// (a request is meant to hold instructions), so its sandbox is "not used", never "unavailable".
+// `noun` names what was checked; `ownMessage`: the user's own message, where a sandbox action is only a weak signal
+// (a request asks for actions), settled by the judge (services/firewall/app/check.py, _sandbox_counts).
 export function stations(l: Layers, lane: string | undefined, noun = "email", ownMessage = false): Station[] {
   const trace = (step: string) => l.trace.filter((t) => t.step === step);
   const ms = (step: string) => trace(step).reduce((sum, t) => sum + t.ms, 0);
@@ -85,13 +85,14 @@ export function stations(l: Layers, lane: string | undefined, noun = "email", ow
         detail: `LLM judge (Gemma 4): ${j.reason} It can settle weak signals, but never clears a strong one.` };
 
   const sb = l.sandbox;
-  const sandboxOff: Station = { key: "sandbox", name: "Sandbox", value: "not used", state: "skip", ms: 0,
-    detail: "Not used on your own message, by design: a request is meant to hold instructions, so acting on it proves nothing." };
+  const judgeCleared = Boolean(j && j.ok && !j.took_over && !j.is_attack);
   // Name the call that would have done the most harm: sending, paying or running beats reading invoices
   const worst = sb?.calls.find((c) => OUTGOING.has(c.name)) ?? sb?.calls[0];
   const tried = sb?.calls.map((c) => `${c.name}${c.args.to || c.args.recipient ? ` → ${c.args.to || c.args.recipient}` : ""}`).join(", ");
-  const sandbox: Station = !sb ? (ownMessage ? sandboxOff : notRun("sandbox", "Sandbox", "the sandbox"))
+  const sandbox: Station = !sb ? notRun("sandbox", "Sandbox", "the sandbox")
     : !sb.ok ? { key: "sandbox", name: "Sandbox", value: "failed", state: "off", ms: ms("sandbox"), detail: `The sandbox model did not answer (${sb.error ?? "no reason given"}).` }
+    : sb.acted && ownMessage && judgeCleared ? { key: "sandbox", name: "Sandbox", value: `tried ${pretty(worst?.name ?? "a tool")}`, state: "hint", ms: ms("sandbox"),
+        detail: `A separate model read your message with fake tools and tried ${tried}. On your own message that is expected, since a request asks for actions, so it is only a weak signal: the judge ruled it was not an attack.` }
     : sb.acted ? { key: "sandbox", name: "Sandbox", value: `tried ${pretty(worst?.name ?? "a tool")}`, state: "flag", ms: ms("sandbox"),
         detail: `A separate model read the ${noun} with fake tools and tried ${tried}. Nothing ran; code counts it as an attack vote.` }
     : { key: "sandbox", name: "Sandbox", value: "no action", state: "clear", ms: ms("sandbox"),

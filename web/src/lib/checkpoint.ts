@@ -40,7 +40,7 @@ export interface StoryInput {
   cuts: number;
   noun: string; // what was checked: "email", "web page", "PDF", "message" …
   ocr?: boolean; // the text was read from an image first
-  ownMessage?: boolean; // the user's own message: the firewall never gives it to the sandbox
+  ownMessage?: boolean; // the user's own message: a sandbox action there is weak, settled by the judge
   hypothetical?: boolean; // a check on its own, with no agent: "would get", not "got"
 }
 

@@ -6,8 +6,10 @@ prepare → rules → classifiers → language gate → triage
 
 Every edge and every decision is code: nothing the checked content says, and nothing a model
 replies, can choose the next step. The judge and the sandbox only give evidence:
-  - a strong signal blocks on its own: a strong rule, both classifiers, a sandbox tool call, or the
-    judge calling it an attack with a quote found in the content;
+  - a strong signal blocks on its own: a strong rule, both classifiers, a sandbox tool call on outside
+    content, or the judge calling it an attack with a quote found in the content;
+  - the sandbox reads every flagged input, the user's own message included (it can carry pasted text from
+    someone else); there, acting is weak, since a request is meant to ask for actions, so the judge settles it;
   - weak signals (one classifier, a rule hint, the language gate) are settled by the judge;
   - the judge never clears a strong signal; a wrong check code means the content took over the
     judge, so the content is quarantined;
@@ -275,7 +277,7 @@ def _route(state: _State, runtime: Runtime[_Deps]) -> list[str]:
     nxt = []
     if runtime.context.judge:
         nxt.append("judge")
-    if runtime.context.sandbox and state["source"] != "user":  # the user's own chat is meant to hold instructions
+    if runtime.context.sandbox:  # every flagged input, whatever its source: nothing in the text can switch a layer off
         nxt.append("sandbox")
     return nxt or ["decide"]
 
@@ -301,6 +303,20 @@ def _sandbox(state: _State, runtime: Runtime[_Deps]) -> dict:
 
 # ---- decide, cut, re-check ----------------------------------------------------------------------
 
+def _sandbox_counts(state: _State) -> bool:
+    """Whether a sandbox that acted is evidence. On outside content it is strong: an email or a page has no business
+    giving orders. On the user's own message acting is expected (a request asks for actions), so there it is weak: it
+    counts when the judge also calls it an attack, or when the judge could not rule (fail closed). The source is set
+    by the caller, never read from the text, so writing "User:" into content changes nothing."""
+    sandbox, judge = state.get("sandbox"), state.get("judge")
+    if sandbox is None or not sandbox.ok or not sandbox.acted:
+        return False
+    if state["source"] != "user":
+        return True
+    judged = judge is not None and judge.ok and not judge.took_over
+    return not judged or judge.is_attack
+
+
 def _decide(state: _State, runtime: Runtime[_Deps]) -> dict:
     started = time.perf_counter()
     content, units = state["content"], state["prepared"].units
@@ -314,7 +330,7 @@ def _decide(state: _State, runtime: Runtime[_Deps]) -> dict:
         warnings.append(f"sandbox error ({sandbox.error})")
     judged = judge is not None and judge.ok and not judge.took_over
     attack_said = judged and judge.is_attack
-    hijacked = sandbox is not None and sandbox.ok and sandbox.acted
+    hijacked = _sandbox_counts(state)
 
     cuts, cleared = [], []
     for i, span in enumerate(state["spans"]):
@@ -391,7 +407,8 @@ def _recheck(state: _State, runtime: Runtime[_Deps]) -> dict:
         except Exception:
             log.exception("classifier failure in the re-check")
             warnings.append("classifiers unavailable in the re-check")
-    if deps.sandbox and state.get("sandbox") is not None and state["sandbox"].acted:
+    # Not on the user's own message: what is left of a request still asks for actions, and no judge rules here
+    if deps.sandbox and source != "user" and _sandbox_counts(state):
         again = deps.sandbox(cleaned.text, source, state["user_task"])
         extra = {"usage": again.usage}
         if again.ok and again.acted:

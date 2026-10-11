@@ -91,7 +91,7 @@ flowchart TB
 
 **Isolation of the two LLMs.** The sandbox's reasoning is never shown to the judge: it quotes the attack word for word, so one manipulated model would steer the other. The judge reads the content as data, inside a hardened prompt with a per-request check code. The sandbox's tools are declarations only; our code answers every call and nothing executes.
 
-**Indirect injection.** The caller labels the content's `source` (`user`, `email`, `document`, `web`). Detection never changes with the source; the label only names an attack in outside content as indirect injection. A missing source is treated as outside content, never as the user.
+**Indirect injection.** The caller labels the content's `source` (`user`, `email`, `document`, `web`). The label is set by the caller, never read from the text: writing "User:" or "System:" into content changes nothing, and a fake role marker is itself flagged. The source never switches a check off. It names an attack in outside content as indirect injection, and on the user's own message it makes a sandbox action weak evidence the judge settles, since a request is meant to ask for actions. A missing source is treated as outside content, never as the user.
 
 ## 4. Checkpoint 2: the tool-call guard (`POST /guard`)
 
@@ -141,7 +141,7 @@ The input type is stated, never guessed, and decides the front end; after it, ev
 | Input type | Front end |
 | :--- | :--- |
 | Email | The header block is scored as one unit, the body sentence by sentence. |
-| User message | The user's own words: only overrides, extraction and jailbreaks count; no sandbox run. |
+| User message | The user's own words, which can carry pasted text from someone else: only overrides, extraction and jailbreaks count; the sandbox runs, but its action is weak evidence the judge settles. |
 | Web page / HTML (`format: html`) | Split into the visible text and hidden layers: comments, CSS- or attribute-hidden elements, alt / title / aria-label / meta text. `<script>` and `<style>` are not read. |
 | PDF (`POST /check-file`) | pdfplumber, page by page; white, under-2-pt and off-page characters kept and marked as a hidden layer. Scanned pages by RapidOCR. |
 | Word (`POST /check-file`) | Body, tables, text boxes, headers and footers; hidden (`w:vanish`), white or tiny runs and comments kept and marked as hidden. |
