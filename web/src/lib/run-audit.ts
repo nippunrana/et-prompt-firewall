@@ -163,3 +163,80 @@ export function health(run: RunRecord): HealthRow[] {
   if (!actions.length && job.status === "done") rows.push({ state: "skip", text: "The action guard had nothing to check: the agent took no outgoing action." });
   return rows;
 }
+
+// What a tool call asks for, in plain words, from its name and arguments
+function intent(name: string, args: Record<string, unknown>, noun: string): string {
+  const a = (k: string) => (args[k] === undefined ? "" : String(args[k]));
+  switch (name) {
+    case "read_inbox": return "read the inbox";
+    case "read_document": return `read the ${noun}`;
+    case "list_invoices": return a("count") ? `list the latest ${a("count")} invoices` : "list the latest invoices";
+    case "search_contacts": return `look up “${a("name")}” in the contacts`;
+    case "read_file": return `read the file ${a("path")}`;
+    case "send_email": return `send an email to ${a("to") || "someone"}`;
+    case "forward_email": return `forward email ${a("email_id")} to ${a("to") || "someone"}`;
+    case "reply_email": return `reply to email ${a("email_id")}`;
+    case "make_payment": return `pay ${a("recipient") || "someone"}${a("amount") ? ` ${a("amount")}${a("currency") ? ` ${a("currency")}` : ""}` : ""}`;
+    case "delete_email": return `delete email ${a("email_id")}`;
+    case "delete_file": return `delete the file ${a("path")}`;
+    case "run_shell_command": return `run the command ${a("command")}`;
+    case "http_request": return `make a web request to ${a("url")}`;
+    default: return `call ${name}`;
+  }
+}
+
+const parse = (args: unknown): Record<string, unknown> => {
+  if (args && typeof args === "object") return args as Record<string, unknown>;
+  try {
+    return JSON.parse(String(args ?? "{}")) ?? {};
+  } catch {
+    return {};
+  }
+};
+
+export interface ModelCall {
+  usage: Usage; // who, which model, how many calls, tokens and cost
+  purpose: string;
+  took: number | null; // ms
+}
+
+// Every model call in a lane, in the order they happened: the agent's own turns, and the firewall judge's and
+// sandbox's calls inside each check. The guard and the detectors make no model calls.
+export function modelCalls(run: RunRecord, lane: Lane): ModelCall[] {
+  const out: ModelCall[] = [];
+  let prev = 0;
+  for (const st of run.jobs[lane]?.steps ?? []) {
+    const took = st.at_ms !== undefined ? st.at_ms - prev : null;
+    if (st.at_ms !== undefined) prev = st.at_ms;
+    if (st.step === "model" && st.usage && !Array.isArray(st.usage)) {
+      const asks = (st.tool_calls ?? []).map((c) => intent(c.name, parse(c.args), run.noun));
+      out.push({ usage: st.usage, took, purpose: asks.length ? `Decided to ${asks.join(", then ")}.` : "Wrote the reply to you." });
+    }
+    if (st.step !== "firewall" || !Array.isArray(st.usage)) continue;
+    const what = run.reads === "inbox" ? `email ${st.email_id}` : run.reads === "request" ? "your message" : `the ${run.noun}`;
+    const flagged = run.reads === "inbox" ? `the flagged email ${st.email_id}` : run.reads === "request" ? "your flagged message" : `the flagged ${run.noun}`;
+    const ms = (step: string) => st.layers?.trace.filter((t) => t.step === step).reduce((sum, t) => sum + t.ms, 0) ?? null;
+    for (const u of st.usage) {
+      if (u.role === "judge") {
+        const j = st.layers?.judge;
+        const purpose = !j ? `Read ${flagged}.`
+          : !j.ok ? `Was asked to read ${flagged}, but did not answer (${j.error ?? "no reason given"}).`
+          : j.took_over ? `Read ${flagged} and was steered by it: it gave the wrong check code, which blocks the content on its own.`
+          : j.is_attack ? `Read ${flagged} and named it an attack${j.types.length ? `: ${j.types.map(pretty).join(", ")}` : ""}.`
+          : `Read ${flagged} and found it safe.`;
+        out.push({ usage: u, took: ms("judge"), purpose });
+      } else if (u.role === "sandbox") {
+        const sb = st.layers?.sandbox;
+        const tried = (sb?.calls ?? []).filter((c) => !READ_ONLY.has(c.name)).map((c) => intent(c.name, c.args, run.noun));
+        const purpose = !sb ? `Read ${what} as a stand-in agent with fake tools.`
+          : !sb.ok ? `Was asked to read ${what} with fake tools, but did not answer (${sb.error ?? "no reason given"}).`
+          : sb.acted ? `Read ${what} as a stand-in agent with fake tools and tried to ${tried.join(", then ") || "use a tool"}. Nothing ran: that counts as an attack vote.`
+          : `Read ${what} as a stand-in agent with fake tools and did nothing beyond reading.`;
+        // The firewall runs the judge and the sandbox side by side, so a numbered list must not read as one after the other
+        const alongside = st.usage.some((x) => x.role === "judge") ? " It ran at the same time as the judge." : "";
+        out.push({ usage: u, took: ms("sandbox"), purpose: purpose + alongside });
+      }
+    }
+  }
+  return out;
+}

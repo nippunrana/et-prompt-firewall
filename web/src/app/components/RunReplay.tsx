@@ -3,6 +3,7 @@
 import React, { useMemo } from "react";
 import { facts, health, LANE_LABEL, laneMs } from "@/lib/run-audit";
 import type { Lane, RunRecord } from "@/lib/run-history";
+import ModelCalls from "./ModelCalls";
 import { Mark } from "./Pipeline";
 import RunResults, { outcome, unsafeReason, type Tone } from "./RunResults";
 import RunTimeline from "./RunTimeline";
@@ -41,6 +42,7 @@ export default function RunReplay({ run }: { run: RunRecord }) {
               <dl className={a.facts}>
                 {facts(run, lane).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
               </dl>
+              <ModelCalls run={run} lane={lane} />
             </section>
           );
         })}

@@ -10,7 +10,7 @@ const roles = (reads: Reads, noun: string): Record<Usage["role"], { name: string
   sandbox: { name: "Firewall sandbox", task: `A gullible copy of the agent: if it acts on the ${noun}, the ${noun} holds an instruction` },
 });
 
-const MODEL_NAME: Record<string, string> = {
+export const MODEL_NAME: Record<string, string> = {
   "qwen/qwen3-next-80b-a3b-thinking": "Qwen3-Next-80B Thinking",
   "qwen/qwen3-next-80b-a3b-instruct": "Qwen3-Next-80B Instruct",
   "gemma-4-31b-it": "Gemma 4 31B",
