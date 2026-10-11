@@ -136,17 +136,17 @@ const num = (n: number) => n.toLocaleString("en-US");
 const WHO: Record<Usage["role"], string> = { agent: "Agent", judge: "Firewall judge", sandbox: "Firewall sandbox" };
 
 // What a step is, in one quiet line above it: an AI model call (who, which model, time, cost; tokens on hover) or a tool
-function CallTag({ usage, took }: { usage: Usage; took: number | null }) {
+function CallTag({ usage, took, n }: { usage: Usage; took: number | null; n?: number }) {
   return (
     <span className={r.kind} title={`${num(usage.input_tokens)} tokens in · ${num(usage.output_tokens)} out`}>
-      <strong>AI model call</strong> · {WHO[usage.role] ?? usage.role} · {MODEL_NAME[usage.model] ?? usage.model}
+      <strong>AI model call{n !== undefined && ` ${n}`}</strong> · {WHO[usage.role] ?? usage.role} · {MODEL_NAME[usage.model] ?? usage.model}
       {usage.calls > 1 && ` · ${usage.calls} calls`}{took !== null && ` · ${elapsed(took)}`}
       {` · ${formatCost(usage.cost_usd, usage.pricing === "estimated")}`}
     </span>
   );
 }
 
-const ToolTag = ({ name }: { name?: string }) => <span className={r.kind}><strong>Tool</strong> · <span className={r.code}>{name}</span></span>;
+const ToolTag = ({ name, n }: { name?: string; n: number }) => <span className={r.kind}><strong>Tool call {n}</strong> · <span className={r.code}>{name}</span></span>;
 
 // An action's arguments one per line, so a long email body reads as text, not as an escaped string
 function Args({ args, struck }: { args?: Record<string, string>; struck?: boolean }) {
@@ -169,7 +169,9 @@ function Returned({ result }: { result: unknown }) {
   );
 }
 
-function InboxEvent({ item, emails, protectedRun, custom, reads, noun }: { item: InboxItem; emails: Email[]; protectedRun: boolean; custom: boolean; reads: Reads; noun: string }) {
+function InboxEvent({ item, emails, protectedRun, custom, reads, noun, toolN }: {
+  item: InboxItem; emails: Email[]; protectedRun: boolean; custom: boolean; reads: Reads; noun: string; toolN: number | null;
+}) {
   const n = emails.length;
   const counts: Record<string, number> = {};
   item.checks.forEach((c) => { counts[c.verdict ?? ""] = (counts[c.verdict ?? ""] ?? 0) + 1; });
@@ -191,8 +193,8 @@ function InboxEvent({ item, emails, protectedRun, custom, reads, noun }: { item:
   return (
     <li data-event className={r.event} style={{ "--dot": dot } as React.CSSProperties}>
       {protectedRun
-        ? <span className={r.kind}><strong>Prompt firewall</strong> · checkpoint 1{tool && item.read && <> · then tool <span className={r.code}>{tool}</span></>}</span>
-        : tool && <ToolTag name={tool} />}
+        ? <span className={r.kind}><strong>Prompt firewall</strong> · checkpoint 1{tool && toolN !== null && <> · then tool call {toolN} <span className={r.code}>{tool}</span></>}</span>
+        : tool && toolN !== null && <ToolTag name={tool} n={toolN} />}
       <div>{head}</div>
       <ul className={r.inboxRows}>
         {emails.map((e, i) => {
@@ -224,14 +226,14 @@ function InboxEvent({ item, emails, protectedRun, custom, reads, noun }: { item:
   );
 }
 
-function Event({ step, protectedRun, unsafe, noun, took }: {
-  step: Step; protectedRun: boolean; unsafe: (action: Step) => string | null; noun: string; took: number | null;
+function Event({ step, protectedRun, unsafe, noun, took, n }: {
+  step: Step; protectedRun: boolean; unsafe: (action: Step) => string | null; noun: string; took: number | null; n: number;
 }) {
   if (step.step === "model") {
     const asks = decisions(step, noun);
     return (
       <li data-event className={r.event}>
-        {step.usage && !Array.isArray(step.usage) && <CallTag usage={step.usage} took={took} />}
+        {step.usage && !Array.isArray(step.usage) && <CallTag usage={step.usage} took={took} n={n} />}
         <div>Agent {asks.length ? <>decides to {asks.join(", then ")}</> : "writes the reply to you"}</div>
         {step.reasoning && (
           <details className={s.disclosure}>
@@ -245,7 +247,7 @@ function Event({ step, protectedRun, unsafe, noun, took }: {
   if (READ_ONLY.has(step.name ?? "")) {
     return (
       <li data-event className={r.event}>
-        <ToolTag name={step.name} />
+        <ToolTag name={step.name} n={n} />
         <div className="muted">Ran: it only reads, so it is always allowed</div>
         <Returned result={step.result} />
       </li>
@@ -258,7 +260,7 @@ function Event({ step, protectedRun, unsafe, noun, took }: {
   if (blocked || why) {
     return (
       <li data-event className={r.event} style={{ "--dot": "var(--block)" } as React.CSSProperties}>
-        <ToolTag name={step.name} />
+        <ToolTag name={step.name} n={n} />
         <div data-stamp className={r.alertBox}>
           <span className={r.alertHead}>
             <StatusIcon kind={blocked ? "blocked" : "unsafe"} />
@@ -275,7 +277,7 @@ function Event({ step, protectedRun, unsafe, noun, took }: {
   }
   return (
     <li data-event className={r.event} style={{ "--dot": "var(--ink-900)" } as React.CSSProperties}>
-      <ToolTag name={step.name} />
+      <ToolTag name={step.name} n={n} />
       <div><strong>Ran</strong>{protectedRun && step.guard && <span className="muted">: the action guard allowed it ({step.guard.reason})</span>}</div>
       <Args args={step.args} />
       <Returned result={step.result} />
@@ -344,6 +346,10 @@ export default function RunResults({ jobs, seconds, scenario, custom, emails, re
         const protectedRun = m.key === "protected";
         const o = job.status === "done" ? outcome(job, scenario, custom, protectedRun, protectedRun ? undefined : jobs.protected) : null;
         const items = group(job.steps, reads);
+        // AI model calls and tool calls are numbered separately ("AI model call 3", "tool call 2"), matching the checklist's counts
+        let models = 0, tools = 0;
+        const numbered = items.map((it) => ({ it, n: it.kind === "inbox" ? (it.read ? ++tools : null)
+          : it.step.step === "model" ? ++models : it.step.step === "tool" ? ++tools : null }));
         // How long each step took: from the end of the step before it (the demo agent stamps when each one finished)
         const took = new Map<Step, number>();
         job.steps.reduce((prev, st) => { if (st.at_ms === undefined) return prev; took.set(st, st.at_ms - prev); return st.at_ms; }, 0);
@@ -369,9 +375,9 @@ export default function RunResults({ jobs, seconds, scenario, custom, emails, re
 
             {job.steps.length > 0 && (
               <ol className={r.timeline}>
-                {items.map((it, i) => it.kind === "inbox"
-                  ? <InboxEvent key={i} item={it} emails={emails} protectedRun={protectedRun} custom={custom} reads={reads} noun={noun} />
-                  : <Event key={i} step={it.step} protectedRun={protectedRun} unsafe={unsafe} noun={noun} took={took.get(it.step) ?? null} />)}
+                {numbered.map(({ it, n }, i) => it.kind === "inbox"
+                  ? <InboxEvent key={i} item={it} emails={emails} protectedRun={protectedRun} custom={custom} reads={reads} noun={noun} toolN={n} />
+                  : <Event key={i} step={it.step} protectedRun={protectedRun} unsafe={unsafe} noun={noun} took={took.get(it.step) ?? null} n={n ?? 0} />)}
               </ol>
             )}
 

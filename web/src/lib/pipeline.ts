@@ -162,7 +162,7 @@ export function pipeline(job: Job, emails: Email[], protectedRun: boolean, reads
 
   const acting = !first ? (job.status === "done" ? "skip" : "pending") : running ? (read || !asked ? "running" : "pending") : "done";
   const work: PipeItem = { key: "work", name: "Agent works on the task", state: job.status === "error" ? "off" : acting,
-    value: acting === "done" ? plural(models.length, "decision") : undefined };
+    value: acting === "done" ? `${plural(models.length, "AI model call")}, ${plural(job.steps.filter((s) => s.step === "tool").length, "tool call")}` : undefined };
 
   const reply: PipeItem = job.result?.answer ? { key: "reply", name: "Agent replies", value: "below", state: "done" }
     : job.status === "done" ? { key: "reply", name: "Agent replies", value: "it finished without writing a reply", state: "skip" }
