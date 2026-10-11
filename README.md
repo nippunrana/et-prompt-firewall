@@ -114,7 +114,7 @@ Unit tests live in `services/*/tests/` and run on every push.
 
 ## Limits
 
-No defence against prompt injection is perfect: attackers who keep adapting beat every published one. A check that needs the AI models takes about 10 seconds on a laptop. By default, an attack that no rule or classifier flags never reaches the AI models; reading everything closes most of that gap, at the cost of time and calls. What this firewall misses, and how we tested it: [known limits](docs/architecture.md#11-known-limits) and [adaptive attacks](eval/results/adaptive.md).
+No defence against prompt injection is perfect: attackers who keep adapting beat every published one. A check takes a median of 9 seconds on a laptop (90% finish within 33). By default, an attack that no rule or classifier flags never reaches the AI models; reading everything closes most of that gap, at the cost of time and calls. What this firewall misses, and how we tested it: [known limits](docs/architecture.md#11-known-limits) and [adaptive attacks](eval/results/adaptive.md).
 
 ## Credits
 
