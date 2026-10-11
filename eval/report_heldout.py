@@ -23,13 +23,17 @@ missing = [i for i in items if i not in runs]
 TYPES = ["instruction_override", "role_change", "secret_extraction", "tool_abuse", "credential_theft",
          "context_poisoning", "multi_step_jailbreak", "encoded_instructions", "indirect_injection"]
 SETS = [  # (set, label, attack?)
-    ("llmail_labelled", "LLMail-Inject attacks, typed", True), ("llmail_teams", "LLMail-Inject attacks, more teams", True),
+    ("llmail_labelled", "LLMail-Inject attacks, typed (in Wolf Defender's training data)", True),
+    ("llmail_teams", "LLMail-Inject attacks, more teams (in Wolf Defender's training data)", True),
     ("pairs_attack", "Boundary-pair attacks", True), ("judge_attack", "Attacks aimed at our judge (ours)", True),
     ("typed_attack", "Typed set for rare types (ours)", True),
-    ("enron_benign", "Enron real work email", False), ("llmail_benign", "LLMail benign emails", False),
+    ("enron_benign", "Enron real work email", False),
+    ("llmail_benign", "LLMail benign emails (in Wolf Defender's training data)", False),
     ("pairs_benign", "Boundary-pair benign twins", False), ("typed_benign", "Typed set benign twins (ours)", False),
 ]
 OURS = {"judge_attack", "typed_attack", "typed_benign"}
+# Wolf Defender was trained on LLMail-Inject, so these sets never count toward the headline (reported apart).
+LLMAIL = {"llmail_labelled", "llmail_teams", "llmail_benign"}
 ADDRESS = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 
 
@@ -81,15 +85,22 @@ for s, label, attack in SETS:
 types = []
 for t in TYPES:
     row = {"type": t}
-    for group, in_group in (("public", lambda s: s not in OURS), ("ours", lambda s: s in OURS)):
+    for group, in_group in (("fair", lambda s: s not in OURS | LLMAIL), ("llmail", lambda s: s in LLMAIL),
+                            ("ours", lambda s: s in OURS)):
         ids = [i for i, it in done.items() if it["label"] and in_group(it["set"]) and t in it.get("types", [])]
         row[group] = {"n": len(ids), "caught": sum(flagged(runs[i]) for i in ids),
                       "named": sum(t in named(runs[i]) for i in ids)}
     types.append(row)
 
-attack_ids = [i for i, it in done.items() if it["label"] and it["set"] not in OURS]
-real_benign = [i for i, it in done.items() if it["set"] in ("enron_benign", "llmail_benign")]
-ms = sorted(r["ms"] for i, r in runs.items() if i in done)
+by_set = {s["set"]: s for s in sets}
+# Files and web pages with hidden text (report_files.py on the held-out file run).
+files = json.loads((ROOT / "results" / "files-held.json").read_text()) if (ROOT / "results" / "files-held.json").exists() else None
+# The headline: public attacks that no classifier in the pipeline was trained on (boundary pairs, CrackedPDFs).
+fair_parts = [{"label": "boundary pairs", "n": by_set["pairs_attack"]["n"], "caught": by_set["pairs_attack"]["flagged"]}]
+if files:
+    cpdf = next(s for s in files["sets"] if s["set"] == "cpdf_injected_attack")
+    fair_parts.append({"label": "CrackedPDFs", "n": cpdf["n"], "caught": cpdf["flagged"]})
+ms =sorted(r["ms"] for i, r in runs.items() if i in done)
 lanes = Counter(runs[i]["lane"] for i in done)
 layer = Counter()
 for i in done:
@@ -101,8 +112,9 @@ false = [f"{i} ({done[i]['set']})" for i in done if not done[i]["label"] and fla
 
 heldout = {
     "commit": meta.get("commit"), "items": len(done), "errors": len(errors), "missing": len(missing),
-    "public_attacks": {"n": len(attack_ids), "caught": sum(flagged(runs[i]) for i in attack_ids)},
-    "real_benign": {"n": len(real_benign), "flagged": sum(flagged(runs[i]) for i in real_benign)},
+    "fair_attacks": {"n": sum(p["n"] for p in fair_parts), "caught": sum(p["caught"] for p in fair_parts), "parts": fair_parts},
+    "real_email": {"n": by_set["enron_benign"]["n"], "flagged": by_set["enron_benign"]["flagged"]},
+    "hard_benign": {"n": by_set["pairs_benign"]["n"], "flagged": by_set["pairs_benign"]["flagged"]},
     "sets": sets, "types": types,
     "median_s": round(statistics.median(ms) / 1000, 1), "p90_s": round(ms[int(0.9 * (len(ms) - 1))] / 1000, 1),
     "lanes": dict(lanes), "judge_calls": sum(runs[i].get("judge_calls", 0) for i in done),
@@ -131,8 +143,6 @@ if (DATA / "results-agent.jsonl").exists():
 scenarios = json.loads((ROOT / "results" / "scenarios.json").read_text()) \
     if (ROOT / "results" / "scenarios.json").exists() else []
 adaptive = json.loads((ROOT / "results" / "adaptive.json").read_text()) if (ROOT / "results" / "adaptive.json").exists() else None
-# Files and web pages with hidden text (report_files.py on the held-out file run).
-files = json.loads((ROOT / "results" / "files-held.json").read_text()) if (ROOT / "results" / "files-held.json").exists() else None
 
 # How often each technique appears in the LLMail-Inject attacks we labelled (eval/labels/), for the demo's
 # attack picks. One attack can use several; `plain_request` counts those that use none. Indirect injection and
@@ -152,20 +162,26 @@ lines = ["# Held-out run with the LLM layers on (D2 evidence)", "",
          f"Commit `{h['commit']}` · {h['items']} items · errors {h['errors']} · not run {h['missing']}.", "",
          "All 300 held-out items (never used to tune anything), the 10 attacks aimed at our judge, and a typed set we "
          "wrote for the attack types public data barely covers. Rows marked *ours* are our own writing and are never "
-         "blended into the public numbers.", "",
-         f"**Public held-out attacks caught: {pct(h['public_attacks']['caught'], h['public_attacks']['n'])}. "
-         f"Real email wrongly flagged: {pct(h['real_benign']['flagged'], h['real_benign']['n'])}.**", "",
+         "blended into the public numbers. Wolf Defender was trained on LLMail-Inject, so the LLMail rows are reported "
+         "apart and never count toward the headline.", "",
+         f"**Public held-out attacks no classifier in the pipeline trained on, caught: "
+         f"{pct(h['fair_attacks']['caught'], h['fair_attacks']['n'])}** ("
+         + ", ".join(f"{p['label']} {p['caught']}/{p['n']}" for p in h["fair_attacks"]["parts"])
+         + "; CrackedPDFs from [files-held.md](files-held.md)). "
+         f"**Real work email (Enron) wrongly flagged: {pct(h['real_email']['flagged'], h['real_email']['n'])}.** "
+         f"Hard benign look-alikes (boundary-pair twins) flagged: {pct(h['hard_benign']['flagged'], h['hard_benign']['n'])}.", "",
          "## Per set", "", "| Set | Kind | Flagged | Payload still reaches the AI |", "| :-- | :-- | :-- | :-- |"]
 for s in sets:
     lines.append(f"| {s['label']} | {'attack' if s['attack'] else 'benign'} | {pct(s['flagged'], s['n'])} | "
                  f"{pct(s['payload_survives'], s['payload_n']) if s['payload_n'] else '–'} |")
 lines += ["", "## Per attack type", "",
           "Caught = the item was sanitised or quarantined. Named = the firewall's answer named this type. "
-          "An item can carry several types.", "",
-          "| Type | Public: caught | Public: named | Ours: caught | Ours: named |", "| :-- | :-- | :-- | :-- | :-- |"]
+          "An item can carry several types. Fair public = boundary pairs; LLMail = in Wolf Defender's training data.", "",
+          "| Type | Fair public: caught | Fair public: named | LLMail: caught | LLMail: named | Ours: caught | Ours: named |",
+          "| :-- | :-- | :-- | :-- | :-- | :-- | :-- |"]
 for t in types:
-    p, o = t["public"], t["ours"]
-    lines.append(f"| {t['type']} | {pct(p['caught'], p['n'])} | {pct(p['named'], p['n'])} | {pct(o['caught'], o['n'])} | {pct(o['named'], o['n'])} |")
+    lines.append(f"| {t['type']} | " + " | ".join(f"{pct(g['caught'], g['n'])} | {pct(g['named'], g['n'])}"
+                                                  for g in (t["fair"], t["llmail"], t["ours"])) + " |")
 lines += ["", "## How the layers were used", "",
           f"- Lanes: {h['lanes']}. Only `unsure` and `clear_attack` reach the judge and sandbox.",
           f"- Judge calls {h['judge_calls']}, sandbox runs {h['sandbox_runs']}, judge failures {h['judge_failed']}.",

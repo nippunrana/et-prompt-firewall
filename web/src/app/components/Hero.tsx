@@ -40,8 +40,8 @@ export default function Hero({ selected, onPick }: { selected: string | null; on
           </div>
           <p className={s.proof}>
             <span className={s.proofLabel}>Held-out tests</span>
-            <span><strong>{h.public_attacks.caught} of {h.public_attacks.n}</strong> public attacks caught</span>
-            <span><strong>{h.real_benign.flagged} of {h.real_benign.n}</strong> real emails wrongly flagged</span>
+            <span><strong>{h.fair_attacks.caught} of {h.fair_attacks.n}</strong> public attacks caught</span>
+            <span><strong>{h.real_email.flagged} of {h.real_email.n}</strong> real emails wrongly flagged</span>
           </p>
         </div>
 

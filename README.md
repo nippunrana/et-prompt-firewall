@@ -33,33 +33,40 @@ It names nine attack types: instruction override, role change, secret extraction
 
 ## Results
 
-Measured on held-out data the firewall was never tuned on. Details, per-item IDs and method: [`eval/results/`](eval/results/README.md).
+Measured on held-out data the firewall was never tuned on. The headline uses only public data that no classifier in the pipeline was trained on: Wolf Defender was trained on LLMail-Inject, so LLMail results are reported apart. Details, per-item IDs and method: [`eval/results/`](eval/results/README.md).
 
 | Measure | Result |
 | :--- | :--- |
-| Public held-out attacks caught (LLMail-Inject, boundary pairs) | **115 / 120 (96%)** |
-| Real email wrongly flagged (Enron, LLMail benign) | **0 / 140 (0%)** |
-| Attacker's address still reaching the AI after cleaning (LLMail) | 5 / 90 (6%) |
-| Injected PDFs caught (CrackedPDFs) → benign originals / look-alikes flagged | **49 / 50** → 0 / 50 · 11 / 50 |
-| LLMail attacks hidden in HTML / Word files we generated → benign twins flagged | 30 / 30 · 29 / 30 → 0 / 60 |
-| Attack emails that made the unprotected agent send data out → with the tool-call guard | **12 → 0** (of 33) |
+| Public held-out attacks caught (boundary pairs 26/30, CrackedPDFs 49/50) | **75 / 80 (94%)** |
+| Real work email wrongly flagged (Enron) | **0 / 100 (0%)** |
+| Hard benign look-alikes wrongly flagged (boundary-pair twins: near-copies of the attacks, written as requests to an AI) | 9 / 40 (22%) |
+| Benign PDFs flagged (CrackedPDFs): originals · look-alikes that hide ordinary text the same way | 0 / 50 · 11 / 50 |
+| Attack emails that made the unprotected agent send data out → with the tool-call guard (plain code, no classifier) | **12 → 0** (of 33) |
 | Legitimate send, forward and pay requests completed with full protection | 8 / 8 |
 
-Per attack type (held-out; *ours* = sets we wrote for types public data barely covers, reported apart):
+In Wolf Defender's training data (LLMail-Inject), so reported apart:
 
-| Type | Caught | Type named |
-| :--- | :--- | :--- |
-| Instruction override | 9/9 | 8/9 |
-| Role change | 16/18 | 4/18 |
-| Secret extraction | 5/5 · ours 5/5 | 4/5 · ours 3/5 |
-| Tool abuse | 89/90 | 88/90 |
-| Credential theft | ours 6/6 | ours 4/6 |
-| Context poisoning | 13/14 | 3/14 |
-| Multi-step jailbreak | ours 6/6 | ours 1/6 |
-| Encoded instructions | 7/7 · ours 5/5 | 4/7 · ours 4/5 |
-| Indirect injection | 93/95 · ours 22/22 | 93/95 · ours 22/22 |
+| Measure | Result |
+| :--- | :--- |
+| LLMail-Inject held-out attacks caught · benign emails flagged | 89 / 90 · 0 / 40 |
+| Attacker's address still reaching the AI after cleaning | 5 / 90 (6%) |
+| LLMail attacks hidden in HTML / Word files we generated → their benign twins flagged | 30 / 30 · 29 / 30 → 0 / 60 |
 
-"Caught" means the attack was removed or the content withheld; the type is sometimes named differently (a fake approval is often named instruction override rather than context poisoning). Without the LLM layers, the local detectors alone wrongly flag 25% of real email (305 of 1,203; [v7.md](eval/results/v7.md)): the judge is what makes the firewall usable on ordinary mail. A check takes a median of 10.4 s on a laptop with the LLM layers on (a file, 17.6 s).
+Per attack type (held-out). Each cell is caught (type named). *Fair public* = boundary pairs; *ours* = sets we wrote for types public data barely covers, reported apart:
+
+| Type | Fair public | LLMail-Inject (in Wolf's training) | Ours |
+| :--- | :--- | :--- | :--- |
+| Instruction override | 3/3 (3/3) | 6/6 (5/6) | – |
+| Role change | 6/8 (2/8) | 10/10 (2/10) | – |
+| Secret extraction | 4/4 (4/4) | 1/1 (0/1) | 5/5 (3/5) |
+| Tool abuse | – | 89/90 (88/90) | – |
+| Credential theft | – | – | 6/6 (4/6) |
+| Context poisoning | 4/5 (2/5) | 9/9 (1/9) | – |
+| Multi-step jailbreak | – | – | 6/6 (1/6) |
+| Encoded instructions | 5/5 (3/5) | 2/2 (1/2) | 5/5 (4/5) |
+| Indirect injection | 4/5 (4/5) | 89/90 (89/90) | 22/22 (22/22) |
+
+"Caught" means the attack was removed or the content withheld; the type is sometimes named differently (a fake approval is often named instruction override rather than context poisoning). Tool abuse has no fair public item in the held-out set; its evidence that no classifier was trained on is the tool-call guard, plain code that took harmful sends from 12 to 0 of 33. Without the LLM layers, the local detectors alone wrongly flag 30% of real work email (305 of 1,000 Enron emails; [v7.md](eval/results/v7.md)): the judge is what makes the firewall usable on ordinary mail. A check takes a median of 10.4 s on a laptop with the LLM layers on (a file, 17.6 s).
 
 ## Run it locally
 

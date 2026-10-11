@@ -1,6 +1,6 @@
 # Evaluation results
 
-Numbers and item IDs only; the email text stays in `eval/data/` (gitignored). Every run is on data the firewall was never tuned on, unless a file says otherwise.
+Numbers and item IDs only; the email text stays in `eval/data/` (gitignored). Every run is on data the firewall was never tuned on, unless a file says otherwise. Wolf Defender, the firewall's first classifier, was trained on LLMail-Inject, so LLMail results are labelled as such and never count toward a headline.
 
 ## Current
 

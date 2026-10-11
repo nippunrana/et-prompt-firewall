@@ -4,18 +4,34 @@
   "items": 340,
   "errors": 0,
   "missing": 0,
-  "public_attacks": {
-   "n": 120,
-   "caught": 115
+  "fair_attacks": {
+   "n": 80,
+   "caught": 75,
+   "parts": [
+    {
+     "label": "boundary pairs",
+     "n": 30,
+     "caught": 26
+    },
+    {
+     "label": "CrackedPDFs",
+     "n": 50,
+     "caught": 49
+    }
+   ]
   },
-  "real_benign": {
-   "n": 140,
+  "real_email": {
+   "n": 100,
    "flagged": 0
+  },
+  "hard_benign": {
+   "n": 40,
+   "flagged": 9
   },
   "sets": [
    {
     "set": "llmail_labelled",
-    "label": "LLMail-Inject attacks, typed",
+    "label": "LLMail-Inject attacks, typed (in Wolf Defender's training data)",
     "attack": true,
     "ours": false,
     "n": 30,
@@ -25,7 +41,7 @@
    },
    {
     "set": "llmail_teams",
-    "label": "LLMail-Inject attacks, more teams",
+    "label": "LLMail-Inject attacks, more teams (in Wolf Defender's training data)",
     "attack": true,
     "ours": false,
     "n": 60,
@@ -75,7 +91,7 @@
    },
    {
     "set": "llmail_benign",
-    "label": "LLMail benign emails",
+    "label": "LLMail benign emails (in Wolf Defender's training data)",
     "attack": false,
     "ours": false,
     "n": 40,
@@ -107,10 +123,15 @@
   "types": [
    {
     "type": "instruction_override",
-    "public": {
-     "n": 9,
-     "caught": 9,
-     "named": 8
+    "fair": {
+     "n": 3,
+     "caught": 3,
+     "named": 3
+    },
+    "llmail": {
+     "n": 6,
+     "caught": 6,
+     "named": 5
     },
     "ours": {
      "n": 0,
@@ -120,10 +141,15 @@
    },
    {
     "type": "role_change",
-    "public": {
-     "n": 18,
-     "caught": 16,
-     "named": 4
+    "fair": {
+     "n": 8,
+     "caught": 6,
+     "named": 2
+    },
+    "llmail": {
+     "n": 10,
+     "caught": 10,
+     "named": 2
     },
     "ours": {
      "n": 0,
@@ -133,10 +159,15 @@
    },
    {
     "type": "secret_extraction",
-    "public": {
-     "n": 5,
-     "caught": 5,
+    "fair": {
+     "n": 4,
+     "caught": 4,
      "named": 4
+    },
+    "llmail": {
+     "n": 1,
+     "caught": 1,
+     "named": 0
     },
     "ours": {
      "n": 5,
@@ -146,7 +177,12 @@
    },
    {
     "type": "tool_abuse",
-    "public": {
+    "fair": {
+     "n": 0,
+     "caught": 0,
+     "named": 0
+    },
+    "llmail": {
      "n": 90,
      "caught": 89,
      "named": 88
@@ -159,7 +195,12 @@
    },
    {
     "type": "credential_theft",
-    "public": {
+    "fair": {
+     "n": 0,
+     "caught": 0,
+     "named": 0
+    },
+    "llmail": {
      "n": 0,
      "caught": 0,
      "named": 0
@@ -172,10 +213,15 @@
    },
    {
     "type": "context_poisoning",
-    "public": {
-     "n": 14,
-     "caught": 13,
-     "named": 3
+    "fair": {
+     "n": 5,
+     "caught": 4,
+     "named": 2
+    },
+    "llmail": {
+     "n": 9,
+     "caught": 9,
+     "named": 1
     },
     "ours": {
      "n": 0,
@@ -185,7 +231,12 @@
    },
    {
     "type": "multi_step_jailbreak",
-    "public": {
+    "fair": {
+     "n": 0,
+     "caught": 0,
+     "named": 0
+    },
+    "llmail": {
      "n": 0,
      "caught": 0,
      "named": 0
@@ -198,10 +249,15 @@
    },
    {
     "type": "encoded_instructions",
-    "public": {
-     "n": 7,
-     "caught": 7,
-     "named": 4
+    "fair": {
+     "n": 5,
+     "caught": 5,
+     "named": 3
+    },
+    "llmail": {
+     "n": 2,
+     "caught": 2,
+     "named": 1
     },
     "ours": {
      "n": 5,
@@ -211,10 +267,15 @@
    },
    {
     "type": "indirect_injection",
-    "public": {
-     "n": 95,
-     "caught": 93,
-     "named": 93
+    "fair": {
+     "n": 5,
+     "caught": 4,
+     "named": 4
+    },
+    "llmail": {
+     "n": 90,
+     "caught": 89,
+     "named": 89
     },
     "ours": {
      "n": 22,

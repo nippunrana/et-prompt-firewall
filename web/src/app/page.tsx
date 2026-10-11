@@ -20,7 +20,7 @@ export default async function Home() {
         {
           label: "Results",
           title: "Measured results",
-          intro: <>Measured on data the firewall was never tuned on: public benchmarks (Microsoft&apos;s LLMail-Inject, agentic boundary pairs, Enron real email) plus sets we wrote, always shown apart. Run on a laptop with every layer on; the full method and per-item IDs are in <code>eval/results/</code> on GitHub.</>,
+          intro: <>Measured on data the firewall was never tuned on: public benchmarks (Microsoft&apos;s LLMail-Inject, agentic boundary pairs, Enron real email) plus sets we wrote, always shown apart. The headline numbers use only public data no classifier here was trained on; LLMail-Inject is in Wolf Defender&apos;s training data, so it is shown apart too. Run on a laptop with every layer on; the full method and per-item IDs are in <code>eval/results/</code> on GitHub.</>,
           content: <Dashboard />,
         },
         {

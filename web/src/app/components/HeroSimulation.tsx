@@ -385,8 +385,8 @@ export default function HeroSimulation() {
           </div>
         </div>
         <p className={s.stats}>
-          Held-out tests: <strong>{h.public_attacks.caught} of {h.public_attacks.n}</strong> public attacks caught ·{" "}
-          <strong>{h.real_benign.flagged} of {h.real_benign.n}</strong> real emails wrongly flagged
+          Held-out tests: <strong>{h.fair_attacks.caught} of {h.fair_attacks.n}</strong> public attacks caught ·{" "}
+          <strong>{h.real_email.flagged} of {h.real_email.n}</strong> real emails wrongly flagged
         </p>
       </div>
     </div>

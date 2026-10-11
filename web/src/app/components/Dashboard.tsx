@@ -46,10 +46,10 @@ export default function Dashboard() {
   return (
     <div>
       <div className={s.tiles}>
-        <Tile value={pctText(h.public_attacks.caught, h.public_attacks.n)} label="Public held-out attacks caught"
-          detail={`${h.public_attacks.caught} of ${h.public_attacks.n} attacks sanitised or quarantined`} />
-        <Tile value={pctText(h.real_benign.flagged, h.real_benign.n)} label="Real email wrongly flagged"
-          detail={`${h.real_benign.flagged} of ${h.real_benign.n} Enron and LLMail benign emails`} />
+        <Tile value={pctText(h.fair_attacks.caught, h.fair_attacks.n)} label="Public held-out attacks caught"
+          detail={`${h.fair_attacks.caught} of ${h.fair_attacks.n} sanitised or quarantined (${h.fair_attacks.parts.map((p) => `${p.label} ${p.caught}/${p.n}`).join(", ")}); data no classifier here was trained on`} />
+        <Tile value={pctText(h.real_email.flagged, h.real_email.n)} label="Real email wrongly flagged"
+          detail={`${h.real_email.flagged} of ${h.real_email.n} Enron work emails; hard look-alike requests: ${h.hard_benign.flagged} of ${h.hard_benign.n}`} />
         {agent && (
           <Tile value={`${agent.unprotected_harmful} → ${agent.guard_harmful}`} label="Harmful agent actions"
             detail={`Of ${agent.attacks} attack emails, ${agent.unprotected_harmful} made the unprotected agent send data out; with the tool-call guard, ${agent.guard_harmful}.`} />
@@ -63,19 +63,22 @@ export default function Dashboard() {
       <h2 className={s.section}>Detection by attack type</h2>
       <p className={s.note}>
         Caught = sanitised or quarantined. Named = the firewall&apos;s answer names this type. Tool abuse and credential theft are also
-        stopped at checkpoint 2 (the tool-call guard), which names them when it blocks an action.
+        stopped at checkpoint 2 (the tool-call guard), which names them when it blocks an action. Fair public = boundary pairs;
+        LLMail-Inject is in Wolf Defender&apos;s training data, so it is shown apart.
       </p>
       <div className="table-wrap">
         <table className="table">
           <thead>
-            <tr><th>Type</th><th>Public: caught</th><th>Public: named</th><th>Ours: caught</th><th>Ours: named</th></tr>
+            <tr><th>Type</th><th>Fair public: caught</th><th>Fair public: named</th><th>LLMail: caught</th><th>LLMail: named</th><th>Ours: caught</th><th>Ours: named</th></tr>
           </thead>
           <tbody>
-            {h.types.map((t: { type: string; public: Count; ours: Count }) => (
+            {h.types.map((t: { type: string; fair: Count; llmail: Count; ours: Count }) => (
               <tr key={t.type}>
                 <td className={s.rowHead}>{pretty(t.type)}</td>
-                <td><Rate n={t.public.caught} d={t.public.n} /></td>
-                <td><Rate n={t.public.named} d={t.public.n} /></td>
+                <td><Rate n={t.fair.caught} d={t.fair.n} /></td>
+                <td><Rate n={t.fair.named} d={t.fair.n} /></td>
+                <td><Rate n={t.llmail.caught} d={t.llmail.n} /></td>
+                <td><Rate n={t.llmail.named} d={t.llmail.n} /></td>
                 <td><Rate n={t.ours.caught} d={t.ours.n} /></td>
                 <td><Rate n={t.ours.named} d={t.ours.n} /></td>
               </tr>
@@ -113,7 +116,8 @@ export default function Dashboard() {
           <p className={s.note}>
             Held-out files, every layer on. PDFs are CrackedPDFs (public, 2026): each injected PDF has a benign original and a benign
             look-alike hidden the same way. HTML and Word are public LLMail attacks hidden in pages and files we generated, each with a
-            twin carrying ordinary hidden content; they are our construction, so they are shown apart.
+            twin carrying ordinary hidden content; they are our construction, and LLMail-Inject is in Wolf Defender&apos;s training data, so
+            they are shown apart.
           </p>
           <div className="table-wrap">
             <table className="table">
