@@ -18,6 +18,18 @@ export function highlight(text: string, attacks: Attack[]) {
   return parts;
 }
 
+// Small line icons, so each button shows what it does before it is pressed
+const ICON = {
+  compare: <path d="M2 3h5v10H2zM9 3h5v10H9z" />,
+  json: <path d="M6 2.5c-1.5 0-2 .7-2 2v1.5c0 1-.5 1.5-1.5 2 1 .5 1.5 1 1.5 2v1.5c0 1.3.5 2 2 2M10 2.5c1.5 0 2 .7 2 2v1.5c0 1 .5 1.5 1.5 2-1 .5-1.5 1-1.5 2v1.5c0 1.3-.5 2-2 2" />,
+  copy: <path d="M5 5h8v8H5zM3 11V3h8" />,
+  popup: <path d="M9 3h4v4M13 3 7.5 8.5M11 9.5V13H3V5h3.5" />,
+};
+const Icon = ({ name }: { name: keyof typeof ICON }) => (
+  <svg className={o.icon} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"
+    strokeLinejoin="round" aria-hidden="true">{ICON[name]}</svg>
+);
+
 // A modal <dialog>: it sits in the top layer, above the run drawer. Escape closes only the pop-up, since
 // the drawer behind it listens for Escape on the window; a click on the backdrop closes it too.
 function Popup({ open, label, wide, children }: {
@@ -83,21 +95,24 @@ export default function FirewallOutput({ verdict, cleanContent, removed, origina
     <>
     <details className={o.output} open={open}>
       <summary className={o.summary}>
+        <svg className={o.chevron} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"
+          strokeLinejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" /></svg>
         Firewall output <span className={o.call}>POST /check →</span>
         <code className={o.verdict}>verdict: &quot;{verdict}&quot;</code>
         <span className={`pill pill--${verdict}`}>{VERDICT_LABEL[verdict] ?? verdict}</span>
         <span className={o.actions}>
           {original !== undefined && cleanContent !== undefined && (
-            <button type="button" className="btn btn--ghost" onClick={(e) => { e.preventDefault(); compare.current?.showModal(); }}>
-              Compare with original
+            <button type="button" className="btn" title="Opens a pop-up" onClick={(e) => { e.preventDefault(); compare.current?.showModal(); }}>
+              <Icon name="compare" /> Compare with original <Icon name="popup" />
             </button>
           )}
           {cleanContent !== undefined && (
-            <button type="button" className="btn btn--ghost" onClick={(e) => { e.preventDefault(); json.current?.showModal(); }}>
-              JSON output
+            <button type="button" className="btn" title="Opens a pop-up" onClick={(e) => { e.preventDefault(); json.current?.showModal(); }}>
+              <Icon name="json" /> JSON output <Icon name="popup" />
             </button>
           )}
         </span>
+        <span className={o.toggle} aria-hidden="true"><span className={o.show}>Show</span><span className={o.hide}>Hide</span></span>
       </summary>
 
       <div className={o.field}>
@@ -107,7 +122,7 @@ export default function FirewallOutput({ verdict, cleanContent, removed, origina
             : verdict === "allow" ? "the content as it came in: nothing needed cutting" : "the cleaned content, safe to pass on"}
         </span>
         {typeof cleanContent === "string" && (
-          <button type="button" className={`btn btn--ghost ${o.copy}`} onClick={() => copyText(cleanContent)}>{copyLabel("Copy")}</button>
+          <button type="button" className={`btn ${o.copy}`} onClick={() => copyText(cleanContent)}><Icon name="copy" /> {copyLabel("Copy")}</button>
         )}
       </div>
       {cleanBox}
@@ -141,7 +156,7 @@ export default function FirewallOutput({ verdict, cleanContent, removed, origina
         The fields a caller acts on, from this check (POST /check). The full response also carries the attacks found,
         the classifier scores, the judge&apos;s and sandbox&apos;s results, timings and cost.
       </p>
-      <button type="button" className={`btn btn--ghost ${o.copy}`} onClick={() => copyText(response)}>{copyLabel("Copy JSON")}</button>
+      <button type="button" className={`btn ${o.copy}`} onClick={() => copyText(response)}><Icon name="copy" /> {copyLabel("Copy JSON")}</button>
       <pre className={o.json}>{response}</pre>
     </Popup>
     </>
