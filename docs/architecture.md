@@ -29,12 +29,13 @@ flowchart TB
 flowchart LR
     B["Browser"] --> W["web<br/>Next.js UI + API routes"]
     W --> F["firewall<br/>FastAPI + LangGraph<br/>/check · /check/stream · /guard · /audit · /extract-text"]
-    W --> A["demo-agent<br/>FastAPI + LangGraph<br/>/runs · /scenarios"]
+    W --> A["demo-agent<br/>FastAPI + LangGraph<br/>/runs · /scenarios · /records"]
     A --> F
     F --> G["Gemini API<br/>Gemma 4 31B (judge)"]
     F --> O["OpenRouter<br/>Qwen3-next-80B (sandbox)"]
     A --> O2["OpenRouter<br/>Qwen3-next-80B (agent)"]
     F --- V[("volume: audit log,<br/>guard review log")]
+    A --- R[("volume: shared<br/>run records")]
 ```
 
 | Service | What runs in it | Notes |
@@ -154,7 +155,7 @@ The input type is stated, never guessed, and decides the front end; after it, ev
 The system never pauses for approval: the firewall decides, the agent acts or is blocked. Oversight is after the fact:
 
 - **Audit log** (`GET /audit`): every content check (verdict, lane, types, cuts, which layer cut) and every outgoing action the guard decided on (decision, types, reason), for whoever runs the firewall. It stores a hash and the length of the checked text, never the text itself, so a public demo never keeps what visitors paste.
-- **Run records** (the UI's Audit log tab): every run of the two agents, both lanes, kept whole in the visitor's own browser (localStorage, the newest 50). Each opens as a replay: how each lane ended, a timeline of every step on one time axis, what ran and what failed and why, then every check and action. The prototype has no database and no shared run history by design, so no visitor can see another's runs. The server still handles the text while a run lasts: the demo agent keeps its newest 50 jobs in memory, the guard review log keeps the arguments of the actions it reviews, and the model providers see what they are sent.
+- **Run records** (the UI's Audit log tab): every run of the two agents, both lanes, kept whole. The visitor chooses where: in their own browser (localStorage, the newest 50; the default), or shared with everyone in a file on the server (the demo agent's `/records`, the newest 50, text included). Each opens as a replay: how each lane ended, a timeline of every step on one time axis, what ran and what failed and why, then every check and action. The prototype has no database by design; a run saved locally has no shared copy, so other visitors cannot see it. The server still handles the text while a run lasts: the demo agent keeps its newest 50 jobs in memory, the guard review log keeps the arguments of the actions it reviews, and the model providers see what they are sent.
 - **Guard review log:** blocked actions, plus allowed actions a human would normally have been asked about (any payment, delete, or new outside recipient), with their arguments, for setting rules later.
 - **Every `/check` answer carries a trace** (each stage and its time) and its warnings (for example, "judge unavailable"). `/check/stream` runs the same check and reports each stage as it finishes; the demo's run drawer shows them live.
 

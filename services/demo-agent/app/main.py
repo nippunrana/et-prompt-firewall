@@ -2,16 +2,17 @@
 It can also read one shared document, or take a pasted message as its request, for the other input types."""
 
 import asyncio
+import json
 import secrets
 import threading
 import time
 from collections import OrderedDict
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from app import agent
+from app import agent, records
 from app.llm import chat_from_env
 from app.scenarios import BENIGN_INBOX, CONTACTS, SCENARIOS
 
@@ -120,3 +121,27 @@ def get_run(job_id: str) -> dict:
     if job is None:
         raise HTTPException(status_code=404, detail="No such run (it may have expired).")
     return job
+
+
+@app.post("/records")
+async def share_record(request: Request) -> dict:
+    """Shares a finished run record with everyone who opens the audit log (the visitor chose "For everyone")."""
+    body = await request.body()
+    if len(body) > records.MAX_BYTES:
+        raise HTTPException(status_code=413, detail="This run is too large to share.")
+    try:
+        record = json.loads(body)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Not JSON.")
+    if not isinstance(record, dict) or not isinstance(record.get("id"), str) or not isinstance(record.get("jobs"), dict):
+        raise HTTPException(status_code=422, detail="Not a run record.")
+    try:
+        records.save(record)
+    except OSError as e:
+        raise HTTPException(status_code=503, detail=f"Could not save the run on the server ({type(e).__name__}).")
+    return {"ok": True}
+
+
+@app.get("/records")
+def shared_records() -> dict:
+    return {"records": records.recent()}

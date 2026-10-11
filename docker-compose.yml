@@ -39,6 +39,9 @@ services:
       FIREWALL_URL: http://firewall:8000
       # The agent's model. Optional: without it /run answers 503 and the rest of the stack still runs.
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+    volumes:
+      # Run records visitors chose to share with everyone ("For everyone" in the audit log)
+      - run-records:/data
     cpus: 0.5
     mem_limit: 512m
     healthcheck:
@@ -77,3 +80,4 @@ secrets:
 
 volumes:
   guard-review:
+  run-records:

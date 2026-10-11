@@ -26,7 +26,7 @@ export default async function Home() {
         {
           label: "Audit log",
           title: "Audit log",
-          intro: "No step waits for a person: this record is how you check afterwards what the firewall decided, and why. Every run of the two agents is kept whole. Open one to see how each agent ended, a timeline of every step, what ran and what failed, then every check and action. A prototype with no database, by design: this history is kept only in your browser, with no shared copy, so other visitors cannot see your runs, and Clear history deletes it. The firewall's own decision log keeps verdicts and reasons, never the checked text.",
+          intro: "No step waits for a person: this record is how you check afterwards what the firewall decided, and why. Every run of the two agents is kept whole. Open one to see how each agent ended, a timeline of every step, what ran and what failed, then every check and action. A prototype with no database, by design: you choose where each run is saved. Locally, the default, it stays in this browser and no one else can see it; for everyone, it goes to a shared file on the server, text included. The firewall's own decision log keeps verdicts and reasons, never the checked text.",
           content: <AuditLog />,
         },
       ]}

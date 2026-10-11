@@ -9,7 +9,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 
-RUN useradd --system --uid 1001 app
+# /data holds the run records visitors share; Compose mounts a named volume there.
+RUN useradd --system --uid 1001 app \
+    && mkdir -p /data && chown app /data
 USER app
 
 EXPOSE 8000
