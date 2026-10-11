@@ -24,17 +24,13 @@ export default function SaveScope() {
     };
   }, []);
 
+  const current = SCOPES.find((x) => x.key === scope)!;
   return (
-    <div className={s.scope}>
+    <label className={s.scope}>
       <span className={s.scopeLabel}>Runs saved to</span>
-      <div className={s.segmented} role="radiogroup" aria-label="Where new runs are saved">
-        {SCOPES.map((x) => (
-          <button key={x.key} role="radio" aria-checked={scope === x.key} title={x.title} className={s.segment}
-            onClick={() => setScope(x.key)}>
-            {x.label}
-          </button>
-        ))}
-      </div>
-    </div>
+      <select className={s.select} value={scope} title={current.title} onChange={(e) => setScope(e.target.value as Scope)}>
+        {SCOPES.map((x) => <option key={x.key} value={x.key} title={x.title}>{x.label}</option>)}
+      </select>
+    </label>
   );
 }

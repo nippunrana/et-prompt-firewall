@@ -25,17 +25,13 @@ export default function LlmModeSwitch() {
     };
   }, []);
 
+  const current = MODES.find((x) => x.key === mode)!;
   return (
-    <div className={s.scope}>
+    <label className={s.scope}>
       <span className={s.scopeLabel}>AI checks on</span>
-      <div className={s.segmented} role="radiogroup" aria-label="When the AI judge and sandbox run">
-        {MODES.map((x) => (
-          <button key={x.key} role="radio" aria-checked={mode === x.key} title={x.title} className={s.segment}
-            onClick={() => setLlmMode(x.key)}>
-            {x.label}
-          </button>
-        ))}
-      </div>
-    </div>
+      <select className={s.select} value={mode} title={current.title} onChange={(e) => setLlmMode(e.target.value as LlmMode)}>
+        {MODES.map((x) => <option key={x.key} value={x.key} title={x.title}>{x.label}</option>)}
+      </select>
+    </label>
   );
 }

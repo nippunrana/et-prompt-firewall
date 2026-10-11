@@ -1,4 +1,3 @@
-import { serviceStatus } from "@/lib/services";
 import AppShell from "./components/AppShell";
 import AuditLog from "./components/AuditLog";
 import Dashboard from "./components/Dashboard";
@@ -8,13 +7,10 @@ export const dynamic = "force-dynamic";
 
 const REPO = "https://github.com/nippunrana/et-prompt-firewall";
 
-export default async function Home() {
-  const services = await serviceStatus();
-
+export default function Home() {
   return (
     <AppShell
       repo={REPO}
-      status={[["Web", "ok"], ["Firewall", services.firewall], ["Demo agent", services.demoAgent]]}
       views={[
         { label: "Try it", content: <TryIt /> },
         {
