@@ -203,5 +203,16 @@ Public = boundary pairs, which no classifier in the pipeline trained on; LLMail-
 
 **Depth: D2** (mostly textual input, high demonstrable reliability). On held-out public data no classifier here trained on: 75 of 80 attacks caught, 1 of 100 real work emails wrongly flagged, harmful agent actions 12 → 0 of 33 with 8 of 8 legitimate tasks completed. PDFs reach the same level (CrackedPDFs: 49/50 caught, 0/50 benign originals flagged).
 
+**Beyond text: every format is handled and measured** (held-out, every layer on):
+
+| Format | Attacks caught | Benign flagged | Data |
+| :--- | :--- | :--- | :--- |
+| PDF | 49 / 50 | 0 / 50 originals; 11 / 50 look-alikes | CrackedPDFs (public) |
+| HTML | 30 / 30 | 0 / 30 twins | LLMail-Inject attacks hidden in pages we generated |
+| Word | 29 / 30 | 0 / 30 twins | LLMail-Inject attacks hidden in files we generated |
+| Image (OCR) | 21 / 30 | 13 / 40 twins; 2 / 30 real emails | Boundary pairs and Enron rendered as screenshots |
+
+Details: [`eval/results/files-held.md`](../eval/results/files-held.md), [`eval/results/images-held.md`](../eval/results/images-held.md).
+
 **Why not D3.** D3 needs highly heterogeneous multimodal input at the same reliability. HTML, Word, PDF and images all work in the demo, but images were measured below the bar we set before the run (21/30 attacks, 13/40 benign look-alikes flagged; [`eval/results/images-held.md`](../eval/results/images-held.md)), and the HTML and Word results use attacks from Wolf Defender's training data. We claim only what the measurements carry.
 

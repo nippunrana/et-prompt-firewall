@@ -33,7 +33,7 @@ It names nine attack types: instruction override, role change, secret extraction
 
 ## Results
 
-**Self-declared grid position: F3 × D2** (all 9 attack types; text reliability measured; images work but measured below text). The justification, type by type: [docs/architecture.md §12](docs/architecture.md#12-grid-position-self-declared-f3--d2).
+**Self-declared grid position: F3 × D2** (all 9 attack types; text reliability measured). PDF, HTML, Word and images are handled and measured too: attacks caught 49/50, 30/30, 29/30 and 21/30; images are below text, so we do not claim D3. The justification, type by type: [docs/architecture.md §12](docs/architecture.md#12-grid-position-self-declared-f3--d2).
 
 Measured on held-out data the firewall was never tuned on. The headline uses only public data that no classifier in the pipeline was trained on: Wolf Defender was trained on LLMail-Inject, so LLMail results are reported apart. Details, per-item IDs and method: [`eval/results/`](eval/results/README.md).
 
