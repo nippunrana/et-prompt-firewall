@@ -38,8 +38,8 @@ Measured on held-out data the firewall was never tuned on. The headline uses onl
 | Measure | Result |
 | :--- | :--- |
 | Public held-out attacks caught (boundary pairs 26/30, CrackedPDFs 49/50) | **75 / 80 (94%)** |
-| Real work email wrongly flagged (Enron) | **0 / 100 (0%)** |
-| Hard benign look-alikes wrongly flagged (boundary-pair twins: near-copies of the attacks, written as requests to an AI) | 9 / 40 (22%) |
+| Real work email wrongly flagged (Enron; the one: the AI judge did not answer within 60 s, so the firewall cut, failing closed) | **1 / 100 (1%)** |
+| Hard benign look-alikes wrongly flagged (boundary-pair twins: near-copies of the attacks, written as requests to an AI) | 8 / 40 (20%) |
 | Benign PDFs flagged (CrackedPDFs): originals · look-alikes that hide ordinary text the same way | 0 / 50 · 11 / 50 |
 | Attack emails that made the unprotected agent send data out → with the tool-call guard (plain code, no classifier) | **12 → 0** (of 33) |
 | Legitimate send, forward and pay requests completed with full protection | 8 / 8 |
