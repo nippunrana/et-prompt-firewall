@@ -8,13 +8,19 @@ import { duration, gsap, useGSAP } from "@/lib/motion";
 import { StepHeader } from "./AgentDemo";
 import DocumentExtractor from "./DocumentExtractor";
 import EmailCheck, { type CheckState } from "./EmailCheck";
+import { Mark, Text } from "./Pipeline";
 import RunDrawer from "./RunDrawer";
 import RunResults from "./RunResults";
 import { useAgentRuns } from "./useAgentRuns";
 import s from "./demo.module.css";
+import p from "./pipeline.module.css";
 
 const IDLE: CheckState = { loading: false, error: null, result: null, text: "", ms: 0 };
 const MAX_REQUEST = 2000; // the demo agent's limit on a request, which a pasted user message becomes
+// What reads each file type's text before either agent sees it (services/firewall/app/ocr.py)
+const READERS: Record<string, string> = {
+  pdf: "pdfplumber, with RapidOCR for scanned pages", word: "python-docx", image: "RapidOCR and RapidTable",
+};
 
 // Every type except email (the inbox): the input goes to two copies of the same agent, with and without the
 // firewall, or is checked on its own. `first` is the number of its first step. The parent gives it a `key` per type,
@@ -87,7 +93,10 @@ export default function ContentCheck({ type, first }: { type: InputType; first: 
     }
     let document: Record<string, unknown> = { text, source: type.source, format: type.format };
     if (type.form === "file" && file) {
+      // The drawer opens at once and shows the file being read, so the click never looks stuck
+      setRanAs(file.name);
       setPreparing(true);
+      runs.setDrawerOpen(true);
       try {
         const form = new FormData();
         form.append("file", file.blob, file.name);
@@ -97,6 +106,7 @@ export default function ContentCheck({ type, first }: { type: InputType; first: 
         if (!data.text?.trim()) throw new Error("No text could be found in this file.");
         document = { text: data.text, source: "document", format: "text", hidden: data.hidden ?? [] };
       } catch (error) {
+        runs.setDrawerOpen(false);
         return setRunError(error instanceof Error ? error.message : "Could not read the file.");
       } finally {
         setPreparing(false);
@@ -114,7 +124,7 @@ export default function ContentCheck({ type, first }: { type: InputType; first: 
       <button className="btn btn--primary" onClick={runBoth} disabled={busy || !ready || (!isMessage && !request.trim())}>
         {preparing ? "Reading the file…" : runs.running ? "Running…" : "Run both agents"}
       </button>
-      {ranAs && <button className="btn" onClick={() => runs.setDrawerOpen(true)}>{runs.running ? "Watch the run" : "Open results"}</button>}
+      {ranAs && <button className="btn" onClick={() => runs.setDrawerOpen(true)}>{busy ? "Watch the run" : "Open results"}</button>}
     </>
   );
 
@@ -186,8 +196,25 @@ export default function ContentCheck({ type, first }: { type: InputType; first: 
       {ranAs && (
         <RunDrawer open={runs.drawerOpen} onClose={runs.closeDrawer} title={`Same ${isMessage ? "message" : type.noun}, two agents`}
           subtitle={`${ranAs} · the tools are fake: nothing is really sent or paid · on the shared server the protected run takes a few minutes`}>
-          <RunResults jobs={runs.jobs} seconds={runs.seconds} scenario={null} custom
-            emails={[{ from: "", subject: ranAs, body: "" }]} reads={isMessage ? "request" : "document"} noun={isMessage ? "message" : type.noun} />
+          {preparing ? (
+            <ol className={p.pipe} aria-live="polite">
+              <li className={p.item}>
+                <Mark state="running" />
+                <div>
+                  <span className={p.checkpoint}>Before both agents</span>
+                  <Text row={{ key: "read", name: `Extracting the text from ${ranAs}`, value: `with ${READERS[type.key]}`, state: "running" }} />
+                  <p className="small muted">{type.frontEnd}</p>
+                </div>
+              </li>
+              <li className={p.item}>
+                <Mark state="pending" />
+                <Text row={{ key: "start", name: "Both agents start: one with the firewall, one without", state: "pending" }} />
+              </li>
+            </ol>
+          ) : (
+            <RunResults jobs={runs.jobs} seconds={runs.seconds} scenario={null} custom
+              emails={[{ from: "", subject: ranAs, body: "" }]} reads={isMessage ? "request" : "document"} noun={isMessage ? "message" : type.noun} />
+          )}
         </RunDrawer>
       )}
     </div>
