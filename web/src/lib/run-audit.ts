@@ -1,6 +1,7 @@
 // A recorded run read back for the audit log: each lane as timed segments, the facts worth reading first, and
 // what ran or failed. Everything comes from the recorded steps; nothing is inferred beyond them.
 import { pretty, VERDICT_LABEL, type Job, type Step, type Usage } from "./demo-types";
+import { CLEAN_SUMMARY, stations } from "./layers";
 import { READ_ONLY, target } from "./pipeline";
 import { interrupted, type Lane, type RunRecord } from "./run-history";
 
@@ -26,24 +27,68 @@ const outgoing = (steps: Step[]) => steps.filter((st) => st.step === "tool" && !
 const checks = (job?: Job) => (job?.steps ?? []).filter((st) => st.step === "firewall");
 const action = (st: Step) => `${pretty(st.name ?? "")}${target(st.args) ? ` → ${target(st.args)}` : ""}`;
 
-export type SegmentKind = "check" | "model" | "read" | "action" | "blocked" | "unsafe";
+export type SegmentKind = "check" | "wait" | "model" | "read" | "action" | "blocked" | "unsafe";
 
 export interface Segment {
   start: number; // ms after the run began
   end: number;
   kind: SegmentKind;
   verdict?: string; // a firewall check's verdict
+  row?: "top" | "bottom"; // the judge and the sandbox, which run side by side
   label: string;
   short: string; // for a narrow block
   detail: string;
 }
 
+const DETECTORS = ["prepare", "rules", "classifiers", "lid", "triage"];
+
+// One check split into its stages, from its trace: the detectors, the judge and the sandbox side by side, then the cut
+// and re-check. Each stage is drawn at its measured length, ending where the check ended; time no stage measured is
+// its own block before them, when it is worth seeing. The wording comes from the layer track's stations.
+function stages(st: Step, start: number, end: number, name: string, noun: string, ownMessage: boolean, whole: string): Segment[] {
+  const l = st.layers;
+  if (!l?.trace?.length) return [];
+  const has = (step: string) => l.trace.some((t) => t.step === step);
+  const ms = (...steps: string[]) => l.trace.filter((t) => steps.includes(t.step)).reduce((sum, t) => sum + t.ms, 0);
+  const by = Object.fromEntries(stations(l, st.lane, noun, ownMessage).map((s) => [s.key, s]));
+  const both = has("judge") && has("sandbox");
+  const ai = Math.max(ms("judge"), ms("sandbox"));
+  const t0 = Math.max(start, end - (ms(...DETECTORS) + ai + ms("decide", "cut", "recheck", "report")));
+  const base = { kind: "check" as const, verdict: st.verdict };
+  const out: Segment[] = [];
+
+  if (t0 - start > 0.05 * (end - start)) {
+    out.push({ start, end: t0, kind: "wait", label: `${name} · outside the firewall's stages`, short: "",
+      detail: `${elapsed(t0 - start)} of this check that no firewall stage measured, such as passing the text to the firewall and the answer back.` });
+  }
+  let at = t0;
+  const detect = ms(...DETECTORS);
+  const times = ([["prepare", "preparation"], ["rules", "rules"], ["classifiers", "classifiers"], ["lid", "language gate"]] as const)
+    .map(([step, word]) => `${word} ${ms(step)} ms`).join(", ");
+  out.push({ ...base, start: at, end: at + detect, label: `${name} · Detectors`, short: st.lane === "clean" ? name : "Detectors",
+    detail: `${[by.rules, by.WolfDefender, by.PromptGuard2, by.lid].map((s) => `${s.name}: ${s.value}`).join(" · ")} (${times}).${st.lane === "clean" ? ` ${CLEAN_SUMMARY}` : ""} ${whole}` });
+  at += detect;
+  for (const [key, row, other] of [["judge", "top", "sandbox"], ["sandbox", "bottom", "judge"]] as const) {
+    if (!has(key)) continue;
+    out.push({ ...base, start: at, end: at + ms(key), row: both ? row : undefined, label: `${name} · ${by[key].name}: ${by[key].value}`,
+      short: by[key].name, detail: `${by[key].detail}${both ? ` It ran side by side with the ${other}.` : ""} ${whole}` });
+  }
+  at += ai + ms("decide");
+  if (has("recheck")) {
+    out.push({ ...base, start: at, end: at + ms("cut", "recheck"), label: `${name} · Cut and re-check: ${by.recheck.value}`,
+      short: "Re-check", detail: `${by.recheck.detail} ${whole}` });
+  }
+  // A stage never spills into the next step: the check's own finish time is the one the run measured
+  return out.map((s) => ({ ...s, start: Math.min(s.start, end), end: Math.min(s.end, end) }));
+}
+
 // Each step spans from the end of the step before it to its own end: the agent's steps run one after another.
+// A firewall check is drawn as its stages when its trace was recorded, else as one block.
 // `unsafe` says why an action that ran unchecked is known to be unsafe (RunResults' unsafeReason).
 export function segments(run: RunRecord, lane: Lane, unsafe: (st: Step) => string | null): Segment[] {
   const job = run.jobs[lane];
   let prev = 0;
-  return (job?.steps ?? []).filter((st) => st.at_ms !== undefined).map((st): Segment => {
+  return (job?.steps ?? []).filter((st) => st.at_ms !== undefined).flatMap((st): Segment | Segment[] => {
     const start = prev, end = st.at_ms!;
     prev = end;
     const took = elapsed(end - start);
@@ -52,7 +97,9 @@ export function segments(run: RunRecord, lane: Lane, unsafe: (st: Step) => strin
       const name = run.reads === "inbox" ? `Email ${st.email_id}` : run.reads === "request" ? "Your message" : `The ${run.noun}`;
       const verdict = VERDICT_LABEL[st.verdict ?? ""] ?? st.verdict ?? "";
       const types = st.types?.length ? ` · ${st.types.map(pretty).join(", ")}` : "";
-      return { start, end, kind: "check", verdict: st.verdict, label: `${name}: ${verdict.toLowerCase()}`, short: name,
+      const noun = run.reads === "inbox" ? "email" : run.reads === "request" ? "message" : run.noun;
+      const parts = stages(st, start, end, name, noun, run.reads === "request", `The whole check of ${name.toLowerCase()}${subject ? ` (“${subject}”)` : ""} took ${took}: ${verdict.toLowerCase()}${types}.`);
+      return parts.length ? parts : { start, end, kind: "check", verdict: st.verdict, label: `${name}: ${verdict.toLowerCase()}`, short: name,
         detail: `Firewall checked ${name.toLowerCase()}${subject ? ` (“${subject}”)` : ""} in ${took}: ${verdict.toLowerCase()}${types}.` };
     }
     if (st.step === "model") {

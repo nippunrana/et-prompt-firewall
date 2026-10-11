@@ -276,6 +276,29 @@
   background: repeating-linear-gradient(135deg, var(--surface) 0 4px, var(--line) 4px 8px);
 }
 
+/* Inside a check, time that no firewall stage measured: an outline only, since nothing was checked in it */
+.tlSeg[data-kind="wait"] .tlHit,
+.swatch[data-kind="wait"] {
+  border: 1px dashed var(--ink-400);
+  background: transparent;
+  box-shadow: none;
+}
+
+/* The judge and the sandbox run side by side: each takes half the track's height, so the track grows */
+.tlTrack[data-split] {
+  height: 72px;
+}
+
+.tlSeg[data-row="top"] {
+  bottom: 50%;
+  padding-bottom: 1px;
+}
+
+.tlSeg[data-row="bottom"] {
+  top: 50%;
+  padding-top: 1px;
+}
+
 .tlSeg[data-verdict="allow"] .tlHit,
 .swatch[data-verdict="allow"] {
   border: 1px solid #a7f3d0;
@@ -325,7 +348,7 @@
 /* A read or an action is a moment, not a span: a marker centred on when it finished */
 .tlMarker {
   z-index: 2;
-  top: 12px;
+  top: calc(50% - 11px);
   bottom: auto;
   width: 22px;
   height: 22px;

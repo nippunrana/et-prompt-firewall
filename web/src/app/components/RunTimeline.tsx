@@ -52,7 +52,7 @@ export default function RunTimeline({ run, unsafe }: { run: RunRecord; unsafe: (
               <span>{LANE_LABEL[lane]}</span>
               <span className="num muted">{segs.length ? elapsed(end) : "no steps"}</span>
             </div>
-            <ol data-track className={a.tlTrack} aria-label={`${LANE_LABEL[lane]}, step by step`} onMouseLeave={() => setHover(null)}>
+            <ol data-track data-split={segs.some((s) => s.row) ? "" : undefined} className={a.tlTrack} aria-label={`${LANE_LABEL[lane]}, step by step`} onMouseLeave={() => setHover(null)}>
               {segs.map((seg, i) => {
                 const instant = INSTANT.has(seg.kind);
                 const me = { seg, lane };
@@ -74,7 +74,7 @@ export default function RunTimeline({ run, unsafe }: { run: RunRecord; unsafe: (
                 }
                 const share = (seg.end - seg.start) / total;
                 return (
-                  <li key={i} className={a.tlSeg} data-kind={seg.kind} data-verdict={seg.verdict}
+                  <li key={i} className={a.tlSeg} data-kind={seg.kind} data-verdict={seg.verdict} data-row={seg.row}
                     style={{ left: pct(seg.start), width: pct(seg.end - seg.start) }}>
                     <button type="button" className={a.tlHit} {...select}>{share > 0.06 && <span className={a.tlLabel}>{share > 0.16 ? seg.label : seg.short}</span>}</button>
                   </li>
@@ -103,7 +103,8 @@ export default function RunTimeline({ run, unsafe }: { run: RunRecord; unsafe: (
         ) : <span className="muted">Nothing selected. Point at a block or a marker above to read what happened at that moment.</span>}
       </div>
       <ul className={a.legend}>
-        <li><span className={a.swatch} data-kind="check" data-verdict="allow" />Content check, coloured by its verdict</li>
+        <li><span className={a.swatch} data-kind="check" data-verdict="allow" />Content check or one of its stages, coloured by the check&apos;s verdict</li>
+        {all.some((p) => p.seg.kind === "wait") && <li><span className={a.swatch} data-kind="wait" />Time no firewall stage measured</li>}
         <li><span className={a.swatch} data-kind="model" />Agent thinking</li>
         <li><span className={a.tlDot} />Read or action that ran</li>
         <li><StatusIcon kind="blocked" size={14} />Blocked action</li>
