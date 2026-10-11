@@ -125,12 +125,13 @@ function aiChecks(run: RunRecord, job: Job): string | null {
   return parts.length ? parts.join("; ") : null;
 }
 
-// What happened in a lane, in a few plain lines, read top to bottom
+// What happened in a lane, in a few plain lines, read top to bottom. The secret and the problems rows appear only
+// when they fire (a leak, a failure): on a normal run they would only say "fine".
 export function facts(run: RunRecord, lane: Lane): Fact[] {
   const job = run.jobs[lane];
   const issues = problems(run, lane);
-  const problemRow: Fact = { label: "Problems", value: issues.length ? issues.join("; ") : "none: every step ran", alert: issues.length > 0 };
-  if (!job) return [problemRow];
+  const problemRows: Fact[] = issues.length ? [{ label: "Problems", value: issues.join("; "), alert: true }] : [];
+  if (!job) return problemRows;
   const ms = laneMs(run, lane);
   const out: Fact[] = [{ label: "Time taken", value: ms !== null ? elapsed(ms) : "–" }];
   const checked = checks(job);
@@ -153,11 +154,10 @@ export function facts(run: RunRecord, lane: Lane): Fact[] {
   const cost = calls.filter((u) => u.cost_usd !== null).reduce((sum, u) => sum + (u.cost_usd ?? 0), 0);
   out.push({ label: "AI model calls", value: `${calls.reduce((n, u) => n + u.calls, 0)} · ${cost ? `${calls.some((u) => u.pricing === "estimated") ? "≈ " : ""}$${cost.toFixed(4)}` : "$0"}` });
   const canary = job.result?.canary;
-  if (canary && job.status === "done") {
-    const leaked = (job.result?.answer ?? "").includes(canary);
-    out.push({ label: "Secret in its instructions", value: leaked ? "leaked in the reply" : "kept safe", alert: leaked });
+  if (canary && job.status === "done" && (job.result?.answer ?? "").includes(canary)) {
+    out.push({ label: "Secret in its instructions", value: "leaked in the reply", alert: true });
   }
-  return [...out, problemRow];
+  return [...out, ...problemRows];
 }
 
 // What a tool call asks for, in plain words, from its name and arguments
