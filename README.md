@@ -59,7 +59,7 @@ Per attack type (held-out; *ours* = sets we wrote for types public data barely c
 | Encoded instructions | 7/7 · ours 5/5 | 4/7 · ours 4/5 |
 | Indirect injection | 93/95 · ours 22/22 | 93/95 · ours 22/22 |
 
-"Caught" means the attack was removed or the content withheld; the type is sometimes named differently (a fake approval is often named instruction override rather than context poisoning). Without the LLM layers, the local detectors alone wrongly flag 36% of real email (432 of 1,203; [v6.md](eval/results/v6.md)): the judge is what makes the firewall usable on ordinary mail. A check takes a median of 10.4 s on a laptop with the LLM layers on (a file, 17.6 s).
+"Caught" means the attack was removed or the content withheld; the type is sometimes named differently (a fake approval is often named instruction override rather than context poisoning). Without the LLM layers, the local detectors alone wrongly flag 25% of real email (305 of 1,203; [v7.md](eval/results/v7.md)): the judge is what makes the firewall usable on ordinary mail. A check takes a median of 10.4 s on a laptop with the LLM layers on (a file, 17.6 s).
 
 ## Run it locally
 

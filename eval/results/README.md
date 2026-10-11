@@ -13,7 +13,8 @@ Numbers and item IDs only; the email text stays in `eval/data/` (gitignored). Ev
 | [scenarios.json](scenarios.json) | The demo scenarios (including credential theft), each run several times unprotected and protected. Measured on `7be73ca` (Wolf Defender), 2026-10-11. |
 | [adaptive.md](adaptive.md) | Adaptive attacks: an attacker model rewriting emails against the firewall's feedback, and what got through. Measured on `7be73ca` (Wolf Defender; the attacker is the agent's instruct model), 2026-10-11. |
 | [layers-phase3.md](layers-phase3.md) | The same 160 held-out items with the LLM layers off and on: what the judge and sandbox add. Measured with PIGuard (2026-10-07). |
-| [v6.md](v6.md) | The detectors alone (rules, classifiers, language gate; no LLM layers) on the full 3,124-item sets. |
+| [v7.md](v7.md) | The detectors alone (rules, Wolf Defender, Prompt Guard 2, language gate; no LLM layers) on the 1,203 real emails: the false alarms the judge has to clear. |
+| [v6.md](v6.md) | The detectors alone on the full 3,124-item sets, measured with PIGuard. |
 
 ## Archive (superseded, kept for the record)
 
