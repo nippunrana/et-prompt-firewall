@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ET Prompt Firewall: how the pipeline works</title>
+<style>
+  :root {
+    --ink: #0f172a; --muted: #64748b; --line: #94a3b8; --bg: #f5f7fb; --card: #fff; --border: #e2e8f0;
+    --code: #475569; --local: #2563eb; --llm: #7c3aed;
+    --allow: #16a34a; --clean: #2563eb; --block: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-size: 30px; margin: 0 0 6px; letter-spacing: -0.02em; }
+  h2 { font-size: 21px; margin: 56px 0 6px; letter-spacing: -0.01em; }
+  h2 .n { color: var(--muted); font-weight: 500; margin-right: 6px; }
+  .lead { font-size: 17px; color: #334155; margin: 0 0 4px; max-width: 820px; }
+  .sub { color: var(--muted); margin: 0 0 20px; max-width: 820px; }
+  a { color: inherit; }
+
+  /* legend */
+  .legend { display: flex; flex-wrap: wrap; gap: 18px; margin: 18px 0 0; font-size: 13px; color: #334155; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .sw { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+
+  /* generic nodes */
+  .node { background: var(--card); border: 1px solid var(--border); border-left: 5px solid var(--code);
+          border-radius: 10px; padding: 10px 12px; box-shadow: 0 1px 2px rgb(15 23 42 / .05);
+          text-decoration: none; display: block; width: 100%; }
+  a.node:hover { box-shadow: 0 4px 14px rgb(15 23 42 / .12); }
+  .node.local { border-left-color: var(--local); }
+  .node.llm { border-left-color: var(--llm); }
+  .node .t { font-weight: 650; display: flex; align-items: center; gap: 8px; }
+  .node .g { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .num { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+         background: var(--ink); color: #fff; font-size: 12px; font-weight: 700; flex: none; }
+
+  /* connectors */
+  .stem { width: 2px; height: 26px; background: var(--line); margin: 0 auto; position: relative; flex: none; }
+  .stem.arrow::after { content: ""; position: absolute; bottom: -1px; left: -5px;
+                       border: 6px solid transparent; border-top: 7px solid var(--line); border-bottom: 0; }
+  .stem.grow { flex: 1; min-height: 26px; }
+  .pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: #e2e8f0; color: #334155; white-space: nowrap; }
+  .pill.yes { background: #ede9fe; color: #5b21b6; }
+  .pill.no { background: #dcfce7; color: #166534; }
+  .pill.bad { background: #fee2e2; color: #991b1b; }
+  .split { display: grid; grid-template-columns: 1fr 2.6fr; }
+  .split > .col { position: relative; display: flex; flex-direction: column; align-items: center; padding: 0 10px; }
+  .split > .col::before { content: ""; position: absolute; top: 0; height: 2px; background: var(--line); }
+  .split > .col:first-child::before { left: 50%; right: 0; }
+  .split > .col:last-child::before { left: 0; right: 50%; }
+  .split.even { grid-template-columns: 1fr 1fr; }
+  .split.nobar > .col::before { display: none; }
+
+  /* big picture */
+  .big { display: flex; align-items: stretch; gap: 0; margin-top: 18px; }
+  .big .box { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; text-align: center; }
+  .big .box b { display: block; font-size: 15px; }
+  .big .box small { color: var(--muted); font-size: 12.5px; display: block; margin-top: 4px; }
+  .big .box.cp { border: 2px solid var(--ink); background: #0f172a; color: #fff; }
+  .big .box.cp small { color: #cbd5e1; }
+  .big .arr { display: grid; place-items: center; width: 34px; color: var(--line); font-size: 22px; flex: none; }
+  .under { display: flex; gap: 0; margin-top: 10px; font-size: 13px; color: var(--muted); }
+  .why-two { margin-top: 16px; background: #fff; border: 1px dashed var(--line); border-radius: 12px; padding: 12px 16px; }
+
+  /* flowchart */
+  .flow { background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 28px 24px; margin-top: 18px; }
+  .center { display: flex; flex-direction: column; align-items: center; }
+  .w-input { max-width: 520px; text-align: center; background: #f1f5f9; border: 1px solid var(--border); border-radius: 999px; padding: 8px 18px; font-size: 14px; }
+  .w-mid { width: 100%; max-width: 560px; }
+  .group { width: 100%; border: 1.5px dashed #cbd5e1; border-radius: 14px; padding: 12px; position: relative; background: #fbfcfe; }
+  .group > .gl { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; }
+  .row { display: grid; gap: 10px; }
+  .row.c4 { grid-template-columns: repeat(4, 1fr); }
+  .row.c2 { grid-template-columns: 1fr 1fr; }
+  .note { font-size: 12.5px; color: #334155; margin-top: 8px; }
+  .note b { color: var(--ink); }
+  .diamond { width: 190px; height: 190px; display: grid; place-items: center; position: relative; text-decoration: none; }
+  .diamond::before { content: ""; position: absolute; inset: 28px; background: #fff7ed; border: 2px solid #f59e0b; transform: rotate(45deg); border-radius: 10px; }
+  .diamond div { position: relative; text-align: center; font-size: 13px; }
+  .diamond b { display: block; font-size: 15px; }
+  .ai { border-color: #c4b5fd; background: #faf5ff; }
+  .nolink { position: absolute; left: 50%; top: 38px; bottom: 10px; width: 0; border-left: 2px dashed #c4b5fd; }
+  .lane { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 10px 12px; font-size: 13px; text-align: center; width: 100%; }
+  .lane b { display: block; font-size: 14px; color: #166534; }
+  .loop { display: grid; grid-template-columns: 1fr 34px 1fr; align-items: center; width: 100%; }
+  .loop .arr { text-align: center; color: var(--line); font-size: 20px; }
+  .loopnote { font-size: 12.5px; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 5px 10px; margin-top: 8px; text-align: center; }
+  .out { border-radius: 12px; padding: 12px 14px; color: #fff; width: 100%; text-align: center; }
+  .out b { display: block; font-size: 17px; letter-spacing: .03em; }
+  .out small { display: block; font-size: 12.5px; opacity: .92; margin-top: 2px; }
+  .out.allow { background: var(--allow); } .out.clean { background: var(--clean); } .out.block { background: var(--block); }
+  .phase { font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 4px 0 6px; }
+
+  /* step cards */
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 18px; }
+  .card { background: #fff; border: 1px solid var(--border); border-top: 4px solid var(--code); border-radius: 12px; padding: 14px 16px; scroll-margin-top: 20px; }
+  .card.local { border-top-color: var(--local); } .card.llm { border-top-color: var(--llm); }
+  .card:target { box-shadow: 0 0 0 3px #fde68a; }
+  .card h3 { margin: 0 0 8px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+  .card h3 .tech { margin-left: auto; font-size: 11.5px; font-weight: 600; color: var(--muted); }
+  .card dl { margin: 0; display: grid; grid-template-columns: 52px 1fr; gap: 5px 10px; font-size: 14px; }
+  .card dt { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding-top: 3px; }
+  .card dd { margin: 0; }
+
+  /* decision table */
+  .decide { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 18px; }
+  .dbox { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .dbox h3 { margin: 0 0 2px; font-size: 16px; }
+  .dbox p { margin: 0 0 8px; color: var(--muted); font-size: 13.5px; }
+  .dbox ul { margin: 0; padding-left: 18px; font-size: 14px; }
+  .dbox.strong { border-top: 4px solid var(--block); } .dbox.weak { border-top: 4px solid #f59e0b; }
+  .special { margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; font-size: 14px; }
+  .special div { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; }
+
+  /* checkpoint 2 */
+  .cp2 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 18px; }
+  .cp2 div { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; font-size: 14px; }
+  .cp2 b { display: block; font-size: 15px; margin-bottom: 2px; }
+
+  /* example */
+  .strip { display: grid; grid-template-columns: repeat(7, 1fr) 1.1fr; gap: 6px; margin-top: 18px; }
+  .strip div { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 8px; text-align: center; font-size: 12.5px; color: var(--muted); }
+  .strip b { display: block; color: var(--ink); font-size: 14px; margin-top: 2px; }
+  .strip .hot { border-color: #fca5a5; background: #fef2f2; }
+  .strip .res { background: var(--clean); border-color: var(--clean); color: #dbeafe; }
+  .strip .res b { color: #fff; }
+  ol.read { margin: 14px 0 0; padding-left: 20px; font-size: 14.5px; }
+  ol.read li { margin-bottom: 4px; }
+
+  /* principles */
+  .rules { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 18px; }
+  .rules div { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; font-size: 14px; }
+  .rules b { display: block; font-size: 15px; margin-bottom: 2px; }
+
+  footer { margin-top: 56px; color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--border); padding-top: 14px; }
+  @media print { body { background: #fff; } .card, .flow, .dbox { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<main>
+
+<h1>ET Prompt Firewall: how the pipeline works</h1>
+<p class="lead">The firewall checks everything an AI agent reads, cuts out hidden instructions and names the attack type. Then it checks every action the agent tries to take.</p>
+<div class="legend">
+  <span><i class="sw" style="background:var(--code)"></i>Plain code (no AI)</span>
+  <span><i class="sw" style="background:var(--local)"></i>Small AI model, runs on our server</span>
+  <span><i class="sw" style="background:var(--llm)"></i>Large language model (cloud)</span>
+</div>
+
+<!-- ============================================================ 1 -->
+<h2><span class="n">1</span>The big picture: two checkpoints</h2>
+<p class="sub">The agent never reads raw content, and it never acts without a check.</p>
+
+<div class="big">
+  <div class="box"><b>Incoming content</b><small>email · web page · PDF · Word · image · chat message</small></div>
+  <div class="arr">→</div>
+  <div class="box cp"><b>Checkpoint 1<br>Content check</b><small>finds the attack, names it, cuts it out</small></div>
+  <div class="arr">→</div>
+  <div class="box"><b>AI agent</b><small>reads only the cleaned content</small></div>
+  <div class="arr">→</div>
+  <div class="box cp"><b>Checkpoint 2<br>Action check</b><small>is this action what the user asked for?</small></div>
+  <div class="arr">→</div>
+  <div class="box"><b>Tools run</b><small>send · forward · pay · delete</small></div>
+</div>
+<div class="why-two"><b>Why two?</b> No content filter is unbeatable. Checkpoint 2 never reads the content, so an email cannot talk to it. It compares what the agent is <i>about to do</i> with what the user <i>actually asked</i>. An attack that slips past checkpoint 1 still has to get its action past checkpoint 2. An <b>audit log</b> records every decision from both.</div>
+
+<!-- ============================================================ 2 -->
+<h2><span class="n">2</span>Checkpoint 1: the flowchart</h2>
+<p class="sub">Click any step to jump to its what, why and when.</p>
+
+<div class="flow">
+  <div class="center">
+    <div class="w-input">Any input, labelled by the caller: <b>email · web page · document · user message</b></div>
+    <div class="stem arrow"></div>
+
+    <div class="phase">Step A · Prepare</div>
+    <div class="w-mid"><a class="node" href="#s1"><span class="t"><span class="num">1</span>Prepare</span><span class="g">Find hidden text, undo disguises, split into sentences</span></a></div>
+    <div class="stem arrow"></div>
+
+    <div class="phase">Step B · Detect (always runs, fast, on our server)</div>
+    <div class="group">
+      <div class="gl">Four independent checks: each reads the text on its own</div>
+      <div class="row c4">
+        <a class="node" href="#s2"><span class="t"><span class="num">2</span>Rules</span><span class="g">Known attack phrases</span></a>
+        <a class="node local" href="#s3"><span class="t"><span class="num">3</span>Wolf Defender</span><span class="g">Main attack detector</span></a>
+        <a class="node local" href="#s4"><span class="t"><span class="num">4</span>Prompt Guard 2</span><span class="g">Second opinion</span></a>
+        <a class="node local" href="#s5"><span class="t"><span class="num">5</span>Language</span><span class="g">Is this a language we trust?</span></a>
+      </div>
+      <div class="note"><b>3 + 4 agree on the same spot</b> = strong proof of an attack. <b>Only one</b> = a suspicion for the AI judge to settle.</div>
+    </div>
+    <div class="stem"></div>
+    <a class="diamond" href="#s6"><div><span class="num">6</span><b>Triage</b>Anything flagged?</div></a>
+    <div class="stem"></div>
+  </div>
+
+  <div class="split">
+    <!-- clean lane -->
+    <div class="col">
+      <div class="stem"></div><span class="pill no">No</span><div class="stem arrow"></div>
+      <div class="lane"><b>Clean lane</b>No AI call. Fast and free.</div>
+      <div class="stem grow arrow"></div>
+    </div>
+    <!-- flagged lane -->
+    <div class="col">
+      <div class="stem"></div><span class="pill yes">Yes: something looks wrong</span><div class="stem arrow"></div>
+      <div class="phase">Step C · Ask the AI (both at the same time)</div>
+      <div class="group ai">
+        <div class="gl">Two independent votes · they never see each other</div>
+        <div class="nolink"></div>
+        <div class="row c2" style="gap:28px">
+          <a class="node llm" href="#s7"><span class="t"><span class="num">7</span>Judge</span><span class="g">Reads it: is this an attack? Quote it.</span></a>
+          <a class="node llm" href="#s8"><span class="t"><span class="num">8</span>Sandbox</span><span class="g">Obeys it with fake tools: what does it try?</span></a>
+        </div>
+      </div>
+      <div class="stem arrow"></div>
+      <div class="phase">Step D · Decide and clean</div>
+      <div class="w-mid"><a class="node" href="#s9"><span class="t"><span class="num">9</span>Decide</span><span class="g">Code weighs all the evidence (see section 3)</span></a></div>
+      <div class="stem"></div><span class="pill bad">Attack found</span><div class="stem arrow"></div>
+      <div class="loop">
+        <a class="node" href="#s10"><span class="t"><span class="num">10</span>Cut</span><span class="g">Remove the attack sentences and the attacker's address</span></a>
+        <div class="arr">→</div>
+        <a class="node" href="#s11"><span class="t"><span class="num">11</span>Re-check</span><span class="g">Scan the cleaned text again</span></a>
+      </div>
+      <div class="loopnote">↺ Still bad? Widen the cut and re-check, <b>at most twice</b></div>
+      <div class="stem"></div>
+    </div>
+  </div>
+
+  <div class="split nobar">
+    <div class="col">
+      <div class="out allow"><b>ALLOW</b><small>Passed unchanged. Also when the judge clears every suspicion.</small></div>
+    </div>
+    <div class="col">
+      <div class="split even" style="width:100%">
+        <div class="col"><div class="stem"></div><span class="pill no">Clean now</span><div class="stem arrow"></div>
+          <div class="out clean"><b>SANITISE</b><small>Attack replaced by “[removed by firewall: type]”. The rest goes through.</small></div></div>
+        <div class="col"><div class="stem"></div><span class="pill bad">Still bad</span><div class="stem arrow"></div>
+          <div class="out block"><b>QUARANTINE</b><small>Whole input withheld and logged. Cleaning can’t be trusted.</small></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ step cards -->
+<h2><span class="n">2b</span>Each step: what, why, when</h2>
+<p class="sub">“Why” means what this step catches that no other step can.</p>
+
+<div class="cards">
+  <div class="card" id="s1"><h3><span class="num">1</span>Prepare<span class="tech">code</span></h3><dl>
+    <dt>What</dt><dd>Splits web pages and files into visible text and hidden parts (comments, white or tiny text, hidden elements). Undoes disguises like look-alike letters, invisible characters, Base64 and hex. Splits the text into sentences.</dd>
+    <dt>Why</dt><dd>Attackers hide instructions where people can’t see them. About 70% of real web attacks sit in HTML the browser never shows. We <b>split, never strip</b>: throwing hidden text away would delete the attack before anyone checks it.</dd>
+    <dt>When</dt><dd>Always, first.</dd></dl></div>
+
+  <div class="card" id="s2"><h3><span class="num">2</span>Rules<span class="tech">code · regex</span></h3><dl>
+    <dt>What</dt><dd>Matches known attack phrases like “ignore previous instructions”. A <b>strong</b> rule is proof on its own. A <b>weak</b> rule (“send … to an address”) is only a hint, because normal email says that too.</dd>
+    <dt>Why</dt><dd>It is exact, explainable and impossible to argue with. It also names the attack type.</dd>
+    <dt>When</dt><dd>Always.</dd></dl></div>
+
+  <div class="card local" id="s3"><h3><span class="num">3</span>Wolf Defender<span class="tech">local model · mmBERT</span></h3><dl>
+    <dt>What</dt><dd>An AI model trained to spot prompt injection. It scores the whole text, then every 3-sentence window, then narrows down to the guilty sentence.</dd>
+    <dt>Why</dt><dd>It catches reworded attacks that no fixed phrase list would. It is multilingual: it caught a Hinglish attack at 0.99.</dd>
+    <dt>When</dt><dd>Always, on every window. One bad line in a long friendly email can’t hide in the average.</dd></dl></div>
+
+  <div class="card local" id="s4"><h3><span class="num">4</span>Prompt Guard 2<span class="tech">local model · Meta</span></h3><dl>
+    <dt>What</dt><dd>A second detector from a different company, built differently. It almost never raises a false alarm.</dd>
+    <dt>Why</dt><dd><b>Agreement.</b> When two different models flag the same spot, that is strong proof, so the text is cut without asking the AI judge. Two independent models rarely make the same mistake.</dd>
+    <dt>When</dt><dd>Always, alongside Wolf Defender.</dd></dl></div>
+
+  <div class="card local" id="s5"><h3><span class="num">5</span>Language<span class="tech">local model · GlotLID</span></h3><dl>
+    <dt>What</dt><dd>Flags lines that are not in English, including Hindi or Urdu typed in English letters (Hinglish). <b>It never cuts anything.</b> It only sends the input to the AI judge.</dd>
+    <dt>Why</dt><dd>The detectors are only proven on English. A low score on foreign text may mean “I can’t read this”, not “safe”. This step stops that from passing as clean.</dd>
+    <dt>When</dt><dd>Always. Why after the detectors? Order doesn’t matter: all four checks read the original text on their own. It isn’t a gate in front of them, because English text still needs them.</dd></dl></div>
+
+  <div class="card" id="s6"><h3><span class="num">6</span>Triage<span class="tech">code</span></h3><dl>
+    <dt>What</dt><dd>Picks a lane. <b>Clean</b> if nothing was flagged. Otherwise the input is <b>flagged</b> and goes to the AI layers.</dd>
+    <dt>Why</dt><dd>Most real content is clean. It costs nothing and gets an instant answer, so we only pay for AI on suspicious content.</dd>
+    <dt>When</dt><dd>Always, after the four checks.</dd></dl></div>
+
+  <div class="card llm" id="s7"><h3><span class="num">7</span>Judge<span class="tech">Gemma 4 31B</span></h3><dl>
+    <dt>What</dt><dd>Reads the content and the flagged parts. It says if each part is an attack, names the type and quotes the exact words. Its prompt is hardened: the content is fenced off as data, and the judge must repeat a secret code.</dd>
+    <dt>Why</dt><dd>It understands meaning and intent. It is the only step that can <b>clear a false alarm</b>, but only a weak one. If it gets the secret code wrong, the content has taken it over, and the input is quarantined.</dd>
+    <dt>When</dt><dd>Only on flagged content. Usually about 7 s, hard limit 60 s.</dd></dl></div>
+
+  <div class="card llm" id="s8"><h3><span class="num">8</span>Sandbox<span class="tech">Qwen3-next-80B</span></h3><dl>
+    <dt>What</dt><dd>A deliberately gullible assistant reads the content with <b>fake tools</b> (send, pay, delete). Nothing ever runs. Code just watches what it tries to do.</dd>
+    <dt>Why</dt><dd>It gives proof by behaviour, not opinion: does this text actually make an agent act? The address it tries to send to shows exactly which sentence to cut.</dd>
+    <dt>When</dt><dd>Only on flagged content, at the same time as the judge. Usually about 2 s, hard limit 30 s.</dd></dl></div>
+
+  <div class="card" id="s9"><h3><span class="num">9</span>Decide<span class="tech">code</span></h3><dl>
+    <dt>What</dt><dd>Combines every signal using fixed rules: strong signals are cut, and the judge settles weak ones (section 3).</dd>
+    <dt>Why</dt><dd>The content is written by the attacker. If an AI chose the next step, the content could steer the firewall. So <b>code makes every decision</b>, and the AIs only give evidence.</dd>
+    <dt>When</dt><dd>After the judge and the sandbox finish.</dd></dl></div>
+
+  <div class="card" id="s10"><h3><span class="num">10</span>Cut<span class="tech">code</span></h3><dl>
+    <dt>What</dt><dd>Replaces each attack sentence with a visible marker naming the type. Then it removes every other sentence carrying the attacker’s email address or link (the “payload sweep”).</dd>
+    <dt>Why</dt><dd>One planted line shouldn’t cost the user a real email, so we keep the rest. Without the sweep, the attacker’s address survived in about 80% of real attacks.</dd>
+    <dt>When</dt><dd>When Decide finds an attack.</dd></dl></div>
+
+  <div class="card" id="s11"><h3><span class="num">11</span>Re-check<span class="tech">code + local models</span></h3><dl>
+    <dt>What</dt><dd>Runs the rules and both detectors on the cleaned text. It re-runs the sandbox too if it was fooled, except on the user’s own message. Anything left widens the cut.</dd>
+    <dt>Why</dt><dd>It proves the cleaning worked. A sentence-level cut can leave part of an attack behind.</dd>
+    <dt>When</dt><dd>After every cut. After two widenings, if the text is still bad, it is quarantined.</dd></dl></div>
+</div>
+
+<!-- ============================================================ 3 -->
+<h2><span class="n">3</span>How code decides: strong vs weak</h2>
+<p class="sub">This is the heart of the design. Fooling one layer is never enough.</p>
+
+<div class="decide">
+  <div class="dbox strong"><h3>Strong signal → cut on its own</h3><p>The AI judge <b>cannot</b> overrule it.</p><ul>
+    <li>A strong rule matches</li>
+    <li>Both detectors flag the same spot</li>
+    <li>The sandbox tried to use a tool (on outside content)</li>
+    <li>The judge says “attack” <b>and</b> its quote is really in the text</li></ul></div>
+  <div class="dbox weak"><h3>Weak signal → the judge decides</h3><p>The judge can keep or clear each flagged part.</p><ul>
+    <li>Only one detector flags it</li>
+    <li>A weak rule hint</li>
+    <li>The language check flags it</li>
+    <li>Something found only in hidden text</li>
+    <li>The sandbox acted on the <b>user’s own</b> message (a request is supposed to ask for actions)</li></ul></div>
+</div>
+<div class="special">
+  <div><b>Judge gets the secret code wrong</b> → the content hijacked it → <b>quarantine</b>.</div>
+  <div><b>Judge is down or too slow</b> → cut the detector flags anyway (when in doubt, block) and say so in the answer.</div>
+</div>
+
+<!-- ============================================================ 4 -->
+<h2><span class="n">4</span>Checkpoint 2: the action check</h2>
+<p class="sub">Plain code with no AI, and it never reads the content. It runs every time the agent tries an action with an outside effect (send, forward, pay, delete, run, fetch). It blocks the action if:</p>
+<div class="cp2">
+  <div><b>🔑 Secrets</b>A password, API key, one-time code or the agent’s planted secret is in the outgoing data.</div>
+  <div><b>📍 Provenance</b>The recipient, link or account isn’t in the user’s request or contacts. It came from the content.</div>
+  <div><b>🎯 Intent</b>The user never asked for this kind of action. “Summarise my email” never needs a payment.</div>
+</div>
+<p class="sub" style="margin-top:12px">When an action is blocked, the agent is told why and carries on with the user’s real request.</p>
+
+<!-- ============================================================ 5 -->
+<h2><span class="n">5</span>Worked example: one real run</h2>
+<p class="sub">A user message carrying an injected instruction, as the demo’s run timeline shows it.</p>
+<div class="strip">
+  <div>Rules<b>1 match</b></div>
+  <div class="hot">Wolf Defender<b>0.98</b></div>
+  <div>Prompt Guard 2<b>0.00</b></div>
+  <div>Language<b>English</b></div>
+  <div class="hot">Judge<b>attack</b></div>
+  <div class="hot">Sandbox<b>tried send email</b></div>
+  <div>Re-check<b>clean</b></div>
+  <div class="res">Result<b>Cleaned</b></div>
+</div>
+<ol class="read">
+  <li>Wolf Defender is sure it’s an attack. Prompt Guard 2 isn’t. The detectors disagree, so the input is <b>flagged</b> and goes to the AI layers.</li>
+  <li>The judge calls it an attack, so the flagged part is <b>cut</b>.</li>
+  <li>The sandbox tried to send an email. Because this is the user’s own message, that is only weak evidence. It counts here because the judge agreed.</li>
+  <li>The re-check finds nothing left. The agent gets the message with the attack removed (<b>sanitise</b>).</li>
+</ol>
+
+<!-- ============================================================ 6 -->
+<h2><span class="n">6</span>Four rules that make it hard to fool</h2>
+<div class="rules">
+  <div><b>1. Code decides, AI only advises</b>The attacker writes the content. An AI that picks the next step could be steered by it. Code can’t.</div>
+  <div><b>2. The two AIs never talk</b>A fooled sandbox repeats the attack word for word. If the judge read that, one hijacked model could steer the other.</div>
+  <div><b>3. When in doubt, block</b>Judge down: cut anyway. Firewall unreachable: the email is withheld and the action blocked.</div>
+  <div><b>4. No human in the loop</b>Nothing waits for approval. The audit log records every decision afterwards, storing a fingerprint of the text but never the text itself.</div>
+</div>
+
+<footer>Sources: <code>docs/architecture.md</code>, <code>docs/built-systems/firewall-check.md</code>, <code>services/firewall/app/check.py</code>. Written 11 Oct 2026 at commit 28e66ac. If the pipeline changes, check against those files first.</footer>
+</main>
+</body>
+</html>

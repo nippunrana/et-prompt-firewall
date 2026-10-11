@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { elapsed, laneMs } from "@/lib/run-audit";
-import { clearRuns, getScope, HISTORY_EVENT, interrupted, loadRuns, loadShared, setScope, type Lane, type RunRecord, type Scope } from "@/lib/run-history";
+import { clearRuns, getScope, HISTORY_EVENT, interrupted, loadRuns, loadShared, type Lane, type RunRecord, type Scope } from "@/lib/run-history";
 import { HOME_EVENT } from "./AppShell";
 import RunDrawer from "./RunDrawer";
 import RunReplay from "./RunReplay";
@@ -12,12 +12,11 @@ import a from "./audit.module.css";
 const TONE_DOT: Record<Tone, string> = { good: "var(--allow)", bad: "var(--block)", warn: "var(--sanitise)", neutral: "var(--ink-400)" };
 const LANES: [Lane, string][] = [["unprotected", "Without firewall"], ["protected", "With firewall"]];
 
-const SCOPES: { key: Scope; label: string; hint: string; note: string }[] = [
-  { key: "local", label: "Save locally", hint: "only in this browser",
-    note: "New runs stay in this browser: no one else can see them. Showing your runs." },
-  { key: "public", label: "Save for everyone", hint: "on the server, public",
-    note: "New runs are saved on the server, text included, and anyone who opens this page can see them. Showing everyone's shared runs." },
-];
+// The switch itself is in the header (SaveScope); this repeats what the current setting means
+const NOTES: Record<Scope, string> = {
+  local: "Showing your runs, saved in this browser only: no one else can see them. Switch “Runs saved to” at the top to see everyone's shared runs.",
+  public: "Showing everyone's shared runs. New runs are saved on the server, text included, and anyone who opens this page can see them.",
+};
 
 const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
@@ -62,21 +61,7 @@ export default function AuditLog() {
   }, []);
 
   const shown = runs?.find((r) => r.id === openId) ?? null;
-  const current = SCOPES.find((x) => x.key === scope)!;
-
-  const toggle = (
-    <div className={a.scope}>
-      <div className={a.segmented} role="radiogroup" aria-label="Where new runs are saved">
-        {SCOPES.map((x) => (
-          <button key={x.key} role="radio" aria-checked={scope === x.key} className={a.segment} onClick={() => setScope(x.key)}>
-            <strong>{x.label}</strong>
-            <span>{x.hint}</span>
-          </button>
-        ))}
-      </div>
-      <p className="small muted">{current.note}</p>
-    </div>
-  );
+  const toggle = <p className={`small muted ${a.scope}`}>{NOTES[scope]}</p>;
 
   if (!runs) return toggle;
 
@@ -90,7 +75,7 @@ export default function AuditLog() {
           <p className="muted">
             {scope === "local"
               ? "Run the two agents on any input. Each run lands here whole, with both lanes, ready to open and replay."
-              : "Runs appear here once a visitor runs the agents with “Save for everyone” on."}
+              : "Runs appear here once a visitor runs the agents with “Runs saved to: Everyone” on."}
           </p>
           <button className="btn btn--primary" onClick={() => window.dispatchEvent(new Event(HOME_EVENT))}>Run the agents</button>
         </div>
