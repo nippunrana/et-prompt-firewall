@@ -94,13 +94,14 @@ export function segments(run: RunRecord, lane: Lane, unsafe: (st: Step) => strin
     const took = elapsed(end - start);
     if (st.step === "firewall") {
       const subject = run.reads === "inbox" ? run.emails[Number(st.email_id) - 1]?.subject : null;
-      const name = run.reads === "inbox" ? `Email ${st.email_id}` : run.reads === "request" ? "Your message" : `The ${run.noun}`;
+      const name = run.reads === "inbox" ? `Email ${st.email_id}` : run.reads === "request" ? "Message" : `The ${run.noun}`;
+      const prose = run.reads === "request" ? "the message" : name.toLowerCase();
       const verdict = VERDICT_LABEL[st.verdict ?? ""] ?? st.verdict ?? "";
       const types = st.types?.length ? ` · ${st.types.map(pretty).join(", ")}` : "";
       const noun = run.reads === "inbox" ? "email" : run.reads === "request" ? "message" : run.noun;
-      const parts = stages(st, start, end, name, noun, run.reads === "request", `The whole check of ${name.toLowerCase()}${subject ? ` (“${subject}”)` : ""} took ${took}: ${verdict.toLowerCase()}${types}.`);
+      const parts = stages(st, start, end, name, noun, run.reads === "request", `The whole check of ${prose}${subject ? ` (“${subject}”)` : ""} took ${took}: ${verdict.toLowerCase()}${types}.`);
       return parts.length ? parts : { start, end, kind: "check", verdict: st.verdict, label: `${name}: ${verdict.toLowerCase()}`, short: name,
-        detail: `Firewall checked ${name.toLowerCase()}${subject ? ` (“${subject}”)` : ""} in ${took}: ${verdict.toLowerCase()}${types}.` };
+        detail: `Firewall checked ${prose}${subject ? ` (“${subject}”)` : ""} in ${took}: ${verdict.toLowerCase()}${types}.` };
     }
     if (st.step === "model") {
       const calls = st.tool_calls?.map((c) => c.name).join(", ");
