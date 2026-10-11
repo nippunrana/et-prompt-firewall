@@ -185,17 +185,17 @@ The system never pauses for approval: the firewall decides, the agent acts or is
 
 ## 12. Grid position (self-declared): F3 × D2
 
-**Features: F3** (at least 7 attack types; we detect and name all 9). Each type, its evidence on held-out data and where the demo shows it:
+**Features: F3** (at least 7 attack types; all 9 are caught on held-out data, and 7 are named on screen in the demo). Each type, its evidence on held-out data and where the demo shows it:
 
 | Type | Caught on held-out data | Shown in the demo |
 | :--- | :--- | :--- |
 | Instruction override | 3/3 public, 6/6 LLMail-Inject | Instruction override scenario; example email |
-| Role change | 6/8 public, 10/10 LLMail-Inject | Role change scenario (unprotected agent sent data out 3 of 3 times) |
+| Role change | 6/8 public, 10/10 LLMail-Inject | Role change example email (named); role change scenario (unprotected agent sent data out 3 of 3 times) |
 | Secret extraction | 4/4 public, 5/5 ours; guard blocks a leaving canary | Example email |
 | Tool abuse | 89/90 LLMail-Inject; the guard took harmful sends from 12 to 0 of 33 | Every attack run |
 | Credential theft | 6/6 ours; guard blocks codes, passwords and keys leaving | Credential theft scenario |
-| Context poisoning | 4/5 public, 9/9 LLMail-Inject | Context poisoning scenario (stopped by the guard) |
-| Multi-step jailbreak | 6/6 ours | Example email |
+| Context poisoning | 4/5 public, 9/9 LLMail-Inject | Example email: the content check passes it (a stated miss); in the measured scenario runs the action guard blocks the send |
+| Multi-step jailbreak | 6/6 ours | Example email: caught, named instruction override |
 | Encoded instructions | 5/5 public, 5/5 ours | Encoded (Base64) scenario |
 | Indirect injection | 4/5 public, 22/22 ours | Every scenario |
 

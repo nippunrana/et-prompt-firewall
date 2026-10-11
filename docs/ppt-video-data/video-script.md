@@ -4,7 +4,7 @@ Record on the Mac at `http://localhost:3020/projects/et-prompt-firewall`, never 
 
 **Grid claim:** F3 × D2, as declared in `docs/architecture.md` §12.
 
-Corner badge for the edit (optional): "Attack types shown: n / 9", ticking up at each ✓ below.
+Corner badge for the edit (optional): "Attack types named on screen: n" (F3 needs 7), ticking up at each ✓ below. Every verdict below was checked on the local stack on 2026-10-11; the ✓ marks only types the screen really names.
 
 ---
 
@@ -20,7 +20,7 @@ Corner badge for the edit (optional): "Attack types shown: n / 9", ticking up at
 
 The unprotected agent fell for this one in 3 of 3 measured runs, so it is the safest live attack.
 
-1. Show the inbox; point at the attacker's email. ✓ role change, ✓ indirect injection
+1. Show the inbox; point at the attacker's email. ✓ indirect injection
    > "This email fakes the end of the message, then poses as you, asking the assistant to send data to an outside address."
 2. Click **Run the AI orchestration**. The drawer opens; cut the wait.
 3. Left lane: the unprotected agent sends the email (red, struck through). ✓ tool abuse
@@ -35,11 +35,12 @@ Use **Add an email** → the example chip, then **Check this email** on it. Show
 | Chip | Say | Badge |
 | :-- | :-- | :-- |
 | Instruction override | "The classic 'ignore all previous instructions'." | ✓ |
+| Role change | "Tells the AI it is now FreeBot, an assistant with no rules." Named role change. | ✓ |
 | Secret extraction | "Asks the agent to reveal its instructions or keys." | ✓ |
 | Credential theft | "Asks for your one-time code. The action guard also blocks codes and passwords leaving." | ✓ |
-| Multi-step jailbreak | "A split payload, joined step by step." | ✓ |
+| Multi-step jailbreak | "A payload split into pieces the AI is told to join. Caught: the firewall calls it an instruction override, so we count it as caught, not named." | caught |
 | Encoded (Base64) | "The order is hidden in Base64; the firewall decodes it first." | ✓ |
-| Context poisoning | "A fake policy the user supposedly approved. If the content check lets one through, the action guard still blocks any send to an address the user never gave." | ✓ |
+| Context poisoning | Shows **Already clean**. Say: "An honest miss: a fake policy reads like ordinary mail. That is why checkpoint 2 exists: the action guard blocks any send to an address the user never gave." | – |
 
 ### Scene 5 · 2:15–2:55 · Files and images (the depth claim)
 
