@@ -54,7 +54,7 @@ flowchart TB
     P["<b>prepare</b><br/>per input type: HTML and files split into visible text + hidden layers;<br/>normalise Unicode (NFKC, look-alike letters, invisible characters),<br/>decode Base64 / hex / Unicode tags, split into sentences and an email header block"]
     R["<b>rules</b><br/>known attack phrasing; strong rules = evidence, weak rules = hints"]
     C["<b>classifiers</b><br/>Wolf Defender + Prompt Guard 2 score the whole text and every 3-sentence window,<br/>then drill down to the culprit sentence"]
-    L["<b>language gate</b><br/>GlotLID flags non-English and romanized Hindi/Urdu lines<br/>(English classifiers miss them)"]
+    L["<b>language gate</b><br/>GlotLID flags non-English and romanized Hindi/Urdu lines<br/>(the classifiers are not validated on them)"]
     T{"<b>triage</b><br/>lane"}
     J["<b>judge</b> (Gemma 4 31B)<br/>verdict, attack types, exact quotes"]
     S["<b>sandbox</b> (Qwen3-next-80B)<br/>a gullible assistant reads the content<br/>with fake tools; did it try to act?"]
