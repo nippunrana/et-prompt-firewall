@@ -94,7 +94,7 @@ Without keys, only the local checks run and the agent demo is off.
 | `services/demo-agent/` | The demo email agent, with fake tools |
 | `web/` | The demo website (Next.js) |
 | `eval/` | Test sets, test scripts and [results](eval/results/README.md) |
-| `docs/` | Architecture, flowchart and demo video script |
+| `docs/` | Architecture and design notes |
 
 Unit tests live in `services/*/tests/` and run on every push.
 

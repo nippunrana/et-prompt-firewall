@@ -3,6 +3,7 @@ problem-statement.pdf
 ai-context.md
 01-plan/
 docs/hackathon-guidelines.md
+docs/ppt-video-data/
 
 # Mac-only Compose settings (publishes the firewall's port for local testing)
 docker-compose.override.yml
