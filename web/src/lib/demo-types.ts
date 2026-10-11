@@ -52,6 +52,7 @@ export interface Step {
   lane?: string;
   types?: string[];
   removed?: string[];
+  clean_content?: string | null; // what the agent was given: null when blocked; absent in runs recorded before it was kept
   warnings?: string[];
   usage?: Usage[] | Usage | null; // firewall: the check's model calls; model: the agent's own call
   layers?: Layers; // firewall: what each layer found (absent when the firewall could not be reached)
@@ -118,6 +119,7 @@ export interface CheckResult extends Layers {
   risk: number | null;
   warnings: string[];
   clean_content: string | null;
+  removed: string[]; // each cut part, as written in the original
   usage?: Usage[];
 }
 

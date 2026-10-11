@@ -81,6 +81,10 @@ def test_firewall_checks_every_email_before_the_agent_reads_it():
     inbox = json.loads(model.seen[1]["content"])["emails"]
     assert not any("audit@vendor.example" in e["text"] for e in inbox)
     assert [s["verdict"] for s in result["steps"] if s["step"] == "firewall"] == ["allow"] * 3 + ["sanitise"]
+    # each step records what the firewall returned: the text the agent got, and what was cut
+    last = [s for s in result["steps"] if s["step"] == "firewall"][-1]
+    assert last["clean_content"] == "[removed by firewall: tool abuse]"
+    assert last["removed"] == ["x"]
 
 
 

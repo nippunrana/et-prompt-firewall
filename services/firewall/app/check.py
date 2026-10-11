@@ -479,6 +479,7 @@ def _report(state: _State) -> dict:
         "hints": [{"rule": h.rule, "type": h.type, "text": h.text} for h in state["hints"]],
         "warnings": warnings,
         "clean_content": clean_content,
+        "removed": [a["text"] for a in attacks],  # each cut part, as written in the original
         "scores": scores,
         "non_english_spans": [
             {"span": [f.start, f.end], "language": f.top_language, "confidence": round(1.0 - f.p_eng, 4), "text": f.text}

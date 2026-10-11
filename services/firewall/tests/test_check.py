@@ -26,6 +26,7 @@ def test_direct_attack_cuts_exactly_the_attack_line():
     assert "evil.example" not in result["clean_content"]
     assert "The March invoice is attached." in result["clean_content"]
     assert "[removed by firewall: " in result["clean_content"]
+    assert result["removed"] == [DIRECT_ATTACK_LINE]
 
 
 def test_same_attack_typed_by_the_user_is_direct():
@@ -45,6 +46,7 @@ def test_benign_email_passes_untouched():
     assert result["lane"] == "clean"
     assert result["attacks"] == []
     assert result["clean_content"] == BENIGN_EMAIL
+    assert result["removed"] == []
 
 
 def test_plain_request_attack_is_only_a_hint_until_the_judge_exists():

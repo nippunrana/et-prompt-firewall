@@ -182,20 +182,6 @@
   word-break: break-word;
 }
 
-.removedLine {
-  display: block;
-  margin-top: var(--space-1);
-  padding: 2px var(--space-2);
-  border-radius: 4px;
-  background: var(--removed);
-  color: var(--block);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  text-decoration: line-through;
-  text-decoration-color: rgb(191 42 32 / 0.5);
-  word-break: break-word;
-}
-
 .reasoning {
   max-height: 14rem;
   overflow-y: auto;

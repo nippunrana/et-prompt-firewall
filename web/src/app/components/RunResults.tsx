@@ -10,6 +10,7 @@ import { decisions } from "@/lib/run-audit";
 import CallTag from "./CallTag";
 import CheckStory from "./CheckStory";
 import CostTable, { runUsage } from "./CostTable";
+import FirewallOutput from "./FirewallOutput";
 import LayerTrack from "./LayerTrack";
 import Markdown from "./Markdown";
 import Pipeline from "./Pipeline";
@@ -199,6 +200,11 @@ function InboxEvent({ item, emails, protectedRun, custom, reads, noun, toolN }: 
                   ? <strong style={{ color: verdictColour(c.verdict) }}>{VERDICT_LABEL[c.verdict ?? ""] ?? c.verdict}</strong>
                   : <span className="muted">waiting</span>
                 : <span className="muted">not checked</span>}
+              {protectedRun && c?.verdict && (
+                <div className={r.rowDetail}>
+                  <FirewallOutput verdict={c.verdict} cleanContent={c.clean_content} removed={c.removed ?? []} open={c.verdict !== "allow"} />
+                </div>
+              )}
               {c?.layers?.trace && (
                 <div className={r.rowDetail}>
                   <LayerTrack layers={c.layers} lane={c.lane} noun={what} ownMessage={reads === "request"} caption={false} />
@@ -207,7 +213,6 @@ function InboxEvent({ item, emails, protectedRun, custom, reads, noun, toolN }: 
                 </div>
               )}
               {c?.types && c.types.length > 0 && <span className={`${r.rowDetail} muted`}>Attack types the firewall named: {c.types.map(pretty).join(", ")}</span>}
-              {c?.removed?.map((text, k) => <span key={k} data-wipe className={`${r.rowDetail} ${r.removedLine}`}>{text}</span>)}
               {c?.warnings && c.warnings.length > 0 && <span className={`${r.rowDetail} ${s.warn}`}>{c.warnings.join(" · ")}</span>}
               {!protectedRun && !custom && e.attack && (
                 <span className={r.rowDetail} style={{ color: "var(--block)" }}>Contains a hidden instruction, which reaches the agent as written</span>

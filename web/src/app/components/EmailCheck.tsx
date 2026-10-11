@@ -5,6 +5,7 @@ import { CHECKPOINT_1, kindName } from "@/lib/checkpoint";
 import { pretty, VERDICT_LABEL, type Attack, type CheckResult } from "@/lib/demo-types";
 import CheckStory from "./CheckStory";
 import CostTable from "./CostTable";
+import FirewallOutput from "./FirewallOutput";
 import LayerTrack from "./LayerTrack";
 import s from "./demo.module.css";
 
@@ -70,12 +71,7 @@ export default function EmailCheck({ state, noun = "email" }: { state: CheckStat
 
       {r.attacks.length > 0 && <pre className={s.textBlock}>{highlight(state.text, r.attacks)}</pre>}
 
-      {r.clean_content !== null && r.verdict !== "allow" && (
-        <details className={s.disclosure}>
-          <summary>What the agent receives</summary>
-          <pre className={s.textBlock}>{r.clean_content}</pre>
-        </details>
-      )}
+      <FirewallOutput verdict={r.verdict} cleanContent={r.clean_content} removed={r.removed} />
 
       <CostTable usage={r.usage ?? []} detectors />
 
