@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useId, useRef, useState } from "react";
 import { pretty, VERDICT_LABEL, type Attack } from "@/lib/demo-types";
 import o from "./output.module.css";
 
@@ -59,6 +59,8 @@ export default function FirewallOutput({ verdict, cleanContent, removed, origina
   open?: boolean;
 }) {
   const [copy, setCopy] = useState<"idle" | "done" | "failed">("idle");
+  const [shown, setShown] = useState(open); // only the Show/Hide button folds the output, never the header row
+  const body = useId();
   const json = useRef<HTMLDialogElement>(null);
   const compare = useRef<HTMLDialogElement>(null);
   const response = JSON.stringify({ verdict, clean_content: cleanContent ?? null, removed }, null, 2);
@@ -93,27 +95,31 @@ export default function FirewallOutput({ verdict, cleanContent, removed, origina
 
   return (
     <>
-    <details className={o.output} open={open}>
-      <summary className={o.summary}>
-        <svg className={o.chevron} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"
-          strokeLinejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" /></svg>
+    <div className={o.output}>
+      <div className={o.summary}>
         Firewall output <span className={o.call}>POST /check →</span>
         <code className={o.verdict}>verdict: &quot;{verdict}&quot;</code>
         <span className={`pill pill--${verdict}`}>{VERDICT_LABEL[verdict] ?? verdict}</span>
+        <button type="button" className={`btn ${o.toggle}`} aria-expanded={shown} aria-controls={body} onClick={() => setShown(!shown)}>
+          {shown ? "Hide" : "Show"}
+          <svg className={`${o.icon} ${shown ? o.turned : ""}`} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"
+            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" /></svg>
+        </button>
         <span className={o.actions}>
           {original !== undefined && cleanContent !== undefined && (
-            <button type="button" className="btn" title="Opens a pop-up" onClick={(e) => { e.preventDefault(); compare.current?.showModal(); }}>
+            <button type="button" className="btn" title="Opens a pop-up" onClick={() => compare.current?.showModal()}>
               <Icon name="compare" /> Compare with original <Icon name="popup" />
             </button>
           )}
           {cleanContent !== undefined && (
-            <button type="button" className="btn" title="Opens a pop-up" onClick={(e) => { e.preventDefault(); json.current?.showModal(); }}>
+            <button type="button" className="btn" title="Opens a pop-up" onClick={() => json.current?.showModal()}>
               <Icon name="json" /> JSON output <Icon name="popup" />
             </button>
           )}
         </span>
-        <span className={o.toggle} aria-hidden="true"><span className={o.show}>Show</span><span className={o.hide}>Hide</span></span>
-      </summary>
+      </div>
+
+      <div id={body} hidden={!shown}>
 
       <div className={o.field}>
         <code className={o.name}>clean_content</code>
@@ -127,9 +133,9 @@ export default function FirewallOutput({ verdict, cleanContent, removed, origina
       </div>
       {cleanBox}
       {removedBox}
-    </details>
+      </div>
+    </div>
 
-    {/* Outside the <details>: a closed one would hide them */}
     {original !== undefined && (
       <Popup open={compare} label="Compare with original" wide>
         <div className={o.columns}>
