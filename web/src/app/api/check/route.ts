@@ -12,7 +12,7 @@ export async function POST(request: Request) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: body.content, source: body.source ?? null, user_task: body.user_task ?? null,
-                             format: body.format ?? "text" }),
+                             format: body.format ?? "text", llm: body.llm === "always" ? "always" : "flagged" }),
       // Long text is scored window by window; the firewall's own limit keeps it under this
       signal: AbortSignal.timeout(120000),
     });

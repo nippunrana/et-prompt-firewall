@@ -75,6 +75,8 @@ flowchart TB
     RC -->|still bad after 2 widenings| REP
 ```
 
+**When the LLM layers run.** By default (`llm: "flagged"`) the judge and sandbox read only content the detectors flag; the clean lane skips them. With `llm: "always"` (on `/check`, `/check/stream`, `/check-file` and an agent run; the demo's **AI checks on** switch) they read every input, and code decides the same way. The default stays `flagged` for cost and speed; `always` is for agents whose mail or files are worth the extra calls.
+
 ### How code decides
 
 | Signal | Strength | What happens |
@@ -173,7 +175,7 @@ The system never pauses for approval: the firewall decides, the agent acts or is
 ## 11. Known limits
 
 - **No defence is unbreakable.** Adaptive attacks beat every published defence ("The Attacker Moves Second", 2025). Our adaptive-attack run shows where this one breaks.
-- **Clean-lane misses:** an attack that every local detector scores as clean never reaches the judge. The guard is the backstop, but it stops actions, not words: a false summary or a phishing link the agent repeats to the user gets through.
+- **Clean-lane misses:** by default, an attack that every local detector scores as clean never reaches the judge. `llm: "always"` closes most of this gap (held-out public attacks 75/80 → 80/80, real email still 1/100, look-alike requests 8/40 → 14/40; [`eval/results/llm-always.md`](../eval/results/llm-always.md)) at the cost of the LLM layers' time and calls on every input. The guard is the backstop, but it stops actions, not words: a false summary or a phishing link the agent repeats to the user gets through.
 - **The guard cannot stop** data sent to a recipient the user really named when the user really asked to send.
 - **Long documents:** detection far beyond a classifier's window is an open research problem; the measured results cover email-length text and files of a few pages.
 - **Hidden text not detected:** text hidden by a stylesheet class (needs a browser render), PDF text under a shape or matching a coloured background, PDF invisible render mode (read, but not marked hidden: OCR'd scans use it legitimately), Word footnotes, hidden Excel rows and sheets. Markdown, API responses and source code have no dedicated front end yet.

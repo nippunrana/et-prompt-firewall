@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import LlmModeSwitch from "./LlmModeSwitch";
 import Logo from "./Logo";
 import SaveScope from "./SaveScope";
 import s from "./shell.module.css";
@@ -44,6 +45,7 @@ export default function AppShell({ views, status, repo }: { views: View[]; statu
             ))}
           </nav>
           <div className={s.end}>
+            <LlmModeSwitch />
             <SaveScope />
             <span className={s.status} title={status.map(([n, st]) => `${n}: ${st}`).join(" · ")}>
               <span className={s.dot} style={{ background: down.length ? "var(--block)" : "var(--allow)" }} />

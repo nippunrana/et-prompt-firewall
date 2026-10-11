@@ -15,6 +15,7 @@ export async function POST(request: Request) {
 
     const forwardData = new FormData();
     forwardData.append("file", file, (file as File).name || "upload");
+    forwardData.append("llm", formData.get("llm") === "always" ? "always" : "flagged");
     const response = await fetch(`${FIREWALL_URL}/check-file`, {
       method: "POST",
       body: forwardData,

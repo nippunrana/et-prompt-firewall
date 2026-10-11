@@ -83,6 +83,19 @@ def test_firewall_checks_every_email_before_the_agent_reads_it():
     assert [s["verdict"] for s in result["steps"] if s["step"] == "firewall"] == ["allow"] * 3 + ["sanitise"]
 
 
+
+def test_every_check_carries_the_runs_llm_mode():
+    modes = []
+
+    def check(body, on_stage):
+        modes.append(body["llm"])
+        return {"verdict": "allow", "lane": "clean", "attacks": [], "clean_content": body["content"]}
+
+    s = settings(ScriptedModel(hijacked=False), firewall=True, check=check)
+    s.llm = "always"
+    agent.run(s)
+    assert modes == ["always"] * 4
+
 def test_an_unreachable_firewall_withholds_email():
     def down(body, on_stage):
         raise ConnectionError("no route")

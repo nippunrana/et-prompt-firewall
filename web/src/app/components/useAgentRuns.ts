@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BASE_PATH } from "@/lib/base-path";
 import type { Job } from "@/lib/demo-types";
+import { getLlmMode } from "@/lib/llm-mode";
 import { beginRun, recordable, saveRun, type RunMeta } from "@/lib/run-history";
 import { MODES, type ModeKey } from "./RunResults";
 
@@ -33,6 +34,7 @@ export function useAgentRuns() {
     setSeconds({});
     setDrawerOpen(true);
 
+    const llm = getLlmMode(); // one mode for both lanes of a run
     const began = Date.now();
     const record = beginRun(meta);
     const open = new Set<ModeKey>(MODES.map((m) => m.key));
@@ -62,7 +64,7 @@ export function useAgentRuns() {
         const response = await fetch(`${BASE_PATH}/api/runs`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...request, firewall: m.firewall, guard: m.guard }),
+          body: JSON.stringify({ ...request, llm, firewall: m.firewall, guard: m.guard }),
         });
         const data = await response.json();
         if (!response.ok) return fail(data.error || "Could not start the run");

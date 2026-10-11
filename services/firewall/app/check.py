@@ -155,6 +155,7 @@ class _Deps:
     threshold: float
     judge: Callable[..., JudgeResult] | None = None
     sandbox: Callable[..., SandboxResult] | None = None
+    llm_always: bool = False  # run the judge and sandbox on clean content too: more calls and time, fewer misses
 
 
 class _State(TypedDict, total=False):
@@ -272,7 +273,7 @@ def _triage(state: _State) -> dict:
 
 
 def _route(state: _State, runtime: Runtime[_Deps]) -> list[str]:
-    if state["lane"] == "clean":
+    if state["lane"] == "clean" and not runtime.context.llm_always:
         return ["decide"]
     nxt = []
     if runtime.context.judge:
@@ -322,7 +323,7 @@ def _decide(state: _State, runtime: Runtime[_Deps]) -> dict:
     content, units = state["content"], state["prepared"].units
     judge, sandbox = state.get("judge"), state.get("sandbox")
     warnings = []
-    if state["lane"] != "clean" and runtime.context.judge is None:
+    if (state["lane"] != "clean" or runtime.context.llm_always) and runtime.context.judge is None:
         warnings.append("LLM judge not configured: decided on the detectors alone")
     if judge is not None and not judge.ok:
         warnings.append(f"judge unavailable ({judge.error}): decided without it")
@@ -515,14 +516,14 @@ PIPELINE = _build()
 def stream_check(content: str, source: str | None, classifiers: list[Classifier], threshold: float = THRESHOLD,
                  user_task: str | None = None, judge: Callable[..., JudgeResult] | None = None,
                  sandbox: Callable[..., SandboxResult] | None = None, fmt: str | None = None,
-                 hidden: list[tuple[str, int, int]] | None = None) -> Iterator[dict]:
+                 hidden: list[tuple[str, int, int]] | None = None, llm_always: bool = False) -> Iterator[dict]:
     """The check, stage by stage: one event as each stage finishes (its trace entry, plus the scores for
     the classifiers), then {"result": ...}. The judge and the sandbox report separately, as each ends."""
     task = user_task or DEFAULT_TASK.get(source or "", "Can you read this and tell me what it says?")
     final: dict = {}
     for mode, chunk in PIPELINE.stream({"content": content, "source": source, "fmt": fmt, "hidden": hidden,
                                         "user_task": task, "trace": [], "warnings": [], "usage": []},
-                                       context=_Deps(classifiers, threshold, judge, sandbox),
+                                       context=_Deps(classifiers, threshold, judge, sandbox, llm_always),
                                        stream_mode=["updates", "values"]):
         if mode == "values":
             final = chunk
@@ -536,7 +537,7 @@ def stream_check(content: str, source: str | None, classifiers: list[Classifier]
 def run_check(content: str, source: str | None, classifiers: list[Classifier], threshold: float = THRESHOLD,
               user_task: str | None = None, judge: Callable[..., JudgeResult] | None = None,
               sandbox: Callable[..., SandboxResult] | None = None, fmt: str | None = None,
-              hidden: list[tuple[str, int, int]] | None = None) -> dict:
+              hidden: list[tuple[str, int, int]] | None = None, llm_always: bool = False) -> dict:
     # Built on the stream, so /check and /check/stream can never answer differently
-    *_, last = stream_check(content, source, classifiers, threshold, user_task, judge, sandbox, fmt, hidden)
+    *_, last = stream_check(content, source, classifiers, threshold, user_task, judge, sandbox, fmt, hidden, llm_always)
     return last["result"]

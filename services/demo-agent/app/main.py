@@ -51,6 +51,7 @@ class RunRequest(BaseModel):
     guard: bool = True  # checkpoint 2: tool calls go through /guard before they run
     document: Document | None = None  # replaces the inbox: the agent reads it with read_document
     check_request: bool = False  # the request is a pasted message: the firewall checks it as the user's words
+    llm: Literal["flagged", "always"] = "flagged"  # passed to every /check: when the LLM judge and sandbox run
 
 
 def _settings(request: RunRequest) -> agent.Settings:
@@ -62,7 +63,7 @@ def _settings(request: RunRequest) -> agent.Settings:
                           contacts=request.contacts if request.contacts is not None else CONTACTS,
                           firewall=request.firewall, guard=request.guard,
                           document=request.document.model_dump() if request.document else None,
-                          check_request=request.check_request)
+                          check_request=request.check_request, llm=request.llm)
 
 
 @app.get("/health")

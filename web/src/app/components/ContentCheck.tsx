@@ -4,6 +4,7 @@ import React, { useRef, useState } from "react";
 import { BASE_PATH } from "@/lib/base-path";
 import type { CheckResult } from "@/lib/demo-types";
 import type { InputType } from "@/lib/input-examples";
+import { getLlmMode } from "@/lib/llm-mode";
 import { duration, gsap, useGSAP } from "@/lib/motion";
 import { StepHeader } from "./AgentDemo";
 import DocumentExtractor from "./DocumentExtractor";
@@ -64,13 +65,14 @@ export default function ContentCheck({ type, first }: { type: InputType; first: 
     run(() => fetch(`${BASE_PATH}/api/check`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: text, source: type.source, format: type.format }),
+      body: JSON.stringify({ content: text, source: type.source, format: type.format, llm: getLlmMode() }),
     }), text);
 
   function checkFile(file: Blob, name: string) {
     setFile({ blob: file, name });
     const form = new FormData();
     form.append("file", file, name);
+    form.append("llm", getLlmMode());
     return run(() => fetch(`${BASE_PATH}/api/check-file`, { method: "POST", body: form }));
   }
 

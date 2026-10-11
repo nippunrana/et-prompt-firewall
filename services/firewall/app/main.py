@@ -63,20 +63,24 @@ class CheckRequest(BaseModel):
     format: Literal["text", "html"] = "text"
     # For text extracted from a file: its hidden ranges, so a caller checks it exactly as /check-file does.
     hidden: list[HiddenRange] | None = Field(default=None, max_length=1_000)
+    # When the LLM judge and sandbox run: only on what the detectors flag (default), or on everything (more
+    # calls and seconds per item; caught every held-out public attack the detectors missed, eval/results/llm-always.md)
+    llm: Literal["flagged", "always"] = "flagged"
 
     def hidden_ranges(self) -> list[tuple[str, int, int]] | None:
         return None if self.hidden is None else [(h.kind, h.start, h.end) for h in self.hidden]
 
 
 async def _run_check(content: str, source: str | None, user_task: str | None, fmt: str | None = None,
-                     hidden: list[tuple[str, int, int]] | None = None) -> dict:
+                     hidden: list[tuple[str, int, int]] | None = None, llm: str = "flagged") -> dict:
     loaded = getattr(app.state, "classifiers", None)
     if loaded is None:
         raise HTTPException(status_code=503, detail="The classifiers are not loaded.")
     async with CHECK_SEMAPHORE:
         result = await asyncio.to_thread(run_check, content, source, loaded, user_task=user_task,
                                          judge=getattr(app.state, "judge", None),
-                                         sandbox=getattr(app.state, "sandbox", None), fmt=fmt, hidden=hidden)
+                                         sandbox=getattr(app.state, "sandbox", None), fmt=fmt, hidden=hidden,
+                                         llm_always=llm == "always")
     audit.record_check(content, source, result)
     return result
 
@@ -84,7 +88,7 @@ async def _run_check(content: str, source: str | None, user_task: str | None, fm
 @app.post("/check")
 async def check(request: CheckRequest) -> dict:
     return await _run_check(request.content, request.source, request.user_task,
-                            "html" if request.format == "html" else None, request.hidden_ranges())
+                            "html" if request.format == "html" else None, request.hidden_ranges(), request.llm)
 
 
 @app.post("/check/stream")
@@ -99,7 +103,8 @@ async def check_stream(request: CheckRequest) -> StreamingResponse:
         async with CHECK_SEMAPHORE:  # held for the whole stream: one check at a time, as for /check
             stages = stream_check(request.content, request.source, loaded, user_task=request.user_task,
                                   judge=getattr(app.state, "judge", None), sandbox=getattr(app.state, "sandbox", None),
-                                  fmt="html" if request.format == "html" else None, hidden=request.hidden_ranges())
+                                  fmt="html" if request.format == "html" else None, hidden=request.hidden_ranges(),
+                                  llm_always=request.llm == "always")
             while (event := await asyncio.to_thread(next, stages, None)) is not None:
                 if "result" in event:
                     audit.record_check(request.content, request.source, event["result"])
@@ -168,7 +173,8 @@ async def extract_text(file: UploadFile = File(...)) -> dict:
 
 
 @app.post("/check-file")
-async def check_file(file: UploadFile = File(...), user_task: str | None = Form(default=None, max_length=2_000)) -> dict:
+async def check_file(file: UploadFile = File(...), user_task: str | None = Form(default=None, max_length=2_000),
+                     llm: Literal["flagged", "always"] = Form(default="flagged")) -> dict:
     """A file checked the way an agent would read it. HTML is checked as HTML; other files are
     extracted first, with their hidden text marked."""
     if file.filename and file.filename.lower().endswith((".html", ".htm")):
@@ -184,5 +190,5 @@ async def check_file(file: UploadFile = File(...), user_task: str | None = Form(
     if len(text) > MAX_CHECK_CHARS:
         raise HTTPException(status_code=413, detail=f"This file holds {len(text):,} characters of text; "
                                                     f"the check takes at most {MAX_CHECK_CHARS:,}.")
-    result = await _run_check(text, "web" if fmt == "html" else "document", user_task, fmt, hidden)
+    result = await _run_check(text, "web" if fmt == "html" else "document", user_task, fmt, hidden, llm)
     return {**result, "extraction": extraction, "content": text}

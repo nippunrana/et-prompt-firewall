@@ -105,6 +105,7 @@ class Settings:
     guard: bool
     document: dict | None = None  # one shared document instead of the inbox: {"text", "source", "format", "hidden"}
     check_request: bool = False  # the request itself is outside content (a pasted message): checked before the model
+    llm: str = "flagged"  # when the firewall runs its LLM judge and sandbox: on flagged text, or "always"
     canary: str = field(default_factory=lambda: f"REF-{secrets.token_hex(4)}")
     # The firewall's check, reporting each finished stage to the callback as it happens
     check: Callable[[dict, Callable[[dict], None]], dict] = lambda body, on_stage: _stream("/check/stream", body, 900, on_stage)
@@ -125,7 +126,7 @@ def _checked(s: Settings, item_id: str, body: dict, noun: str) -> tuple[str, dic
     """One item through the firewall's check: the text the agent may read, and the step that reports it.
     `item_id` keeps the name `email_id` in the step, the field the UI and eval/run_agent.py read."""
     try:
-        r = s.check(body, lambda stage: s.on_check(item_id, stage))
+        r = s.check({**body, "llm": s.llm}, lambda stage: s.on_check(item_id, stage))
     except Exception as e:  # fail closed: an unchecked item is never shown
         r = {"verdict": "quarantine", "warnings": [f"firewall unreachable: {type(e).__name__}"], "attacks": []}
     step = {"step": "firewall", "email_id": item_id, "verdict": r["verdict"], "lane": r.get("lane"),

@@ -22,6 +22,7 @@ Two checkpoints sit around the agent.
    - Rules, two small models trained to spot attacks, and a language check scan the text a few sentences at a time.
    - If something looks wrong, two AI models look closer, side by side. A judge names the attack and quotes it. A sandbox, an easy-to-fool model with fake tools, shows what the text would make an agent do.
    - Code, not AI, makes the final call. It cuts the attack, keeps the rest, and checks the result again. Text that cannot be cleaned is held back.
+   - **Your choice:** the AI models read only flagged text by default. Send `"llm": "always"` to have them read everything. It is slower and makes more AI calls, but it catches attacks the other checks miss. Worth it when the agent handles valuable mail or files.
 2. **Check what the agent does** (`POST /guard`)
    - Plain code blocks an action that leaks a secret, sends to someone the user never named, or does something the user never asked for.
 
@@ -52,6 +53,8 @@ By file type (attacks caught · harmless files flagged):
 | :--- | :--- | :--- | :--- |
 | 49/50 · 0/50 | 30/30 · 0/30 | 29/30 · 0/30 | 21/30 · 13/40 |
 
+With the AI models reading everything (`"llm": "always"`): public attacks caught **80 of 80**, real work emails wrongly flagged still **1 of 100**, look-alike requests flagged 14 of 40 ([details](eval/results/llm-always.md)).
+
 HTML and Word tests hide public attacks that one of the models (Wolf Defender) learned from. Image tests are screenshots we made from public test text.
 
 **Hackathon grid: F3 × D2.** F3: all 9 attack types are caught (7 needed). D2: reliability is measured on text. Files work and are measured too, but images score below text, so we do not claim D3. Proof for each attack type: [architecture §12](docs/architecture.md#12-grid-position-self-declared-f3--d2). Every number and how we got it: [eval/results](eval/results/README.md).
@@ -60,6 +63,7 @@ HTML and Word tests hide public attacks that one of the models (Wolf Defender) l
 
 - **Try it:** choose what the agent reads. Two copies of the same agent get the same input, one without the firewall and one with it. Every step shows live, side by side.
 - **Results:** the measured numbers.
+- **AI checks on** (top bar): *Flagged text* or *Everything*, for every check and run you start.
 - **Audit log:** replay any past run. Runs stay in your browser unless you choose to share them.
 
 ## Run it yourself
@@ -100,7 +104,7 @@ Unit tests live in `services/*/tests/` and run on every push.
 
 ## Limits
 
-No defence against prompt injection is perfect: attackers who keep adapting beat every published one. A check that needs the AI models takes about 10 seconds on a laptop. What this firewall misses, and how we tested it: [known limits](docs/architecture.md#11-known-limits) and [adaptive attacks](eval/results/adaptive.md).
+No defence against prompt injection is perfect: attackers who keep adapting beat every published one. A check that needs the AI models takes about 10 seconds on a laptop. By default, an attack that no rule or classifier flags never reaches the AI models; reading everything closes most of that gap, at the cost of time and calls. What this firewall misses, and how we tested it: [known limits](docs/architecture.md#11-known-limits) and [adaptive attacks](eval/results/adaptive.md).
 
 ## Credits
 

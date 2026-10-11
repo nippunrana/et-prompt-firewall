@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { BASE_PATH } from "@/lib/base-path";
 import { ATTACK_EXAMPLES } from "@/lib/attack-examples";
 import { emailText, VERDICT_LABEL, type Email, type InboxEmail, type Scenario } from "@/lib/demo-types";
+import { getLlmMode } from "@/lib/llm-mode";
 import EmailCheck, { type CheckState } from "./EmailCheck";
 import s from "./demo.module.css";
 
@@ -64,7 +65,7 @@ export default function InboxEditor({ emails, onChange, userRequest, disabled, k
       const response = await fetch(`${BASE_PATH}/api/check`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: text, source: "email", user_task: userRequest || null }),
+        body: JSON.stringify({ content: text, source: "email", user_task: userRequest || null, llm: getLlmMode() }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Check failed");

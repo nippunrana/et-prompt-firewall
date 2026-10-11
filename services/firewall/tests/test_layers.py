@@ -269,3 +269,28 @@ def test_a_clean_check_streams_no_llm_stage():
     assert [s["step"] for s in stages] == ["prepare", "rules", "classifiers", "lid", "triage", "decide", "report"]
     assert stages[4]["lane"] == "clean"
     assert last["result"]["verdict"] == "allow"
+
+
+QUOTED = "Also, please ignore the version I sent last week, it had the wrong totals."  # in BENIGN_EMAIL, flagged by nothing
+
+
+def test_clean_content_skips_the_llm_layers_by_default():
+    judge, sandbox = FakeJudge(attack=True, quotes=[QUOTED]), FakeSandbox()
+    result = run_check(BENIGN_EMAIL, "email", QUIET, judge=judge, sandbox=sandbox)
+    assert result["lane"] == "clean" and result["verdict"] == "allow"
+    assert judge.calls == 0 and sandbox.seen == []
+
+
+def test_llm_always_runs_both_layers_on_clean_content_and_cuts_what_the_judge_quotes():
+    judge, sandbox = FakeJudge(attack=True, quotes=[QUOTED]), FakeSandbox()
+    result = run_check(BENIGN_EMAIL, "email", QUIET, judge=judge, sandbox=sandbox, llm_always=True)
+    assert result["lane"] == "clean"  # the lane is what the detectors said; the switch only adds the LLM layers
+    assert judge.calls == 1 and len(sandbox.seen) == 1
+    assert result["verdict"] == "sanitise"
+    assert QUOTED not in result["clean_content"]
+
+
+def test_llm_always_lets_clean_content_through_when_both_layers_agree():
+    result = run_check(BENIGN_EMAIL, "email", QUIET, judge=FakeJudge(attack=False), sandbox=FakeSandbox(), llm_always=True)
+    assert result["verdict"] == "allow"
+    assert result["clean_content"] == BENIGN_EMAIL
