@@ -131,7 +131,7 @@ def _checked(s: Settings, item_id: str, body: dict, noun: str) -> tuple[str, dic
         r = {"verdict": "quarantine", "warnings": [f"firewall unreachable: {type(e).__name__}"], "attacks": []}
     step = {"step": "firewall", "email_id": item_id, "verdict": r["verdict"], "lane": r.get("lane"),
             "types": sorted({t for a in r["attacks"] for t in a["types"]}),
-            "removed": [a["text"] for a in r["attacks"]], "clean_content": r.get("clean_content"),
+            "original": body["content"], "removed": [a["text"] for a in r["attacks"]], "clean_content": r.get("clean_content"),
             "warnings": r.get("warnings", []),
             "usage": r.get("usage", []), "layers": {k: r.get(k) for k in LAYERS}}
     s.on_step(step)

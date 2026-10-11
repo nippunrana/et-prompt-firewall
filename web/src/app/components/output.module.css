@@ -55,11 +55,14 @@
   font-size: var(--text-xs);
 }
 
+/* Long text scrolls inside its box, which keeps one capped height; at the box's end the wheel stops there
+   rather than carrying on into the drawer, so the page moves only when the cursor is outside the box. */
 .box {
-  max-height: 16rem;
+  max-height: 12rem;
   margin: 0;
   padding: var(--space-3);
   overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -109,8 +112,52 @@
   margin-bottom: var(--space-2);
 }
 
+.close {
+  margin-left: auto;
+}
+
+.wide {
+  width: min(72rem, calc(100vw - 2 * var(--space-4)));
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.columns .field:first-child {
+  margin-top: 0;
+}
+
+.tall {
+  max-height: 55vh;
+}
+
+.columns pre.box:not(.tall) {
+  max-height: 35vh;
+}
+
+@media (max-width: 720px) {
+  .columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.actions :global(.btn) {
+  padding: 2px var(--space-2);
+  font-size: var(--text-xs);
+}
+
 .json {
   max-height: 60vh;
+  overscroll-behavior: contain;
   margin: var(--space-3) 0 0;
   padding: var(--space-3);
   overflow: auto;

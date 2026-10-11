@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { CHECKPOINT_1, kindName } from "@/lib/checkpoint";
 import { pretty, VERDICT_LABEL, type Attack, type CheckResult } from "@/lib/demo-types";
 import CheckStory from "./CheckStory";
 import CostTable from "./CostTable";
-import FirewallOutput from "./FirewallOutput";
+import FirewallOutput, { highlight } from "./FirewallOutput";
 import LayerTrack from "./LayerTrack";
 import s from "./demo.module.css";
 
@@ -19,20 +19,6 @@ export interface CheckState {
 
 // Where a removed part was hidden from a person, in words (the same names as checkpoint 1's story)
 const hiddenIn = (a: Attack) => (a.hidden_in ?? []).map((k) => kindName(k));
-
-// The checked text with every removed span marked, using the firewall's character offsets
-function highlight(text: string, attacks: Attack[]) {
-  const spans = [...attacks].sort((a, b) => a.span[0] - b.span[0]);
-  const parts: React.ReactNode[] = [];
-  let pos = 0;
-  spans.forEach((a, i) => {
-    parts.push(text.slice(pos, a.span[0]));
-    parts.push(<mark key={i} className="removed" title={a.types.map(pretty).join(", ")}>{text.slice(a.span[0], a.span[1])}</mark>);
-    pos = a.span[1];
-  });
-  parts.push(text.slice(pos));
-  return parts;
-}
 
 export default function EmailCheck({ state, noun = "email" }: { state: CheckState; noun?: string }) {
   const [showJson, setShowJson] = useState(false);
@@ -71,7 +57,7 @@ export default function EmailCheck({ state, noun = "email" }: { state: CheckStat
 
       {r.attacks.length > 0 && <pre className={s.textBlock}>{highlight(state.text, r.attacks)}</pre>}
 
-      <FirewallOutput verdict={r.verdict} cleanContent={r.clean_content} removed={r.removed} />
+      <FirewallOutput verdict={r.verdict} cleanContent={r.clean_content} removed={r.removed} original={state.text} attacks={r.attacks} />
 
       <CostTable usage={r.usage ?? []} detectors />
 

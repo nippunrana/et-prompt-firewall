@@ -202,7 +202,8 @@ function InboxEvent({ item, emails, protectedRun, custom, reads, noun, toolN }: 
                 : <span className="muted">not checked</span>}
               {protectedRun && c?.verdict && (
                 <div className={r.rowDetail}>
-                  <FirewallOutput verdict={c.verdict} cleanContent={c.clean_content} removed={c.removed ?? []} open={c.verdict !== "allow"} />
+                  <FirewallOutput verdict={c.verdict} cleanContent={c.clean_content} removed={c.removed ?? []} original={c.original}
+                    attacks={c.layers?.attacks} open={c.verdict !== "allow"} />
                 </div>
               )}
               {c?.layers?.trace && (

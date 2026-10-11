@@ -85,6 +85,7 @@ def test_firewall_checks_every_email_before_the_agent_reads_it():
     last = [s for s in result["steps"] if s["step"] == "firewall"][-1]
     assert last["clean_content"] == "[removed by firewall: tool abuse]"
     assert last["removed"] == ["x"]
+    assert last["original"] == checked[-1]  # the exact text the firewall checked, for the side-by-side view
 
 
 

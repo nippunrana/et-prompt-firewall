@@ -51,6 +51,7 @@ export interface Step {
   verdict?: string;
   lane?: string;
   types?: string[];
+  original?: string; // the exact text sent to the firewall: the attacks' spans point into it
   removed?: string[];
   clean_content?: string | null; // what the agent was given: null when blocked; absent in runs recorded before it was kept
   warnings?: string[];
