@@ -2,7 +2,7 @@
 extracted with their hidden text marked, then app.check.run_check.
 
 Results go to eval/data/results-<label>.jsonl (they hold no file text; a rerun skips finished items).
-EVAL_SPLIT picks dev or held; EVAL_LLM=1 switches on the judge and the sandbox (paid: small sets only);
+EVAL_MANIFEST picks the manifest (default files.jsonl; images.jsonl for the image set). EVAL_SPLIT picks dev or held; EVAL_LLM=1 switches on the judge and the sandbox (paid: small sets only);
 FIREWALL_HIDDEN_STRONG=0 turns off "any signal on hidden text blocks it", for the dev comparison.
 
 From the repo root:
@@ -69,7 +69,7 @@ def main() -> None:
     label = os.environ.get("EVAL_LABEL", "files")
     out = DATA / f"results-{label}.jsonl"
     split = os.environ.get("EVAL_SPLIT", "dev")
-    items = [json.loads(line) for line in open(DATA / "files.jsonl")]
+    items = [json.loads(line) for line in open(DATA / os.environ.get("EVAL_MANIFEST", "files.jsonl"))]
     done = {json.loads(line)["id"] for line in open(out)} if out.exists() else set()
     todo = [i for i in items if i["split"] == split and i["id"] not in done]
     meta = DATA / f"results-{label}.meta.json"

@@ -33,6 +33,8 @@ It names nine attack types: instruction override, role change, secret extraction
 
 ## Results
 
+**Self-declared grid position: F3 × D2** (all 9 attack types; text reliability measured; images work but measured below text). The justification, type by type: [docs/architecture.md §12](docs/architecture.md#12-grid-position-self-declared-f3--d2).
+
 Measured on held-out data the firewall was never tuned on. The headline uses only public data that no classifier in the pipeline was trained on: Wolf Defender was trained on LLMail-Inject, so LLMail results are reported apart. Details, per-item IDs and method: [`eval/results/`](eval/results/README.md).
 
 | Measure | Result |
@@ -41,6 +43,7 @@ Measured on held-out data the firewall was never tuned on. The headline uses onl
 | Real work email wrongly flagged (Enron; the one: the AI judge did not answer within 60 s, so the firewall cut, failing closed) | **1 / 100 (1%)** |
 | Hard benign look-alikes wrongly flagged (boundary-pair twins: near-copies of the attacks, written as requests to an AI) | 8 / 40 (20%) |
 | Benign PDFs flagged (CrackedPDFs): originals · look-alikes that hide ordinary text the same way | 0 / 50 · 11 / 50 |
+| The same public attacks and benign twins as screenshots (images, OCR): caught · twins flagged · real email flagged | 21 / 30 · 13 / 40 · 2 / 30 |
 | Attack emails that made the unprotected agent send data out → with the tool-call guard (plain code, no classifier) | **12 → 0** (of 33) |
 | Legitimate send, forward and pay requests completed with full protection | 8 / 8 |
 
@@ -123,7 +126,8 @@ No prompt-injection defence is unbreakable; adaptive attacks beat every publishe
 - [Wolf Defender Small](https://huggingface.co/patronus-studio/wolf-defender-prompt-injection-small) (Apache-2.0) by Patronus Protect, fine-tuned from [mmBERT-small](https://huggingface.co/jhu-clsp/mmBERT-small) (MIT).
 - [GlotLID](https://huggingface.co/cis-lmu/glotlid) (Apache-2.0) for language identification.
 - [Gemma 4](https://ai.google.dev/gemma) (Google) as the judge, via the Gemini API; [Qwen3-Next-80B](https://huggingface.co/Qwen) (Alibaba) as the sandbox and demo agent, via OpenRouter.
-- OCR by [RapidOCR](https://github.com/RapidAI/RapidOCR) and [RapidTable](https://github.com/RapidAI/RapidTable).
-- Evaluation data: [LLMail-Inject](https://huggingface.co/datasets/microsoft/llmail-inject-challenge) (Microsoft, MIT), [agentic prompt-injection boundary pairs](https://huggingface.co/datasets/3nesdeniz/agentic-prompt-injection-boundary-pairs) (CC-BY-4.0), and the Enron email corpus (aggregate numbers only; no text is published).
-- Built with [LangGraph](https://github.com/langchain-ai/langgraph), [FastAPI](https://fastapi.tiangolo.com) and [Next.js](https://nextjs.org).
+- Classifiers run on [PyTorch](https://pytorch.org) (BSD-style), Hugging Face [Transformers](https://github.com/huggingface/transformers), [Tokenizers](https://github.com/huggingface/tokenizers), [safetensors](https://github.com/huggingface/safetensors) and [huggingface_hub](https://github.com/huggingface/huggingface_hub) (all Apache-2.0); GlotLID runs on [fastText](https://github.com/facebookresearch/fastText) (MIT).
+- Document reading: OCR by [RapidOCR](https://github.com/RapidAI/RapidOCR) and [RapidTable](https://github.com/RapidAI/RapidTable) (Apache-2.0) on [ONNX Runtime](https://github.com/microsoft/onnxruntime) (MIT) and [OpenCV](https://opencv.org) (Apache-2.0); PDF by [pdfplumber](https://github.com/jsvine/pdfplumber) and [pdfminer.six](https://github.com/pdfminer/pdfminer.six) (MIT), scanned pages rendered by [pypdfium2](https://github.com/pypdfium2-team/pypdfium2) (Apache-2.0 / BSD-3-Clause); Word by [python-docx](https://github.com/python-openxml/python-docx) (MIT); Excel by [openpyxl](https://foss.heptapod.net/openpyxl/openpyxl) (MIT); images by [Pillow](https://python-pillow.org) (MIT-CMU); [NumPy](https://numpy.org) (BSD-3-Clause).
+- Evaluation data: [LLMail-Inject](https://huggingface.co/datasets/microsoft/llmail-inject-challenge) (Microsoft, MIT), [agentic prompt-injection boundary pairs](https://huggingface.co/datasets/3nesdeniz/agentic-prompt-injection-boundary-pairs) (CC-BY-4.0; our image test set renders some of its items as screenshots, text unchanged), [CrackedPDFs](https://github.com/volkthienpreecha/crackedpdfs) (Thienpreecha and Subramanian, [arXiv 2607.19396](https://arxiv.org/abs/2607.19396), MIT), and the [Enron email corpus](https://huggingface.co/datasets/corbt/enron-emails) (aggregate numbers only; no text is published). Test screenshots rendered with [Playwright](https://playwright.dev) (Apache-2.0).
+- Built with [LangGraph](https://github.com/langchain-ai/langgraph) (MIT), [FastAPI](https://fastapi.tiangolo.com) (MIT) with [Starlette](https://www.starlette.io) and [Uvicorn](https://www.uvicorn.org) (BSD-3-Clause), [Pydantic](https://docs.pydantic.dev) (MIT) and [python-multipart](https://github.com/Kludex/python-multipart) (Apache-2.0); the UI with [Next.js](https://nextjs.org), [React](https://react.dev) (MIT) and [TypeScript](https://www.typescriptlang.org) (Apache-2.0).
 - UI animation by [GSAP](https://gsap.com) (free under GreenSock's [Standard "no charge" license](https://gsap.com/standard-license)); type set in [Geist and Geist Mono](https://vercel.com/font) (SIL Open Font License).

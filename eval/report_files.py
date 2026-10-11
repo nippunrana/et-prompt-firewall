@@ -19,7 +19,10 @@ SETS = [("html_attack", "HTML: LLMail attacks hidden in our carrier pages"),
         ("docx_benign", "Word: the same files with ordinary hidden content"),
         ("cpdf_injected_attack", "PDF (CrackedPDFs): injected"),
         ("cpdf_benign_confounder", "PDF (CrackedPDFs): benign look-alike (same hiding, benign text)"),
-        ("cpdf_benign_original", "PDF (CrackedPDFs): benign original")]
+        ("cpdf_benign_original", "PDF (CrackedPDFs): benign original"),
+        ("image_attack", "Image: boundary-pair attacks rendered as screenshots"),
+        ("image_benign", "Image: boundary-pair benign twins rendered as screenshots"),
+        ("image_enron", "Image: Enron work email rendered as screenshots")]
 
 
 def _flagged(r: dict) -> bool:

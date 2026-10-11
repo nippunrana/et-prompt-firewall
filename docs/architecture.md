@@ -180,4 +180,28 @@ The system never pauses for approval: the firewall decides, the agent acts or is
 - **Benign look-alikes:** PDFs that hide ordinary text in tiny or margin print are flagged about a fifth of the time (11/50). Benign requests written to an AI (the boundary-pair twins) are flagged 8 of 40 times on their own, and when planted inside real email they were wrongly cut 30 of 45 times in the Wolf Defender vs PIGuard comparison (run before the swap, on unpublished data; PIGuard: 36 of 45).
 - **Per-part judging trades a little payload for fewer false cuts:** since the judge rules on each flagged part, ordinary notes next to an attack are kept, but in 4 of 90 LLMail attacks a payload fragment it voted harmless stayed in the cleaned text (the attack itself was still cut).
 - **The intent check is keyword-based:** a legitimate request worded without a send/pay/forward verb is blocked (the safe failure direction).
+- **Images are less reliable than text:** the same public attacks as screenshots are caught 21 of 30 times (26 as text), and 13 of 40 benign look-alikes are flagged (8 as text): OCR loses words, and a request to act read from an image counts as outside content ([`eval/results/images-held.md`](../eval/results/images-held.md)).
 - **Latency:** the LLM layers add seconds per flagged email; on the live server's single CPU a protected agent run takes minutes.
+
+## 12. Grid position (self-declared): F3 × D2
+
+**Features: F3** (at least 7 attack types; we detect and name all 9). Each type, its evidence on held-out data and where the demo shows it:
+
+| Type | Caught on held-out data | Shown in the demo |
+| :--- | :--- | :--- |
+| Instruction override | 3/3 public, 6/6 LLMail-Inject | Instruction override scenario; example email |
+| Role change | 6/8 public, 10/10 LLMail-Inject | Role change scenario (unprotected agent sent data out 3 of 3 times) |
+| Secret extraction | 4/4 public, 5/5 ours; guard blocks a leaving canary | Example email |
+| Tool abuse | 89/90 LLMail-Inject; the guard took harmful sends from 12 to 0 of 33 | Every attack run |
+| Credential theft | 6/6 ours; guard blocks codes, passwords and keys leaving | Credential theft scenario |
+| Context poisoning | 4/5 public, 9/9 LLMail-Inject | Context poisoning scenario (stopped by the guard) |
+| Multi-step jailbreak | 6/6 ours | Example email |
+| Encoded instructions | 5/5 public, 5/5 ours | Encoded (Base64) scenario |
+| Indirect injection | 4/5 public, 22/22 ours | Every scenario |
+
+Public = boundary pairs, which no classifier in the pipeline trained on; LLMail-Inject is in Wolf Defender's training data; ours = small sets we wrote. Caught means removed or withheld; the type is sometimes named differently (role change is named 2 of 8 times on public data, multi-step jailbreak 1 of 6). Supporting features: a per-stage trace on every answer, streamed live; the audit log with replay; hard time limits on both LLM layers that fail closed.
+
+**Depth: D2** (mostly textual input, high demonstrable reliability). On held-out public data no classifier here trained on: 75 of 80 attacks caught, 1 of 100 real work emails wrongly flagged, harmful agent actions 12 → 0 of 33 with 8 of 8 legitimate tasks completed. PDFs reach the same level (CrackedPDFs: 49/50 caught, 0/50 benign originals flagged).
+
+**Why not D3.** D3 needs highly heterogeneous multimodal input at the same reliability. HTML, Word, PDF and images all work in the demo, but images were measured below the bar we set before the run (21/30 attacks, 13/40 benign look-alikes flagged; [`eval/results/images-held.md`](../eval/results/images-held.md)), and the HTML and Word results use attacks from Wolf Defender's training data. We claim only what the measurements carry.
+
