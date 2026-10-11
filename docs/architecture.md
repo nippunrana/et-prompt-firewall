@@ -111,8 +111,8 @@ A LangGraph tool loop (agent ⇄ tools, at most 8 turns) on Qwen3-next-80B instr
 
 | Model | Role | Runs | Why this one |
 | :--- | :--- | :--- | :--- |
-| Wolf Defender Small (mmBERT, Patronus Protect) | Injection classifier | Local, CPU | Replaced PIGuard on 2026-10-11 after a comparison inside this pipeline on data neither model was trained on: more attacks caught (end to end, 139 of 150 vs 133 of 150), fewer cuts on benign text that the judge cannot clear (14 of 243 vs 18 of 243), fewer benign items sent to the judge, and faster. The comparison's data is not published. Still flags instruction-heavy benign text, so a Wolf-only flag goes to the judge rather than straight to a cut. Loaded without remote code. |
-| Llama Prompt Guard 2 86M | Injection classifier | Local, CPU | Near-zero false alarms; misses plain-request injections. Complements Wolf Defender: both together = strong signal. |
+| Wolf Defender Small (mmBERT, Patronus Protect) | Injection classifier | Local, CPU | Replaced PIGuard on 2026-10-11 after a comparison inside this pipeline on data neither model was trained on: more attacks caught (end to end, 139 of 150 vs 133 of 150), fewer cuts on benign text that the judge cannot clear (14 of 243 vs 18 of 243), fewer benign items sent to the judge, and faster. The comparison's data is not published. Reads 2,048-token windows sharing 64 tokens; flags at 0.65, the threshold both classifiers share. Still flags instruction-heavy benign text, so a Wolf-only flag goes to the judge rather than straight to a cut. Loaded without remote code. |
+| Llama Prompt Guard 2 86M | Injection classifier | Local, CPU | Reads 512-token windows sharing 128 tokens. Near-zero false alarms; misses plain-request injections. Complements Wolf Defender: both together = strong signal. |
 | GlotLID v3 (quantised) | Language gate | Local, CPU | Routes non-English and romanized Indic lines, which the classifiers are not validated on, to the judge. |
 | Gemma 4 31B | Judge | Gemini API | Settles weak signals, names attack types, quotes the exact attack text. Distinct from the agent's model family. |
 | Qwen3-next-80B instruct | Sandbox decoy, and the demo agent | OpenRouter | Gullible on purpose: if content can hijack it into a tool call, that is direct evidence of an attack. The most gullible of 15 models we tested that still makes clean tool calls (`docs/studies/sandbox-model-study.html`). |
@@ -148,7 +148,7 @@ The input type is stated, never guessed, and decides the front end; after it, ev
 | Image (`POST /check-file`) | RapidOCR text and tables. |
 | Markdown, API response, source code, OCR text | Plain text for now (Unicode normalisation and decoding apply to every type). |
 
-**Split, never strip.** About 70% of real web injections sit in HTML a browser never shows, and PDF and Word attacks hide in white, tiny or hidden-flagged text, so a cleaner that throws those parts away deletes the attack before any detector sees it. The hidden layers are read by every detector, window by window like visible text; a cut removes exactly the hidden element, comment or run. Concealment alone does not block: on the dev split, counting any signal on hidden text as an attack caught nothing extra and flagged benign files that hide ordinary text the same way.
+**Split, never strip.** About 70% of real web injections sit in HTML a browser never shows, and PDF and Word attacks hide in white, tiny or hidden-flagged text, so a cleaner that throws those parts away deletes the attack before any detector sees it. The hidden layers are read by every detector, window by window like visible text; a cut removes exactly the hidden element, comment or run. Concealment alone does not block: on the dev split (measured with PIGuard, before Wolf Defender replaced it), counting any signal on hidden text as an attack caught nothing extra and flagged benign files that hide ordinary text the same way.
 
 ## 9. Oversight without a human in the loop
 

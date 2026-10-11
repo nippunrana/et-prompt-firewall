@@ -69,7 +69,7 @@ export function stations(l: Layers, lane: string | undefined, noun = "email", ow
     ? { key: "lid", name: "Language", value: plural(l.non_english_spans.length, "line"), state: "hint", ms: ms("lid"),
         detail: `GlotLID found ${plural(l.non_english_spans.length, "non-English line")} (${langs.join(", ")}). The classifiers are validated mainly on English, so the gate sends the ${noun} to the judge. It never cuts.` }
     : { key: "lid", name: "Language", value: "English", state: "clear", ms: ms("lid"),
-        detail: "GlotLID found only English, so no instruction is hiding in a language the classifiers cannot read." };
+        detail: "GlotLID found only English, so no instruction is hiding in a language the classifiers are not validated on." };
 
   const notRun = (key: string, name: string, what: string): Station => llmSkipped
     ? { key, name, value: "skipped", state: "skip", ms: 0, detail: `Not called: the rules and classifiers found nothing, so ${what} made no LLM call.` }

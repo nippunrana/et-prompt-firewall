@@ -68,7 +68,7 @@ def survives(item, r):
 
 
 def pct(n, d):
-    return f"{n}/{d} ({100 * n / d:.0f}%)" if d else "–"
+    return f"{n}/{d} ({(200 * n + d) // (2 * d)}%)" if d else "–"  # half rounds up, as the dashboard does
 
 
 done = {i: it for i, it in items.items() if i in runs and not runs[i].get("error")}

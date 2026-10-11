@@ -1,6 +1,6 @@
 # Evaluation harness
 
-Measures the firewall on public data it was not trained on: attacks caught (recall), benign content flagged (false-positive rate), per attack type, and whether the cut lands on the attack.
+Measures the firewall on public data; sets a classifier in the pipeline was trained on (LLMail-Inject, in Wolf Defender's training data) are reported apart and never count toward a headline. It measures attacks caught (recall), benign content flagged (false-positive rate), per attack type, and whether the cut lands on the attack.
 
 | Set | Items | What it tests |
 | :--- | :--- | :--- |

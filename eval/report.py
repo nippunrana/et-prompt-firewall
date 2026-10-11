@@ -185,7 +185,7 @@ def markdown(o: dict) -> str:
                   f"- Prompt-injection families: {f(e['injection_families'])}",
                   f"- Unsafe-action families (tool-call guard's job, not counted as injection): {f(e['action_families'])}", ""]
         lines += [f"- {g}: {v:.0%}" for g, v in o["sets"]["pairs_attack"]["by_family"].items()]
-    lines += ["", "## Each detector alone (all attack sets vs all benign sets)", "", "| Detector | Threshold | Recall | FPR |", "| :-- | :-- | :-- | :-- |"]
+    lines += ["", "## Each detector alone (all attack sets vs all benign sets, LLMail sets included)", "", "| Detector | Threshold | Recall | FPR |", "| :-- | :-- | :-- | :-- |"]
     for clf, per in o["sweep"].items():
         for th, d in per.items():
             show = lambda v: "–" if v is None else f"{v:.1%}"  # a partial run may have no rows of a kind
