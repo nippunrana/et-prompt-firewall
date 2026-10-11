@@ -1,4 +1,4 @@
-// One email's firewall check as seven stations, in the order the firewall runs them
+// One firewall check (of an email, a web page, a file, a message …) as seven stations, in the order the firewall runs them
 // (services/firewall/app/check.py): rules, the two classifiers, the language gate, then the judge and
 // the sandbox (in parallel, only for content the detectors did not pass), then the re-check of the cut text.
 import { pretty, type Layers } from "./demo-types";
@@ -23,7 +23,9 @@ const CLASSIFIERS = [
   { key: "PromptGuard2", name: "Prompt Guard 2", about: "Llama Prompt Guard 2 86M, Meta's prompt-injection classifier" },
 ];
 
-export function stations(l: Layers, lane: string | undefined): Station[] {
+// `noun` names what was checked; `ownMessage`: the user's own message, which the firewall never gives the sandbox
+// (a request is meant to hold instructions), so its sandbox is "not used", never "unavailable".
+export function stations(l: Layers, lane: string | undefined, noun = "email", ownMessage = false): Station[] {
   const trace = (step: string) => l.trace.filter((t) => t.step === step);
   const ms = (step: string) => trace(step).reduce((sum, t) => sum + t.ms, 0);
   const raised = new Set([...l.attacks, ...l.cleared].flatMap((a) => a.found_by));
@@ -45,19 +47,27 @@ export function stations(l: Layers, lane: string | undefined): Station[] {
     const sc = l.scores[c.key];
     if (classifiersFailed || !sc) {
       return { key: c.key, name: c.name, value: "failed", state: "off", ms: 0,
-        detail: `${c.about}, could not score this email, so the firewall decided on the rules and kept checking.` };
+        detail: `${c.about}, could not score this ${noun}, so the firewall decided on the rules and kept checking.` };
     }
-    const scored = `scored the worst 3-sentence window ${sc.max_window.toFixed(2)} and the whole email ${sc.whole.toFixed(2)}`;
+    const timing = c.key === "WolfDefender" ? ` Both classifiers took ${ms("classifiers")} ms together.` : "";
+    // The scores are the visible text's. A flag on hidden text alone (an HTML comment, white PDF text) must say so,
+    // or "scored 0.00 … Flagged" reads as a contradiction.
+    const own = l.attacks.filter((a) => a.found_by.includes(c.key));
+    if (own.length && own.every((a) => a.hidden_in?.length)) {
+      return { key: c.key, name: c.name, value: "hidden text", state: "flag", ms: c.key === "WolfDefender" ? ms("classifiers") : 0,
+        detail: `${c.about}, flagged the hidden text. On the visible text it scored ${Math.max(sc.whole, sc.max_window).toFixed(2)}.${timing}` };
+    }
+    const scored = `scored the worst 3-sentence window ${sc.max_window.toFixed(2)} and the whole ${noun} ${sc.whole.toFixed(2)}`;
     // Not flagging a part is not the same as scoring low: the whole text can cross the threshold while no window does
-    const verdict = !raised.has(c.key) ? "It flagged no part of the email." : clearedOnly(c.key) ? "Flagged, but the judge read it and cleared it." : "Flagged.";
+    const verdict = !raised.has(c.key) ? `It flagged no part of the ${noun}.` : clearedOnly(c.key) ? "Flagged, but the judge read it and cleared it." : "Flagged.";
     return { key: c.key, name: c.name, value: Math.max(sc.whole, sc.max_window).toFixed(2), state: raised.has(c.key) ? "flag" : "clear",
-      ms: c.key === "WolfDefender" ? ms("classifiers") : 0, detail: `${c.about}, ${scored}. ${verdict} Both classifiers took ${ms("classifiers")} ms together.` };
+      ms: c.key === "WolfDefender" ? ms("classifiers") : 0, detail: `${c.about}, ${scored}. ${verdict}${timing}` };
   });
 
   const langs = [...new Set(l.non_english_spans.map((s) => s.language))];
   const language: Station = langs.length
     ? { key: "lid", name: "Language", value: plural(l.non_english_spans.length, "line"), state: "hint", ms: ms("lid"),
-        detail: `GlotLID found ${plural(l.non_english_spans.length, "non-English line")} (${langs.join(", ")}). The classifiers are validated mainly on English, so the gate sends the email to the judge. It never cuts.` }
+        detail: `GlotLID found ${plural(l.non_english_spans.length, "non-English line")} (${langs.join(", ")}). The classifiers are validated mainly on English, so the gate sends the ${noun} to the judge. It never cuts.` }
     : { key: "lid", name: "Language", value: "English", state: "clear", ms: ms("lid"),
         detail: "GlotLID found only English, so no instruction is hiding in a language the classifiers cannot read." };
 
@@ -68,22 +78,24 @@ export function stations(l: Layers, lane: string | undefined): Station[] {
   const j = l.judge;
   const judge: Station = !j ? notRun("judge", "Judge", "the judge")
     : !j.ok ? { key: "judge", name: "Judge", value: "failed", state: "off", ms: ms("judge"), detail: `The LLM judge did not answer (${j.error ?? "no reason given"}), so the firewall decided without its vote.` }
-    : j.took_over ? { key: "judge", name: "Judge", value: "taken over", state: "flag", ms: ms("judge"), detail: "The email steered the LLM judge: it returned the wrong check code. That alone blocks the email." }
+    : j.took_over ? { key: "judge", name: "Judge", value: "taken over", state: "flag", ms: ms("judge"), detail: `The ${noun} steered the LLM judge: it returned the wrong check code. That alone blocks the ${noun}.` }
     : j.is_attack ? { key: "judge", name: "Judge", value: "attack", state: "flag", ms: ms("judge"),
         detail: `LLM judge (Gemma 4): ${j.reason}${j.types.length ? ` · ${j.types.map(pretty).join(", ")}` : ""}` }
     : { key: "judge", name: "Judge", value: "safe", state: "clear", ms: ms("judge"),
         detail: `LLM judge (Gemma 4): ${j.reason} It can settle weak signals, but never clears a strong one.` };
 
   const sb = l.sandbox;
+  const sandboxOff: Station = { key: "sandbox", name: "Sandbox", value: "not used", state: "skip", ms: 0,
+    detail: "Not used on your own message, by design: a request is meant to hold instructions, so acting on it proves nothing." };
   // Name the call that would have done the most harm: sending, paying or running beats reading invoices
   const worst = sb?.calls.find((c) => OUTGOING.has(c.name)) ?? sb?.calls[0];
   const tried = sb?.calls.map((c) => `${c.name}${c.args.to || c.args.recipient ? ` → ${c.args.to || c.args.recipient}` : ""}`).join(", ");
-  const sandbox: Station = !sb ? notRun("sandbox", "Sandbox", "the sandbox")
+  const sandbox: Station = !sb ? (ownMessage ? sandboxOff : notRun("sandbox", "Sandbox", "the sandbox"))
     : !sb.ok ? { key: "sandbox", name: "Sandbox", value: "failed", state: "off", ms: ms("sandbox"), detail: `The sandbox model did not answer (${sb.error ?? "no reason given"}).` }
     : sb.acted ? { key: "sandbox", name: "Sandbox", value: `tried ${pretty(worst?.name ?? "a tool")}`, state: "flag", ms: ms("sandbox"),
-        detail: `A separate model read the email with fake tools and tried ${tried}. Nothing ran; code counts it as an attack vote.` }
+        detail: `A separate model read the ${noun} with fake tools and tried ${tried}. Nothing ran; code counts it as an attack vote.` }
     : { key: "sandbox", name: "Sandbox", value: "no action", state: "clear", ms: ms("sandbox"),
-        detail: "A separate model read the email with fake tools and did nothing beyond reading." };
+        detail: `A separate model read the ${noun} with fake tools and did nothing beyond reading.` };
 
   const rechecks = trace("recheck");
   const last = rechecks[rechecks.length - 1];
@@ -92,9 +104,9 @@ export function stations(l: Layers, lane: string | undefined): Station[] {
     ? { key: "recheck", name: "Re-check", value: "not needed", state: "skip", ms: 0, detail: "Nothing was cut, so there was nothing to check again." }
     : Number(last.left ?? 0) > 0
       ? { key: "recheck", name: "Re-check", value: "still flagged", state: "flag", ms: ms("recheck"),
-          detail: `The cleaned email still raised a signal${widened ? " after the cut was widened" : ""}, so the whole email was blocked.` }
+          detail: `The cleaned ${noun} still raised a signal${widened ? " after the cut was widened" : ""}, so the whole ${noun} was blocked.` }
       : { key: "recheck", name: "Re-check", value: widened ? `clean, ${widened}× wider` : "clean", state: "clear", ms: ms("recheck"),
-          detail: `The cleaned email went through the rules and classifiers again${widened ? `; the cut was widened ${widened}× first` : ""}. Nothing was left.` };
+          detail: `The cleaned ${noun} went through the rules and classifiers again${widened ? `; the cut was widened ${widened}× first` : ""}. Nothing was left.` };
 
   return [rules, ...classifiers, language, judge, sandbox, recheck];
 }

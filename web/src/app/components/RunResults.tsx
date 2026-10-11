@@ -1,12 +1,15 @@
 "use client";
 
 import React, { useRef } from "react";
-import { pretty, VERDICT_LABEL, type Effect, type Email, type Job, type Reads, type Scenario, type Step, type Usage } from "@/lib/demo-types";
+import { pretty, VERDICT_LABEL, type Effect, type Email, type Job, type Reads, type Scenario, type Step } from "@/lib/demo-types";
 import dashboard from "@/data/dashboard.json";
 import { duration, gsap, useGSAP } from "@/lib/motion";
 import { READ_ONLY, target } from "@/lib/pipeline";
-import { checkCalls, decisions, elapsed } from "@/lib/run-audit";
-import CostTable, { formatCost, MODEL_NAME, runUsage } from "./CostTable";
+import { CHECKPOINT_1 } from "@/lib/checkpoint";
+import { decisions } from "@/lib/run-audit";
+import CallTag from "./CallTag";
+import CheckStory from "./CheckStory";
+import CostTable, { runUsage } from "./CostTable";
 import LayerTrack from "./LayerTrack";
 import Markdown from "./Markdown";
 import Pipeline from "./Pipeline";
@@ -132,20 +135,6 @@ function group(steps: Step[], reads: Reads): Item[] {
   return items;
 }
 
-const num = (n: number) => n.toLocaleString("en-US");
-const WHO: Record<Usage["role"], string> = { agent: "Agent", judge: "Firewall judge", sandbox: "Firewall sandbox" };
-
-// What a step is, in one quiet line above it: an AI model call (who, which model, time, cost; tokens on hover) or a tool
-function CallTag({ usage, took, n }: { usage: Usage; took: number | null; n?: number }) {
-  return (
-    <span className={r.kind} title={`${num(usage.input_tokens)} tokens in · ${num(usage.output_tokens)} out`}>
-      <strong>AI model call{n !== undefined && ` ${n}`}</strong> · {WHO[usage.role] ?? usage.role} · {MODEL_NAME[usage.model] ?? usage.model}
-      {usage.calls > 1 && ` · ${usage.calls} calls`}{took !== null && ` · ${elapsed(took)}`}
-      {` · ${formatCost(usage.cost_usd, usage.pricing === "estimated")}`}
-    </span>
-  );
-}
-
 const ToolTag = ({ name, n }: { name?: string; n: number }) => <span className={r.kind}><strong>Tool call {n}</strong> · <span className={r.code}>{name}</span></span>;
 
 // An action's arguments one per line, so a long email body reads as text, not as an escaped string
@@ -189,6 +178,7 @@ function InboxEvent({ item, emails, protectedRun, custom, reads, noun, toolN }: 
   const flagged = item.checks.find((c) => c.verdict !== "allow");
   const dot = protectedRun ? verdictColour(flagged?.verdict ?? "allow") : "var(--ink-400)";
   const tool = reads === "inbox" ? "read_inbox" : reads === "document" ? "read_document" : null;
+  const what = reads === "inbox" ? "email" : noun; // what one row's check read
 
   return (
     <li data-event className={r.event} style={{ "--dot": dot } as React.CSSProperties}>
@@ -196,6 +186,7 @@ function InboxEvent({ item, emails, protectedRun, custom, reads, noun, toolN }: 
         ? <span className={r.kind}><strong>Prompt firewall</strong> · checkpoint 1{tool && toolN !== null && <> · then tool call {toolN} <span className={r.code}>{tool}</span></>}</span>
         : tool && toolN !== null && <ToolTag name={tool} n={toolN} />}
       <div>{head}</div>
+      {protectedRun && <div className="small muted">{CHECKPOINT_1} Each row shows what it did, step by step.</div>}
       <ul className={r.inboxRows}>
         {emails.map((e, i) => {
           const c = item.checks.find((x) => x.email_id === String(i + 1));
@@ -208,10 +199,13 @@ function InboxEvent({ item, emails, protectedRun, custom, reads, noun, toolN }: 
                   ? <strong style={{ color: verdictColour(c.verdict) }}>{VERDICT_LABEL[c.verdict ?? ""] ?? c.verdict}</strong>
                   : <span className="muted">waiting</span>
                 : <span className="muted">not checked</span>}
-              {c?.layers?.trace && <div className={r.rowDetail}><LayerTrack layers={c.layers} lane={c.lane} /></div>}
-              {c && checkCalls(c, reads, noun).map((m, k) => (
-                <div key={k} className={`${r.rowDetail} ${r.rowCall}`}><CallTag usage={m.usage} took={m.took} /><span>{m.purpose}</span></div>
-              ))}
+              {c?.layers?.trace && (
+                <div className={r.rowDetail}>
+                  <LayerTrack layers={c.layers} lane={c.lane} noun={what} ownMessage={reads === "request"} caption={false} />
+                  <CheckStory layers={c.layers} lane={c.lane} verdict={c.verdict} cuts={c.removed?.length ?? 0} noun={what}
+                    ocr={noun === "image"} ownMessage={reads === "request"} usage={Array.isArray(c.usage) ? c.usage : []} />
+                </div>
+              )}
               {c?.types && c.types.length > 0 && <span className={`${r.rowDetail} muted`}>Attack types the firewall named: {c.types.map(pretty).join(", ")}</span>}
               {c?.removed?.map((text, k) => <span key={k} data-wipe className={`${r.rowDetail} ${r.removedLine}`}>{text}</span>)}
               {c?.warnings && c.warnings.length > 0 && <span className={`${r.rowDetail} ${s.warn}`}>{c.warnings.join(" · ")}</span>}

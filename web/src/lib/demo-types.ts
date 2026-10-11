@@ -127,7 +127,7 @@ export const pretty = (s: string) => s.replace(/_/g, " ");
 export const emailText = (e: Email) => `From: ${e.from}\nSubject: ${e.subject}\n\n${e.body}`;
 
 export const VERDICT_LABEL: Record<string, string> = {
-  allow: "Allowed",
+  allow: "Already clean",
   sanitise: "Cleaned",
   quarantine: "Blocked",
   block: "Blocked",

@@ -80,13 +80,15 @@ function finished(key: string, e: StageEvent, all: StageEvent[]): Pick<Row, "val
   }
 }
 
-export function stageRows(events: StageEvent[]): Row[] {
+// `ownMessage`: the user's own message, which the firewall never gives the sandbox (a request is meant to hold instructions)
+export function stageRows(events: StageEvent[], ownMessage = false): Row[] {
   const last = (key: string) => [...events].reverse().find((e) => e.step === key);
   const triage = last("triage"), decide = last("decide"), recheck = last("recheck");
   let reached = false; // the first unfinished stage is the one running now
   return STAGES.map(([key, name]): Row => {
     const e = last(key);
     if (e && !(key === "recheck" && e.widened)) return { key, name, ...finished(key, e, events) };
+    if (key === "sandbox" && ownMessage) return { key, name, value: "not used on your own message", state: "skip" };
     if ((key === "judge" || key === "sandbox") && triage) {
       if (triage.lane === "clean") return { key, name, value: "not needed", state: "skip" };
       if (decide) return { key, name, value: "unavailable on this server", state: "off" };
@@ -117,7 +119,7 @@ function firewallItem(job: Job, emails: Email[], asked: boolean, read: boolean, 
   const current = String(checks.length + 1);
   const live = job.live?.email_id === current ? job.live.stages : [];
   const subject = emails[checks.length]?.subject || "(no subject)";
-  return { ...base, value: inbox ? `email ${current} of ${n}: ${subject}` : `checking the ${noun}`, state: "running", rows: stageRows(live), rowsKey: current };
+  return { ...base, value: inbox ? `email ${current} of ${n}: ${subject}` : `checking the ${noun}`, state: "running", rows: stageRows(live, reads === "request"), rowsKey: current };
 }
 
 function guardItem(job: Job, protectedRun: boolean, unsafe: (action: Step) => boolean): PipeItem {

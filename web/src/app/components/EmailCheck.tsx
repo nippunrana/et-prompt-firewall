@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
+import { CHECKPOINT_1, kindName } from "@/lib/checkpoint";
 import { pretty, VERDICT_LABEL, type Attack, type CheckResult } from "@/lib/demo-types";
+import CheckStory from "./CheckStory";
 import CostTable from "./CostTable";
 import LayerTrack from "./LayerTrack";
 import s from "./demo.module.css";
@@ -14,20 +16,8 @@ export interface CheckState {
   ms: number;
 }
 
-const SUMMARY: Record<CheckResult["verdict"], (n: number, noun: string) => string> = {
-  allow: (_, noun) => `Nothing to remove. The agent would read this ${noun} as written.`,
-  sanitise: (n) => `Removed ${n} part${n === 1 ? "" : "s"}. The agent reads the cleaned version below.`,
-  quarantine: (_, noun) => `Blocked. The ${noun} could not be cleaned safely, so the agent never sees it.`,
-};
-
-// Where a removed part was hidden from a person, in words
-const HIDDEN: Record<string, string> = {
-  html_comment: "an HTML comment", html_hidden: "a hidden page element", html_attribute: "image or meta text",
-  pdf_white_text: "white text", pdf_tiny_text: "tiny text", pdf_off_page_text: "text placed off the page",
-  docx_hidden_text: "text marked hidden", docx_white_text: "white text", docx_tiny_text: "tiny text",
-  docx_comment: "a reviewer comment",
-};
-const hiddenIn = (a: Attack) => (a.hidden_in ?? []).map((k) => HIDDEN[k] ?? pretty(k));
+// Where a removed part was hidden from a person, in words (the same names as checkpoint 1's story)
+const hiddenIn = (a: Attack) => (a.hidden_in ?? []).map((k) => kindName(k));
 
 // The checked text with every removed span marked, using the firewall's character offsets
 function highlight(text: string, attacks: Attack[]) {
@@ -66,7 +56,7 @@ export default function EmailCheck({ state, noun = "email" }: { state: CheckStat
         {types.map((t) => <span key={t} className="tag">{pretty(t)}</span>)}
         <span className={s.checkTime}>{(state.ms / 1000).toFixed(1)} s</span>
       </div>
-      <p className="small">{SUMMARY[r.verdict](r.attacks.length, noun)}</p>
+      <p className="small muted">{CHECKPOINT_1}</p>
       {r.attacks.some((a) => hiddenIn(a).length) && (
         <p className="small">
           <strong>Hidden from a person:</strong> {[...new Set(r.attacks.flatMap(hiddenIn))].join(", ")}. A reader would never
@@ -74,7 +64,9 @@ export default function EmailCheck({ state, noun = "email" }: { state: CheckStat
         </p>
       )}
       {r.warnings.length > 0 && <p className={s.warn}>{r.warnings.join(" · ")}</p>}
-      <LayerTrack layers={r} lane={r.lane} />
+      <LayerTrack layers={r} lane={r.lane} noun={noun} ownMessage={noun === "message"} caption={false} />
+      <CheckStory layers={r} lane={r.lane} verdict={r.verdict} cuts={r.attacks.length} noun={noun} ocr={noun === "image"}
+        ownMessage={noun === "message"} hypothetical usage={r.usage ?? []} open />
 
       {r.attacks.length > 0 && <pre className={s.textBlock}>{highlight(state.text, r.attacks)}</pre>}
 

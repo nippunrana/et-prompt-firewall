@@ -14,8 +14,11 @@ const pace = (ms: number) => Math.min(0.45, 0.1 + Math.log10(1 + ms) * 0.08);
 const decisive = (list: Station[]) =>
   list.find((s) => s.key === "judge" && (s.state === "flag" || s.state === "clear")) ?? list.find((s) => s.state === "flag") ?? null;
 
-export default function LayerTrack({ layers, lane }: { layers: Layers; lane: string | undefined }) {
-  const list = useMemo(() => stations(layers, lane), [layers, lane]);
+// `caption={false}` where the full checkpoint 1 story is shown beside it (CheckStory), which already says it all
+export default function LayerTrack({ layers, lane, noun = "email", ownMessage = false, caption = true }: {
+  layers: Layers; lane: string | undefined; noun?: string; ownMessage?: boolean; caption?: boolean;
+}) {
+  const list = useMemo(() => stations(layers, lane, noun, ownMessage), [layers, lane, noun, ownMessage]);
   const [pinned, setPinned] = useState<string | null>(() => decisive(list)?.key ?? null);
   const [hover, setHover] = useState<string | null>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -51,9 +54,9 @@ export default function LayerTrack({ layers, lane }: { layers: Layers; lane: str
           ))}
         </ol>
       </div>
-      <p className={t.caption} aria-live="polite">
+      {caption && <p className={t.caption} aria-live="polite">
         {shown ? <><strong>{shown.name}.</strong> {shown.detail}</> : <span className="muted">{lane === "clean" ? CLEAN_SUMMARY : "Point at a dot to see what that layer did."}</span>}
-      </p>
+      </p>}
     </div>
   );
 }

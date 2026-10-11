@@ -22,6 +22,7 @@ import operator
 import os
 import time
 import uuid
+from collections import Counter
 from dataclasses import dataclass
 from typing import Annotated, Callable, Iterator, TypedDict
 
@@ -194,8 +195,13 @@ def _prepare(state: _State) -> dict:
     started = time.perf_counter()
     base, hidden = formats.split(state["content"], state.get("fmt"), state.get("hidden"))
     prepared = prepare(state["content"], state["source"], base, hidden)
+    # What the front end found before any detector ran, so a reader can be told what applied to this input:
+    # the format, each kind of hidden or encoded part, and how many hidden ranges a file's extraction marked
+    kinds = dict(Counter(layer.kind for layer in prepared.layers))
+    marked = None if state.get("hidden") is None else len(state["hidden"])
     return {"prepared": prepared, "warnings": list(prepared.warnings),
-            "trace": _entry("prepare", started, units=len(prepared.units), layers=len(prepared.layers))}
+            "trace": _entry("prepare", started, units=len(prepared.units), layers=len(prepared.layers),
+                            fmt=state.get("fmt") or "text", kinds=kinds, marked=marked)}
 
 
 def _rules(state: _State) -> dict:
