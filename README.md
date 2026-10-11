@@ -37,29 +37,29 @@ Measured on held-out data the firewall was never tuned on. Details, per-item IDs
 
 | Measure | Result |
 | :--- | :--- |
-| Public held-out attacks caught (LLMail-Inject, boundary pairs) | **104 / 120 (87%)** |
+| Public held-out attacks caught (LLMail-Inject, boundary pairs) | **115 / 120 (96%)** |
 | Real email wrongly flagged (Enron, LLMail benign) | **0 / 140 (0%)** |
-| Attacker's address still reaching the AI after cleaning (LLMail) | 21 / 90 (23%) |
-| Injected PDFs caught (CrackedPDFs) → benign originals / look-alikes flagged | **50 / 50** → 0 / 50 · 11 / 50 |
-| LLMail attacks hidden in HTML / Word files we generated → benign twins flagged | 26 / 30 · 25 / 30 → 0 / 60 |
-| Attack emails that made the unprotected agent send data out → with the tool-call guard | **8 → 0** (of 33) |
+| Attacker's address still reaching the AI after cleaning (LLMail) | 5 / 90 (6%) |
+| Injected PDFs caught (CrackedPDFs) → benign originals / look-alikes flagged | **49 / 50** → 0 / 50 · 11 / 50 |
+| LLMail attacks hidden in HTML / Word files we generated → benign twins flagged | 30 / 30 · 29 / 30 → 0 / 60 |
+| Attack emails that made the unprotected agent send data out → with the tool-call guard | **12 → 0** (of 33) |
 | Legitimate send, forward and pay requests completed with full protection | 8 / 8 |
 
 Per attack type (held-out; *ours* = sets we wrote for types public data barely covers, reported apart):
 
 | Type | Caught | Type named |
 | :--- | :--- | :--- |
-| Instruction override | 9/9 | 9/9 |
-| Role change | 15/18 | 4/18 |
-| Secret extraction | 3/5 · ours 5/5 | 3/5 · ours 3/5 |
-| Tool abuse | 78/90 | 73/90 |
-| Credential theft | ours 6/6 | ours 3/6 |
-| Context poisoning | 14/14 | 2/14 |
+| Instruction override | 9/9 | 8/9 |
+| Role change | 16/18 | 4/18 |
+| Secret extraction | 5/5 · ours 5/5 | 4/5 · ours 3/5 |
+| Tool abuse | 89/90 | 88/90 |
+| Credential theft | ours 6/6 | ours 4/6 |
+| Context poisoning | 13/14 | 3/14 |
 | Multi-step jailbreak | ours 6/6 | ours 1/6 |
-| Encoded instructions | 7/7 · ours 5/5 | 5/7 · ours 2/5 |
-| Indirect injection | 82/95 · ours 22/22 | 80/95 · ours 22/22 |
+| Encoded instructions | 7/7 · ours 5/5 | 4/7 · ours 4/5 |
+| Indirect injection | 93/95 · ours 22/22 | 93/95 · ours 22/22 |
 
-"Caught" means the attack was removed or the content withheld; the type is sometimes named differently (a fake approval is often named instruction override rather than context poisoning). Without the LLM layers, the local detectors alone wrongly flag 36% of real email (432 of 1,203; [v6.md](eval/results/v6.md)): the judge is what makes the firewall usable on ordinary mail. A check takes a median of 13.2 s on a laptop with the LLM layers on (a file, 23.8 s).
+"Caught" means the attack was removed or the content withheld; the type is sometimes named differently (a fake approval is often named instruction override rather than context poisoning). Without the LLM layers, the local detectors alone wrongly flag 36% of real email (432 of 1,203; [v6.md](eval/results/v6.md)): the judge is what makes the firewall usable on ordinary mail. A check takes a median of 10.4 s on a laptop with the LLM layers on (a file, 17.6 s).
 
 ## Run it locally
 

@@ -1,5 +1,5 @@
 {
- "commit": "491654f0c93f42afb3238ec4752815e151a9c2b9",
+ "commit": "7be73ca741756a82b09d8d8d74034d3e5fd8067d",
  "files": 270,
  "errors": 0,
  "sets": [
@@ -8,10 +8,10 @@
    "label": "HTML: LLMail attacks hidden in our carrier pages",
    "attack": true,
    "n": 30,
-   "flagged": 26,
-   "located": 26,
+   "flagged": 30,
+   "located": 30,
    "payload_n": 30,
-   "payload_gone": 26
+   "payload_gone": 30
   },
   {
    "set": "html_benign",
@@ -28,10 +28,10 @@
    "label": "Word: LLMail attacks hidden in our carrier files",
    "attack": true,
    "n": 30,
-   "flagged": 25,
-   "located": 25,
+   "flagged": 29,
+   "located": 29,
    "payload_n": 30,
-   "payload_gone": 25
+   "payload_gone": 29
   },
   {
    "set": "docx_benign",
@@ -48,8 +48,8 @@
    "label": "PDF (CrackedPDFs): injected",
    "attack": true,
    "n": 50,
-   "flagged": 50,
-   "located": 46,
+   "flagged": 49,
+   "located": 45,
    "payload_n": 0,
    "payload_gone": 0
   },
@@ -74,6 +74,6 @@
    "payload_gone": 0
   }
  ],
- "median_s": 23.8,
- "judge_failed": 0
+ "median_s": 17.6,
+ "judge_failed": 1
 }

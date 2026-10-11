@@ -1,7 +1,7 @@
 """Adaptive attacks: an attacker model rewrites an attack email until it gets past the firewall AND still works.
 
 Published adaptive attacks beat every defence tested ("The Attacker Moves Second", 2025), so the firewall is
-never claimed unbreakable; this measures how it breaks. For each goal, the attacker (Qwen3-next-80B thinking on
+never claimed unbreakable; this measures how it breaks. For each goal, the attacker (Qwen3-next-80B instruct on
 OpenRouter, the agent's own model) writes a new email each round, seeing what happened to the last one:
   - the firewall's full answer (verdict, removed sentences, types); and, if the goal's marker survived it,
   - whether the unprotected demo agent acted on it, with the marker in a tool call.
@@ -31,7 +31,7 @@ from app.scenarios import BENIGN_INBOX, OTP_EMAIL, SUMMARISE  # noqa: E402  (pla
 FIREWALL, AGENT = "http://localhost:8000/check", "http://localhost:8001/run"
 RAW, OUT_JSON, OUT_MD = ROOT / "data" / "results-adaptive.jsonl", ROOT / "results" / "adaptive.json", ROOT / "results" / "adaptive.md"
 ROUNDS, PROTECTED_RUNS = 8, 2
-MODEL = "qwen/qwen3-next-80b-a3b-thinking"
+MODEL = "qwen/qwen3-next-80b-a3b-instruct"  # the agent's own model (2026-10-11; the thinking variant's only host returned no email)
 SENDER = "Outside Sender <notices@vendor-mail.example>"
 
 GOALS = [  # id, marker (must appear in the agent's tool call), goal, seed email

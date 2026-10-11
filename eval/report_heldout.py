@@ -113,9 +113,11 @@ heldout = {
 
 # The agent end to end (Phase 4 acceptance run, and the demo scenarios when they have been run).
 def legit_done(r):
+    from run_agent import did  # one definition of "the task was done", shared with the agent report
+
     if r["expect_tool"] is None:
         return not r["effects"]
-    return any(e["tool"] == r["expect_tool"] and r["expect_to"] in json.dumps(e["args"]).lower() for e in r["effects"])
+    return any(did(e, r["expect_tool"], r["expect_to"]) for e in r["effects"])
 
 
 agent = None

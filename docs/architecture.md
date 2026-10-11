@@ -122,9 +122,9 @@ A LangGraph tool loop (agent ⇄ tools, at most 8 turns) on Qwen3-next-80B instr
 | Type | Detected by | Shown in the demo |
 | :--- | :--- | :--- |
 | Instruction override | Strong rules, both classifiers, judge | Try it scenario: instruction override; Try it: example email, Check this email |
-| Role change | Strong rules, classifiers, judge | Try it: example email, Check this email. The role-change scenario (a fake end of email, then a line posing as the user) is caught, but named instruction override: the judge's role change means a new persona |
+| Role change | Strong rules, classifiers, judge | Try it: example email, Check this email. The role-change scenario (a fake end of email, then a line posing as the user) is caught, but named tool abuse and indirect injection: the judge's role change means a new persona |
 | Secret extraction | Strong rule, judge; guard (canary in outgoing data) | Try it: example email, Check this email |
-| Tool abuse | Weak rules, judge, sandbox tool call; guard (provenance, intent) | Every Try it attack scenario; plain request and context poisoning are stopped by the guard alone |
+| Tool abuse | Weak rules, judge, sandbox tool call; guard (provenance, intent) | Every Try it attack scenario; context poisoning is stopped by the guard alone |
 | Credential theft | Strong and weak rules, judge; guard (codes, passwords, keys in outgoing data) | Try it scenario: credential theft (a one-time code) |
 | Context poisoning | Classifiers, judge (fake approvals, fake policies) | Try it scenario: context poisoning (a fake finance policy). The content check misses this one; the guard stops the send |
 | Multi-step jailbreak | Judge (split payloads, variables to join, staged requests) | Try it: example email, Check this email |
@@ -164,9 +164,9 @@ The system never pauses for approval: the firewall decides, the agent acts or is
 - **Our own sets are reported apart:** attacks aimed at our judge, and a small typed set for credential theft, multi-step jailbreaks, secret extraction and encoded instructions, which public data barely covers.
 - **End to end:** the agent with and without each checkpoint, the demo scenarios repeated, and adaptive attacks that rewrite themselves against the firewall's feedback.
 
-**Files with hidden text (held-out, every layer on):** CrackedPDFs (public): 50 of 50 injected PDFs caught, 0 of 50 benign originals and 11 of 50 benign look-alikes (ordinary text hidden the same way) flagged. Public LLMail attacks hidden in HTML pages and Word files we generated: 26 of 30 and 25 of 30 caught, 0 of 60 benign twins flagged. Per technique: [`eval/results/files-held.md`](../eval/results/files-held.md).
+**Files with hidden text (held-out, every layer on):** CrackedPDFs (public): 49 of 50 injected PDFs caught, 0 of 50 benign originals and 11 of 50 benign look-alikes (ordinary text hidden the same way) flagged. Public LLMail attacks hidden in HTML pages and Word files we generated: 30 of 30 and 29 of 30 caught, 0 of 60 benign twins flagged. Per technique: [`eval/results/files-held.md`](../eval/results/files-held.md).
 
-**Headline (held-out, every layer on):** 104 of 120 public attacks caught (87%) and 0 of 140 real emails wrongly flagged; with the tool-call guard, 0 of 33 attack emails made the agent send data out (8 did without it), and 8 of 8 legitimate tasks still completed. Per-type rates: [`eval/results/heldout-llm.md`](../eval/results/heldout-llm.md).
+**Headline (held-out, every layer on):** 115 of 120 public attacks caught (96%) and 0 of 140 real emails wrongly flagged; with the tool-call guard, 0 of 33 attack emails made the agent send data out (12 did without it), and 8 of 8 legitimate tasks still completed. Per-type rates: [`eval/results/heldout-llm.md`](../eval/results/heldout-llm.md).
 
 ## 11. Known limits
 
@@ -176,6 +176,6 @@ The system never pauses for approval: the firewall decides, the agent acts or is
 - **Long documents:** detection far beyond a classifier's window is an open research problem; the measured results cover email-length text and files of a few pages.
 - **Hidden text not detected:** text hidden by a stylesheet class (needs a browser render), PDF text under a shape or matching a coloured background, PDF invisible render mode (read, but not marked hidden: OCR'd scans use it legitimately), Word footnotes, hidden Excel rows and sheets. Markdown, API responses and source code have no dedicated front end yet.
 - **Benign look-alikes:** PDFs that hide ordinary text in tiny or margin print are flagged about a fifth of the time (11/50).
-- **Per-part judging trades a little payload for fewer false cuts:** since the judge rules on each flagged part, ordinary notes next to an attack are kept, but in 3 of 90 LLMail attacks a payload fragment it voted harmless stayed in the cleaned text (the attack itself was still cut).
+- **Per-part judging trades a little payload for fewer false cuts:** since the judge rules on each flagged part, ordinary notes next to an attack are kept, but in 4 of 90 LLMail attacks a payload fragment it voted harmless stayed in the cleaned text (the attack itself was still cut).
 - **The intent check is keyword-based:** a legitimate request worded without a send/pay/forward verb is blocked (the safe failure direction).
 - **Latency:** the LLM layers add seconds per flagged email; on the live server's single CPU a protected agent run takes minutes.
