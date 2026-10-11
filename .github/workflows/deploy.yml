@@ -94,6 +94,10 @@ jobs:
           SSH_KEY: ${{ secrets.SSH_KEY }}
           SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
         run: |
+          if [ -z "$SSH_KEY" ]; then
+            echo "::error::SSH_KEY secret is not set" >&2
+            exit 1
+          fi
           install -d -m 700 ~/.ssh
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
@@ -111,11 +115,22 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
-          if [ -z "$SSH_USER" ] || [ "$SSH_USER" = "root" ] || [ -z "$DEPLOY_PATH" ]; then
-            echo "::error::SSH_USER must be set and must not be root; DEPLOY_PATH must be set" >&2
+          if [ -z "$SSH_HOST" ] || [ -z "$SSH_USER" ] || [ "$SSH_USER" = "root" ] || [ -z "$DEPLOY_PATH" ]; then
+            echo "::error::SSH_HOST, SSH_USER (non-root), and DEPLOY_PATH must all be set in secrets" >&2
             exit 1
           fi
-          printf '%s\n' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
-            "cd '$DEPLOY_PATH' \
-              && git fetch origin main && git reset --hard ${{ github.sha }} \
-              && bash scripts/deploy.sh ${{ github.sha }} ${{ github.actor }}"
+
+          PORT="${SSH_PORT:-22}"
+          REMOTE_CMD="cd '$DEPLOY_PATH' && git fetch origin main && git reset --hard ${{ github.sha }} && bash scripts/deploy.sh ${{ github.sha }} ${{ github.actor }}"
+
+          for attempt in 1 2 3; do
+            echo "==> SSH connection attempt $attempt/3..."
+            if printf '%s\n' "$GHCR_TOKEN" | ssh -4 -i ~/.ssh/deploy_key -p "$PORT" \
+              -o BatchMode=yes -o ConnectTimeout=30 "$SSH_USER@$SSH_HOST" "$REMOTE_CMD"; then
+              exit 0
+            fi
+            echo "SSH attempt $attempt failed; retrying in 5 seconds..."
+            sleep 5
+          done
+          echo "::error::Failed to connect to VPS via SSH after 3 attempts" >&2
+          exit 255
