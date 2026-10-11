@@ -127,7 +127,7 @@ export default function ContentCheck({ type, first }: { type: InputType; first: 
           {type.form === "file" ? (
             <div className={s.chips}>
               <input type="file" className="field" accept={type.accept} disabled={state.loading}
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) checkFile(f, f.name); }} />
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) { setFile({ blob: f, name: f.name }); setState(IDLE); } }} />
               {type.example && (
                 <button className="btn btn--ghost" disabled={state.loading} onClick={() => checkExampleFile(type.example!)}>
                   Check the example {type.noun}
@@ -138,6 +138,9 @@ export default function ContentCheck({ type, first }: { type: InputType; first: 
                 <input className="field" value={request} maxLength={MAX_REQUEST} onChange={(e) => setRequest(e.target.value)} />
               </label>
               {runControls}
+              <button className="btn btn--ghost" onClick={() => file && checkFile(file.blob, file.name)} disabled={state.loading || !file}>
+                Only check this {type.noun}
+              </button>
               <details style={{ marginTop: "var(--space-6)", flexBasis: "100%" }}>
                 <summary>Only extract the text from a file, without checking it</summary>
                 <DocumentExtractor />
