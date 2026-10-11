@@ -194,49 +194,43 @@ const parse = (args: unknown): Record<string, unknown> => {
   }
 };
 
+// What an agent turn decided, in plain words: one entry per tool call it made ("list the latest 3 invoices")
+export const decisions = (st: Step, noun: string) => (st.tool_calls ?? []).map((c) => intent(c.name, parse(c.args), noun));
+
 export interface ModelCall {
   usage: Usage; // who, which model, how many calls, tokens and cost
   purpose: string;
   took: number | null; // ms
 }
 
-// Every model call in a lane, in the order they happened: the agent's own turns, and the firewall judge's and
-// sandbox's calls inside each check. The guard and the detectors make no model calls.
-export function modelCalls(run: RunRecord, lane: Lane): ModelCall[] {
-  const out: ModelCall[] = [];
-  let prev = 0;
-  for (const st of run.jobs[lane]?.steps ?? []) {
-    const took = st.at_ms !== undefined ? st.at_ms - prev : null;
-    if (st.at_ms !== undefined) prev = st.at_ms;
-    if (st.step === "model" && st.usage && !Array.isArray(st.usage)) {
-      const asks = (st.tool_calls ?? []).map((c) => intent(c.name, parse(c.args), run.noun));
-      out.push({ usage: st.usage, took, purpose: asks.length ? `Decided to ${asks.join(", then ")}.` : "Wrote the reply to you." });
+// The model calls inside one firewall check: the judge and the sandbox, which run side by side, with what each
+// concluded. The detectors and the action guard make no model calls.
+export function checkCalls(st: Step, reads: RunRecord["reads"], noun: string): ModelCall[] {
+  if (st.step !== "firewall" || !Array.isArray(st.usage)) return [];
+  const what = reads === "inbox" ? `email ${st.email_id}` : reads === "request" ? "your message" : `the ${noun}`;
+  const flagged = reads === "inbox" ? `the flagged email ${st.email_id}` : reads === "request" ? "your flagged message" : `the flagged ${noun}`;
+  const ms = (step: string) => st.layers?.trace.filter((t) => t.step === step).reduce((sum, t) => sum + t.ms, 0) ?? null;
+  const both = st.usage.some((u) => u.role === "judge") && st.usage.some((u) => u.role === "sandbox");
+  return st.usage.flatMap((u): ModelCall[] => {
+    if (u.role === "judge") {
+      const j = st.layers?.judge;
+      const purpose = !j ? `Read ${flagged}.`
+        : !j.ok ? `Was asked to read ${flagged}, but did not answer (${j.error ?? "no reason given"}).`
+        : j.took_over ? `Read ${flagged} and was steered by it: it gave the wrong check code, which blocks the content on its own.`
+        : j.is_attack ? `Read ${flagged} and named it an attack${j.types.length ? `: ${j.types.map(pretty).join(", ")}` : ""}.`
+        : `Read ${flagged} and found it safe.`;
+      return [{ usage: u, took: ms("judge"), purpose }];
     }
-    if (st.step !== "firewall" || !Array.isArray(st.usage)) continue;
-    const what = run.reads === "inbox" ? `email ${st.email_id}` : run.reads === "request" ? "your message" : `the ${run.noun}`;
-    const flagged = run.reads === "inbox" ? `the flagged email ${st.email_id}` : run.reads === "request" ? "your flagged message" : `the flagged ${run.noun}`;
-    const ms = (step: string) => st.layers?.trace.filter((t) => t.step === step).reduce((sum, t) => sum + t.ms, 0) ?? null;
-    for (const u of st.usage) {
-      if (u.role === "judge") {
-        const j = st.layers?.judge;
-        const purpose = !j ? `Read ${flagged}.`
-          : !j.ok ? `Was asked to read ${flagged}, but did not answer (${j.error ?? "no reason given"}).`
-          : j.took_over ? `Read ${flagged} and was steered by it: it gave the wrong check code, which blocks the content on its own.`
-          : j.is_attack ? `Read ${flagged} and named it an attack${j.types.length ? `: ${j.types.map(pretty).join(", ")}` : ""}.`
-          : `Read ${flagged} and found it safe.`;
-        out.push({ usage: u, took: ms("judge"), purpose });
-      } else if (u.role === "sandbox") {
-        const sb = st.layers?.sandbox;
-        const tried = (sb?.calls ?? []).filter((c) => !READ_ONLY.has(c.name)).map((c) => intent(c.name, c.args, run.noun));
-        const purpose = !sb ? `Read ${what} as a stand-in agent with fake tools.`
-          : !sb.ok ? `Was asked to read ${what} with fake tools, but did not answer (${sb.error ?? "no reason given"}).`
-          : sb.acted ? `Read ${what} as a stand-in agent with fake tools and tried to ${tried.join(", then ") || "use a tool"}. Nothing ran: that counts as an attack vote.`
-          : `Read ${what} as a stand-in agent with fake tools and did nothing beyond reading.`;
-        // The firewall runs the judge and the sandbox side by side, so a numbered list must not read as one after the other
-        const alongside = st.usage.some((x) => x.role === "judge") ? " It ran at the same time as the judge." : "";
-        out.push({ usage: u, took: ms("sandbox"), purpose: purpose + alongside });
-      }
+    if (u.role === "sandbox") {
+      const sb = st.layers?.sandbox;
+      const tried = (sb?.calls ?? []).filter((c) => !READ_ONLY.has(c.name)).map((c) => intent(c.name, c.args, noun));
+      const purpose = !sb ? `Read ${what} as a stand-in agent with fake tools.`
+        : !sb.ok ? `Was asked to read ${what} with fake tools, but did not answer (${sb.error ?? "no reason given"}).`
+        : sb.acted ? `Read ${what} as a stand-in agent with fake tools and tried to ${tried.join(", then ") || "use a tool"}. Nothing ran: that counts as an attack vote.`
+        : `Read ${what} as a stand-in agent with fake tools and did nothing beyond reading.`;
+      // Side by side with the judge, so a list must not read as one after the other
+      return [{ usage: u, took: ms("sandbox"), purpose: purpose + (both ? " It ran at the same time as the judge." : "") }];
     }
-  }
-  return out;
+    return [];
+  });
 }

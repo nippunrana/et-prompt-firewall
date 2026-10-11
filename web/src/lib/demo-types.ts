@@ -63,6 +63,7 @@ export interface Step {
   name?: string;
   args?: Record<string, string>;
   guard?: { decision: string; reason: string; types: string[] } | null;
+  result?: unknown; // what the tool gave back to the agent
 }
 
 export interface Effect {

@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useRef } from "react";
-import { pretty, VERDICT_LABEL, type Effect, type Email, type Job, type Reads, type Scenario, type Step } from "@/lib/demo-types";
+import { pretty, VERDICT_LABEL, type Effect, type Email, type Job, type Reads, type Scenario, type Step, type Usage } from "@/lib/demo-types";
 import dashboard from "@/data/dashboard.json";
 import { duration, gsap, useGSAP } from "@/lib/motion";
 import { READ_ONLY, target } from "@/lib/pipeline";
-import CostTable, { runUsage } from "./CostTable";
+import { checkCalls, decisions, elapsed } from "@/lib/run-audit";
+import CostTable, { formatCost, MODEL_NAME, runUsage } from "./CostTable";
 import LayerTrack from "./LayerTrack";
 import Markdown from "./Markdown";
 import Pipeline from "./Pipeline";
@@ -131,6 +132,43 @@ function group(steps: Step[], reads: Reads): Item[] {
   return items;
 }
 
+const num = (n: number) => n.toLocaleString("en-US");
+const WHO: Record<Usage["role"], string> = { agent: "Agent", judge: "Firewall judge", sandbox: "Firewall sandbox" };
+
+// What a step is, in one quiet line above it: an AI model call (who, which model, time, cost; tokens on hover) or a tool
+function CallTag({ usage, took }: { usage: Usage; took: number | null }) {
+  return (
+    <span className={r.kind} title={`${num(usage.input_tokens)} tokens in · ${num(usage.output_tokens)} out`}>
+      <strong>AI model call</strong> · {WHO[usage.role] ?? usage.role} · {MODEL_NAME[usage.model] ?? usage.model}
+      {usage.calls > 1 && ` · ${usage.calls} calls`}{took !== null && ` · ${elapsed(took)}`}
+      {` · ${formatCost(usage.cost_usd, usage.pricing === "estimated")}`}
+    </span>
+  );
+}
+
+const ToolTag = ({ name }: { name?: string }) => <span className={r.kind}><strong>Tool</strong> · <span className={r.code}>{name}</span></span>;
+
+// An action's arguments one per line, so a long email body reads as text, not as an escaped string
+function Args({ args, struck }: { args?: Record<string, string>; struck?: boolean }) {
+  const entries = Object.entries(args ?? {});
+  if (!entries.length) return null;
+  return (
+    <dl className={r.args}>
+      {entries.map(([k, v]) => <div key={k}><dt>{k}</dt><dd className={struck ? r.struck : undefined}>{String(v)}</dd></div>)}
+    </dl>
+  );
+}
+
+function Returned({ result }: { result: unknown }) {
+  if (result === undefined) return null;
+  return (
+    <details className={s.disclosure}>
+      <summary>What it gave back to the agent</summary>
+      <pre className={r.returned}>{JSON.stringify(result, null, 2)}</pre>
+    </details>
+  );
+}
+
 function InboxEvent({ item, emails, protectedRun, custom, reads, noun }: { item: InboxItem; emails: Email[]; protectedRun: boolean; custom: boolean; reads: Reads; noun: string }) {
   const n = emails.length;
   const counts: Record<string, number> = {};
@@ -148,10 +186,14 @@ function InboxEvent({ item, emails, protectedRun, custom, reads, noun }: { item:
           : `Firewall checking the inbox: ${item.checks.length} of ${n} checked`;
   const flagged = item.checks.find((c) => c.verdict !== "allow");
   const dot = protectedRun ? verdictColour(flagged?.verdict ?? "allow") : "var(--ink-400)";
+  const tool = reads === "inbox" ? "read_inbox" : reads === "document" ? "read_document" : null;
 
   return (
     <li data-event className={r.event} style={{ "--dot": dot } as React.CSSProperties}>
-      {head}
+      {protectedRun
+        ? <span className={r.kind}><strong>Prompt firewall</strong> · checkpoint 1{tool && item.read && <> · then tool <span className={r.code}>{tool}</span></>}</span>
+        : tool && <ToolTag name={tool} />}
+      <div>{head}</div>
       <ul className={r.inboxRows}>
         {emails.map((e, i) => {
           const c = item.checks.find((x) => x.email_id === String(i + 1));
@@ -165,7 +207,10 @@ function InboxEvent({ item, emails, protectedRun, custom, reads, noun }: { item:
                   : <span className="muted">waiting</span>
                 : <span className="muted">not checked</span>}
               {c?.layers?.trace && <div className={r.rowDetail}><LayerTrack layers={c.layers} lane={c.lane} /></div>}
-              {c?.types && c.types.length > 0 && <span className={`${r.rowDetail} muted`}>{c.types.map(pretty).join(", ")}</span>}
+              {c && checkCalls(c, reads, noun).map((m, k) => (
+                <div key={k} className={`${r.rowDetail} ${r.rowCall}`}><CallTag usage={m.usage} took={m.took} /><span>{m.purpose}</span></div>
+              ))}
+              {c?.types && c.types.length > 0 && <span className={`${r.rowDetail} muted`}>Attack types the firewall named: {c.types.map(pretty).join(", ")}</span>}
               {c?.removed?.map((text, k) => <span key={k} data-wipe className={`${r.rowDetail} ${r.removedLine}`}>{text}</span>)}
               {c?.warnings && c.warnings.length > 0 && <span className={`${r.rowDetail} ${s.warn}`}>{c.warnings.join(" · ")}</span>}
               {!protectedRun && !custom && e.attack && (
@@ -179,11 +224,15 @@ function InboxEvent({ item, emails, protectedRun, custom, reads, noun }: { item:
   );
 }
 
-function Event({ step, protectedRun, unsafe }: { step: Step; protectedRun: boolean; unsafe: (action: Step) => string | null }) {
+function Event({ step, protectedRun, unsafe, noun, took }: {
+  step: Step; protectedRun: boolean; unsafe: (action: Step) => string | null; noun: string; took: number | null;
+}) {
   if (step.step === "model") {
+    const asks = decisions(step, noun);
     return (
       <li data-event className={r.event}>
-        Agent {step.tool_calls?.length ? <>decides to call <span className={r.code}>{step.tool_calls.map((c) => c.name).join(", ")}</span></> : "writes its answer"}
+        {step.usage && !Array.isArray(step.usage) && <CallTag usage={step.usage} took={took} />}
+        <div>Agent {asks.length ? <>decides to {asks.join(", then ")}</> : "writes the reply to you"}</div>
         {step.reasoning && (
           <details className={s.disclosure}>
             <summary>Its reasoning</summary>
@@ -193,33 +242,43 @@ function Event({ step, protectedRun, unsafe }: { step: Step; protectedRun: boole
       </li>
     );
   }
-  if (READ_ONLY.has(step.name ?? "")) return <li data-event className={`${r.event} muted`}>Reads: {pretty(step.name ?? "")}</li>;
+  if (READ_ONLY.has(step.name ?? "")) {
+    return (
+      <li data-event className={r.event}>
+        <ToolTag name={step.name} />
+        <div className="muted">Ran: it only reads, so it is always allowed</div>
+        <Returned result={step.result} />
+      </li>
+    );
+  }
 
   const blocked = step.guard?.decision === "block";
-  const call = `${step.name}(${Object.entries(step.args ?? {}).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(", ")})`;
   const why = !protectedRun ? unsafe(step) : null;
   // The moments the demo is about: an action the guard blocked, and an unsafe one that ran unchecked
   if (blocked || why) {
     return (
       <li data-event className={r.event} style={{ "--dot": "var(--block)" } as React.CSSProperties}>
+        <ToolTag name={step.name} />
         <div data-stamp className={r.alertBox}>
           <span className={r.alertHead}>
             <StatusIcon kind={blocked ? "blocked" : "unsafe"} />
             {blocked ? "Blocked by the action guard" : "Ran unchecked"}
           </span>
-          <span className={`${r.code} ${blocked ? r.struck : ""}`}>{call}</span>
+          <Args args={step.args} struck={blocked} />
           <div className={r.eventDetail}>
             {blocked ? <>{step.guard?.reason}{step.guard?.types.length ? ` · ${step.guard.types.map(pretty).join(", ")}` : ""}. It never ran.</> : why}
           </div>
         </div>
+        <Returned result={step.result} />
       </li>
     );
   }
   return (
-    <li data-event className={r.event} style={{ "--dot": blocked ? "var(--allow)" : "var(--ink-900)" } as React.CSSProperties}>
-      <strong>Ran</strong>{" "}
-      <span className={r.code}>{call}</span>
-      {protectedRun && step.guard && <div className={r.eventDetail}>Guard allowed it: {step.guard.reason}</div>}
+    <li data-event className={r.event} style={{ "--dot": "var(--ink-900)" } as React.CSSProperties}>
+      <ToolTag name={step.name} />
+      <div><strong>Ran</strong>{protectedRun && step.guard && <span className="muted">: the action guard allowed it ({step.guard.reason})</span>}</div>
+      <Args args={step.args} />
+      <Returned result={step.result} />
     </li>
   );
 }
@@ -285,6 +344,9 @@ export default function RunResults({ jobs, seconds, scenario, custom, emails, re
         const protectedRun = m.key === "protected";
         const o = job.status === "done" ? outcome(job, scenario, custom, protectedRun, protectedRun ? undefined : jobs.protected) : null;
         const items = group(job.steps, reads);
+        // How long each step took: from the end of the step before it (the demo agent stamps when each one finished)
+        const took = new Map<Step, number>();
+        job.steps.reduce((prev, st) => { if (st.at_ms === undefined) return prev; took.set(st, st.at_ms - prev); return st.at_ms; }, 0);
         const readInbox = items.some((it) => it.kind === "inbox" && it.read);
         return (
           <section key={m.key} data-lane className={`card ${r.lane}`} aria-live="polite">
@@ -309,7 +371,7 @@ export default function RunResults({ jobs, seconds, scenario, custom, emails, re
               <ol className={r.timeline}>
                 {items.map((it, i) => it.kind === "inbox"
                   ? <InboxEvent key={i} item={it} emails={emails} protectedRun={protectedRun} custom={custom} reads={reads} noun={noun} />
-                  : <Event key={i} step={it.step} protectedRun={protectedRun} unsafe={unsafe} />)}
+                  : <Event key={i} step={it.step} protectedRun={protectedRun} unsafe={unsafe} noun={noun} took={took.get(it.step) ?? null} />)}
               </ol>
             )}
 
