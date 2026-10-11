@@ -113,8 +113,11 @@ export default function AgentDemo({ first = 1, active = true }: { first?: number
   }
 
   function start() {
-    setRanAs({ scenario: selected, custom, emails: emails.map(({ key, added, ...e }) => e) });
-    startRuns({ user_request: userRequest, emails: emails.map((e) => ({ from: e.from, subject: e.subject, body: e.body })) });
+    const inbox = emails.map(({ key, added, ...e }) => e);
+    setRanAs({ scenario: selected, custom, emails: inbox });
+    startRuns({ user_request: userRequest, emails: emails.map((e) => ({ from: e.from, subject: e.subject, body: e.body })) },
+      { title: selected && !custom ? selected.title : "Your own inbox", reads: "inbox", noun: "email", request: userRequest,
+        scenario: selected, custom, emails: inbox });
   }
 
   if (loadError) return <div className={s.error}>The demo agent is unavailable: {loadError}</div>;

@@ -73,13 +73,17 @@ export default function ContentCheck({ type, first }: { type: InputType; first: 
     await checkFile(await response.blob(), name);
   }
 
+  // What the audit log keeps to show the run again: the same props the drawer's RunResults gets below
+  const meta = (name: string, asked: string) => ({ title: name, reads: isMessage ? "request" as const : "document" as const,
+    noun: isMessage ? "message" : type.noun, request: asked, scenario: null, custom: true, emails: [{ from: "", subject: name, body: "" }] });
+
   // Both agents get the same input. A file's text is extracted once, with its hidden ranges, so the protected
   // agent's check reads it exactly as "Check this file" does.
   async function runBoth() {
     setRunError(null);
     if (isMessage) {
       setRanAs("Your message");
-      return runs.start({ user_request: text, check_request: true });
+      return runs.start({ user_request: text, check_request: true }, meta("Your message", text));
     }
     let document: Record<string, unknown> = { text, source: type.source, format: type.format };
     if (type.form === "file" && file) {
@@ -98,8 +102,9 @@ export default function ContentCheck({ type, first }: { type: InputType; first: 
         setPreparing(false);
       }
     }
-    setRanAs(type.form === "file" && file ? file.name : `Your ${type.noun}`);
-    return runs.start({ user_request: request, document });
+    const name = type.form === "file" && file ? file.name : `Your ${type.noun}`;
+    setRanAs(name);
+    return runs.start({ user_request: request, document }, meta(name, request));
   }
 
   const tooLong = isMessage && text.length > MAX_REQUEST;

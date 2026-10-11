@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BASE_PATH } from "@/lib/base-path";
 import type { Job } from "@/lib/demo-types";
+import { beginRun, recordable, saveRun, type RunMeta } from "@/lib/run-history";
 import { MODES, type ModeKey } from "./RunResults";
 
 // Two copies of the same agent on the same input, one with the firewall and one without, started together and
 // polled until both finish. Shared by the inbox and every other input type. Closing the drawer never stops a run.
+// Each run is recorded in this browser (lib/run-history.ts) as it starts and as each lane ends, for the audit log.
 export function useAgentRuns() {
   const [jobs, setJobs] = useState<Partial<Record<ModeKey, Job>>>({});
   const [seconds, setSeconds] = useState<Partial<Record<ModeKey, number>>>({});
@@ -22,8 +24,9 @@ export function useAgentRuns() {
     setSeconds({});
   }
 
-  // `request` is the body of POST /runs without the two switches, which each copy sets for itself
-  async function start(request: Record<string, unknown>) {
+  // `request` is the body of POST /runs without the two switches, which each copy sets for itself;
+  // `meta` is what the audit log needs to show the run again
+  async function start(request: Record<string, unknown>, meta: RunMeta) {
     timers.current.forEach(clearInterval);
     timers.current = [];
     setJobs(Object.fromEntries(MODES.map((m) => [m.key, { status: "running", steps: [], result: null, error: null }])));
@@ -31,6 +34,7 @@ export function useAgentRuns() {
     setDrawerOpen(true);
 
     const began = Date.now();
+    const record = beginRun(meta);
     const open = new Set<ModeKey>(MODES.map((m) => m.key));
     const tick = () => {
       const now = Math.round((Date.now() - began) / 1000);
@@ -38,14 +42,22 @@ export function useAgentRuns() {
     };
     const clock = setInterval(tick, 1000);
     timers.current.push(clock);
-    const finish = (key: ModeKey) => {
+    const finish = (key: ModeKey, job: Job) => {
       tick();
       open.delete(key);
       if (open.size === 0) clearInterval(clock);
+      record.jobs[key] = recordable(job);
+      record.seconds[key] = Math.round((Date.now() - began) / 1000);
+      if (open.size === 0) record.finished = new Date().toISOString();
+      saveRun(record);
     };
 
     await Promise.all(MODES.map(async (m) => {
-      const fail = (error: string) => { setJobs((j) => ({ ...j, [m.key]: { status: "error", steps: [], result: null, error } })); finish(m.key); };
+      const fail = (error: string) => {
+        const job: Job = { status: "error", steps: [], result: null, error };
+        setJobs((j) => ({ ...j, [m.key]: job }));
+        finish(m.key, job);
+      };
       try {
         const response = await fetch(`${BASE_PATH}/api/runs`, {
           method: "POST",
@@ -59,7 +71,7 @@ export function useAgentRuns() {
             const job: Job & { error?: string } = await (await fetch(`${BASE_PATH}/api/runs/${data.id}`)).json();
             if (!job.status) { clearInterval(poll); return fail(job.error || "Run lost"); }
             setJobs((j) => ({ ...j, [m.key]: job }));
-            if (job.status !== "running") { clearInterval(poll); finish(m.key); }
+            if (job.status !== "running") { clearInterval(poll); finish(m.key, job); }
           } catch { /* a missed poll is retried on the next tick */ }
         }, 1500);
         timers.current.push(poll);

@@ -4,6 +4,7 @@ It can also read one shared document, or take a pasted message as its request, f
 import asyncio
 import secrets
 import threading
+import time
 from collections import OrderedDict
 from typing import Literal
 
@@ -85,7 +86,9 @@ def start_run(request: RunRequest) -> dict:
     settings = _settings(request)
     job_id = secrets.token_hex(8)
     job = {"status": "running", "steps": [], "result": None, "error": None, "live": None}
-    settings.on_step = job["steps"].append
+    began = time.monotonic()
+    # Each step carries when it finished (ms after the run began), for the audit log's timeline
+    settings.on_step = lambda step: job["steps"].append({**step, "at_ms": round((time.monotonic() - began) * 1000)})
 
     def on_check(email_id: str, stage: dict) -> None:
         # The firewall stages finished so far for the email being checked. Replaced whole, never edited in

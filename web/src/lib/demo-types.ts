@@ -45,6 +45,7 @@ export interface Usage {
 
 export interface Step {
   step: "firewall" | "model" | "tool";
+  at_ms?: number; // when the step finished, in ms after the run began
   // firewall
   email_id?: string;
   verdict?: string;

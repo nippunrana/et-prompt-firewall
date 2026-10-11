@@ -97,6 +97,15 @@ export function outcome(job: Job, scenario: Scenario | null, custom: boolean, pr
     : { tone: "bad", title: "Task not completed" };
 }
 
+// An action that ran unchecked is called unsafe only on evidence: the protected run stopped it, or it carries the
+// scenario's attacker address.
+export function unsafeReason(jobs: Partial<Record<ModeKey, Job>>, scenario: Scenario | null, custom: boolean) {
+  const why = stoppedBy(jobs.protected);
+  const marker = !custom ? scenario?.marker?.toLowerCase() : undefined;
+  return (st: Step) => why(st.name, st.args)
+    ?? (marker && JSON.stringify(st.args ?? {}).toLowerCase().includes(marker) ? "It goes to the attacker's address." : null);
+}
+
 const verdictColour = (v?: string) => (v === "allow" ? "var(--allow)" : v === "sanitise" ? "var(--sanitise)" : "var(--block)");
 
 // The firewall's per-email checks and the agent's read of the inbox, shown as one block, so both lanes
@@ -266,12 +275,7 @@ export default function RunResults({ jobs, seconds, scenario, custom, emails, re
     });
   }, { dependencies: [jobs], scope: root });
 
-  // An action that ran unchecked is called unsafe only on evidence: the protected run stopped it, or it carries the
-  // scenario's attacker address.
-  const why = stoppedBy(jobs.protected);
-  const marker = !custom ? scenario?.marker?.toLowerCase() : undefined;
-  const unsafe = (st: Step) => why(st.name, st.args)
-    ?? (marker && JSON.stringify(st.args ?? {}).toLowerCase().includes(marker) ? "It goes to the attacker's address." : null);
+  const unsafe = unsafeReason(jobs, scenario, custom);
 
   return (
     <div ref={root} className={s.results}>

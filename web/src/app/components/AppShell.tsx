@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Logo from "./Logo";
 import s from "./shell.module.css";
 
@@ -17,6 +17,13 @@ export const HOME_EVENT = "et-home";
 export default function AppShell({ views, status, repo }: { views: View[]; status: [string, string][]; repo: string }) {
   const [active, setActive] = useState(0);
   const down = status.filter(([, state]) => state !== "ok").map(([name]) => name);
+
+  // Other views can send the visitor home too (the empty audit log does)
+  useEffect(() => {
+    const home = () => { setActive(0); window.scrollTo({ top: 0 }); };
+    window.addEventListener(HOME_EVENT, home);
+    return () => window.removeEventListener(HOME_EVENT, home);
+  }, []);
 
   return (
     <>
