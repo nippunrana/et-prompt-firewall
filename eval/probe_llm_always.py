@@ -2,7 +2,9 @@
 judge and the sandbox forced on (llm_always), to see whether running the LLM layers on everything would catch them.
 EVAL_PROBE=misses (default) takes the missed attacks; EVAL_PROBE=benign takes the benign items that went through the
 clean lane (Enron, boundary-pair twins, LLMail benign, typed twins, CrackedPDFs originals), to measure the false alarms
-it adds. Benign items outside the clean lane already had both LLM layers, so forcing them on changes nothing there.
+it adds; EVAL_PROBE=benign-rest takes the other benign sets (HTML and Word twins, CrackedPDFs look-alikes, benign
+images and Enron screenshots). Benign items outside the clean lane already had both LLM layers, so forcing them on
+changes nothing there.
 
 From the repo root:
   set -a; . ./.env; set +a
@@ -22,11 +24,16 @@ DATA = run.DATA
 PROBE = os.environ.get("EVAL_PROBE", "misses")
 
 
+REST = {"html_benign", "docx_benign", "cpdf_benign_confounder", "image_benign", "image_enron"}
+
+
 def MISSED(r: dict) -> bool:
     if r.get("lane") != "clean":
         return False
     if PROBE == "benign":
-        return r["label"] == 0 and r.get("set", "") not in {"html_benign", "docx_benign", "cpdf_benign_confounder", "image_benign", "image_enron"}
+        return r["label"] == 0 and r.get("set", "") not in REST
+    if PROBE == "benign-rest":
+        return r["label"] == 0 and r.get("set", "") in REST
     return r["label"] == 1 and r.get("verdict") not in ("sanitise", "quarantine")
 
 
@@ -36,27 +43,30 @@ def _items() -> list[dict]:
     for line in open(DATA / "results-heldout-llm.jsonl"):
         r = json.loads(line)
         item = texts[r["id"]]
-        if MISSED({**r, "label": item["label"]}):
+        if PROBE != "benign-rest" and MISSED({**r, "label": item["label"]}):
             items.append({"id": r["id"], "set": item["set"], "kind": "text", "text": item["text"], "source": r["source"]})
-    files = (("results-files-held.jsonl", "files.jsonl"),) + ((("results-images-held.jsonl", "images.jsonl"),) if PROBE == "misses" else ())
+    files = (("results-files-held.jsonl", "files.jsonl"),) + ((("results-images-held.jsonl", "images.jsonl"),) if PROBE != "benign" else ())
     for results, manifest in files:
         paths = {json.loads(line)["id"]: json.loads(line)["path"] for line in open(DATA / manifest)}
         for line in open(DATA / results):
             r = json.loads(line)
-            if MISSED(r) and r["format"] != "html":
-                items.append({"id": r["id"], "set": r["set"], "kind": r["format"], "path": paths[r["id"]], "source": "document"})
+            if MISSED(r) and (r["format"] != "html" or PROBE == "benign-rest"):
+                items.append({"id": r["id"], "set": r["set"], "kind": r["format"], "path": paths[r["id"]],
+                              "source": "web" if r["format"] == "html" else "document"})
     return items
 
 
 def _check(item: dict) -> dict:
     from app.check import run_check
     from app.ocr import _sync_process_document
-    text, hidden = item.get("text"), None
-    if item["kind"] != "text":
+    text, hidden, fmt = item.get("text"), None, None
+    if item["kind"] == "html":
+        text, fmt = (DATA / "files" / item["path"]).read_bytes().decode("utf-8", errors="replace"), "html"
+    elif item["kind"] != "text":
         out = _sync_process_document((DATA / "files" / item["path"]).read_bytes(), item["path"])
         text, hidden = out["text"], [(h["kind"], h["start"], h["end"]) for h in out.get("hidden", [])]
     result = run_check(text, item["source"], run._classifiers, judge=run._judge, sandbox=run._sandbox,
-                       hidden=hidden, llm_always=True)
+                       fmt=fmt, hidden=hidden, llm_always=True)
     judge, sandbox = result.get("judge") or {}, result.get("sandbox") or {}
     return {"id": item["id"], "set": item["set"], "kind": item["kind"], "verdict": result["verdict"],
             "types": sorted({t for a in result.get("attacks", []) for t in a.get("types", [])}),

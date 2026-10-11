@@ -24,7 +24,21 @@ Every catch came from the judge (it called the item an attack and quoted it); th
 | CrackedPDFs benign originals | 0/50 | 0/50 | 12, none flagged |
 | Typed-set benign twins (ours) | 0/8 | 0/8 | 5, none flagged |
 | Boundary-pair benign twins (requests to an AI written to look like attacks) | 8/40 | **14/40** | 23, 6 flagged |
+| HTML pages with ordinary hidden content | 0/30 | 0/30 | 29, none flagged |
+| Word files with ordinary hidden content | 0/30 | 0/30 | 28, none flagged |
+| Enron emails as screenshots | 2/30 | 2/30 | 9, none flagged |
+| CrackedPDFs benign look-alikes (ordinary text hidden the way attacks hide) | 11/50 | 12/50 | 9, 1 flagged |
+| Boundary-pair benign twins as screenshots | 13/40 | **22/40** | 22, 9 flagged |
 
-Not re-run in this mode: the HTML and Word benign twins, CrackedPDFs benign look-alikes, and benign images.
+## Overall
 
-**Trade-off.** On these sets, running the LLM layers on everything caught every public attack the detectors missed, with no extra false alarms on real or ordinary email; the cost is more flags on harmless requests written to look like attacks, and the judge's and sandbox's time and calls on every item instead of flagged ones only. The default stays `flagged`; `always` suits agents whose inbox or files hold enough value to pay for it.
+| | Default (`flagged`) | `always` |
+| :--- | :--- | :--- |
+| All held-out attacks (292) | 276 (94.5%) | **283 (96.9%)** |
+| Ordinary benign content: email, PDFs, HTML, Word, screenshots of email (288) | 3 (1.0%) | **3 (1.0%)** |
+| Benign look-alikes built to resemble attacks (130) | 32 (24.6%) | 48 (36.9%) |
+| All benign (418) | 35 (8.4%) | 51 (12.2%) |
+
+Every benign item was re-run if it went through the clean lane (224 of 418); the rest already had both LLM layers.
+
+**Trade-off.** Running the LLM layers on everything caught every public attack the detectors missed and 7 more attacks overall, with no extra false alarms on ordinary content (email, PDFs, web pages, Word files); the cost is more flags on harmless content built to look like attacks (24.6% → 36.9%), and the judge's and sandbox's time and calls on every item instead of flagged ones only. The default stays `flagged`; `always` suits agents whose inbox or files hold enough value to pay for it.

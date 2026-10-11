@@ -53,7 +53,7 @@ By file type (attacks caught · harmless files flagged):
 | :--- | :--- | :--- | :--- |
 | 49/50 · 0/50 | 30/30 · 0/30 | 29/30 · 0/30 | 21/30 · 13/40 |
 
-With the AI models reading everything (`"llm": "always"`): public attacks caught **80 of 80**, real work emails wrongly flagged still **1 of 100**, look-alike requests flagged 14 of 40 ([details](eval/results/llm-always.md)).
+With the AI models reading everything (`"llm": "always"`): public attacks caught **80 of 80** (all attacks: 283 of 292, up from 276). Ordinary email, PDFs, web pages and Word files: still 3 of 288 wrongly flagged. Harmless text built to look like attacks: 48 of 130 flagged, up from 32 ([details](eval/results/llm-always.md)).
 
 HTML and Word tests hide public attacks that one of the models (Wolf Defender) learned from. Image tests are screenshots we made from public test text.
 
