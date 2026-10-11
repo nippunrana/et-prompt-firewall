@@ -365,8 +365,16 @@ export default function RunResults({ jobs, seconds, scenario, custom, emails, re
               </div>
             )}
             {job.status === "error" && <div className={s.error}>The run failed: {job.error}</div>}
-            <Pipeline job={job} emails={emails} protectedRun={protectedRun} reads={reads} noun={noun} unsafe={(st) => unsafe(st) !== null} />
+            {/* Two levels, labelled so they are never read as one: the run in five rows, then every step in detail */}
+            <section className={r.overview} aria-label="Overview">
+              <span className={r.overviewLabel}>Overview</span>
+              <Pipeline job={job} emails={emails} protectedRun={protectedRun} reads={reads} noun={noun} unsafe={(st) => unsafe(st) !== null} />
+            </section>
 
+            {job.steps.length > 0 && <div>
+              <span className="label">Detailed overview</span>
+              <p className="small muted">Every step in order: each AI model call, each tool call{protectedRun ? " and each firewall check" : ""}.</p>
+            </div>}
             {job.steps.length > 0 && (
               <ol className={r.timeline}>
                 {numbered.map(({ it, n }, i) => it.kind === "inbox"
