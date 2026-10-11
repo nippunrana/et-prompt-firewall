@@ -19,9 +19,11 @@ import urllib.request
 from dataclasses import dataclass, field
 
 from app import usage
+from app.deadline import call_with_deadline
 
 MODEL = os.environ.get("JUDGE_MODEL", "gemma-4-31b-it")
-TIMEOUT = 45  # seconds; a typical call takes about 5 (a few hung for minutes in testing)
+TIMEOUT = 45  # seconds per socket read; a typical call takes about 5 (a few hung for minutes in testing)
+DEADLINE = 60  # seconds for the whole judge step, retry included (measured: median 7, slowest 53; app/deadline.py)
 MIN_QUOTE = 8  # shorter quotes match too much innocent text to cut on
 _TAG = re.compile(r"<[^<>]{0,400}>")
 
@@ -187,6 +189,13 @@ class GemmaJudge:
         return text, usage.from_gemini("judge", MODEL, data)
 
     def __call__(self, content: str, source: str | None, user_task: str, flagged: list[str]) -> JudgeResult:
+        """The verdict, or a judge failure if none came within DEADLINE (then flags are cut: fail closed)."""
+        try:
+            return call_with_deadline(self._judge, DEADLINE, content, source, user_task, flagged)
+        except TimeoutError as e:
+            return JudgeResult(ok=False, error=str(e))
+
+    def _judge(self, content: str, source: str | None, user_task: str, flagged: list[str]) -> JudgeResult:
         code = secrets.token_hex(3)
         prompt = build_prompt(content, source, user_task, flagged, code)
         error = None

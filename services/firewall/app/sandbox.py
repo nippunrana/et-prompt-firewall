@@ -19,9 +19,11 @@ import urllib.request
 from dataclasses import dataclass, field
 
 from app import usage
+from app.deadline import call_with_deadline
 
 MODEL = os.environ.get("SANDBOX_MODEL", "qwen/qwen3-next-80b-a3b-instruct")
-TIMEOUT = 60  # seconds per model call
+TIMEOUT = 60  # seconds per socket read
+DEADLINE = 30  # seconds for every turn together (measured: median 2, slowest 8; app/deadline.py)
 MAX_TURNS = 3  # a hijacked model often lists the invoices first and sends them on the next turn
 
 ADDRESS = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+|https?://[^\s\"'<>)]+")
@@ -140,9 +142,11 @@ class QwenSandbox:
             {"role": "tool", "tool_call_id": "call_read", "content": json.dumps(_fake_result(read, content))},
         ]
         result = SandboxResult(ok=True)
+        ends = time.monotonic() + DEADLINE
         try:
             for _ in range(MAX_TURNS):
-                msg = self._chat_retry(messages)
+                # Past the deadline this raises, and the except below keeps any tool call already made
+                msg = call_with_deadline(self._chat_retry, max(0.0, ends - time.monotonic()), messages)
                 result.usage.append(msg.pop("usage"))
                 result.reasoning += (msg.get("reasoning") or "") + "\n"
                 result.reply = msg.get("content") or result.reply
