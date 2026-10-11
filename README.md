@@ -53,9 +53,19 @@ By file type (attacks caught · harmless files flagged):
 | :--- | :--- | :--- | :--- |
 | 49/50 · 0/50 | 30/30 · 0/30 | 29/30 · 0/30 | 21/30 · 13/40 |
 
-With the AI models reading everything (`"llm": "always"`): public attacks caught **80 of 80** (all attacks: 283 of 292, up from 276). Ordinary email, PDFs, web pages and Word files: still 3 of 288 wrongly flagged. Harmless text built to look like attacks: 48 of 130 flagged, up from 32 ([details](eval/results/llm-always.md)).
-
 HTML and Word tests hide public attacks that one of the models (Wolf Defender) learned from. Image tests are screenshots we made from public test text.
+
+**Two modes.** By default the AI models read only flagged text. Switch them to read everything (`"llm": "always"`, or **AI checks on → Everything** in the demo) when the agent handles valuable mail or files:
+
+| | Flagged text (default) | Everything |
+| :--- | :--- | :--- |
+| All attacks caught (292) | 276 (94.5%) | **283 (96.9%)** |
+| Public attacks caught (80) | 75 | **80** |
+| Ordinary email, PDFs, web pages, Word files wrongly flagged (288) | 3 (1%) | **3 (1%)** |
+| Harmless text built to look like attacks, wrongly flagged (130) | 32 (25%) | 48 (37%) |
+| Speed and cost | AI calls only on flagged text | Two AI calls and a few seconds on every input |
+
+Details: [eval/results/llm-always.md](eval/results/llm-always.md).
 
 **Hackathon grid: F3 × D2.** F3: all 9 attack types are caught (7 needed). D2: reliability is measured on text. Files work and are measured too, but images score below text, so we do not claim D3. Proof for each attack type: [architecture §12](docs/architecture.md#12-grid-position-self-declared-f3--d2). Every number and how we got it: [eval/results](eval/results/README.md).
 
